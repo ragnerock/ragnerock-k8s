@@ -1,0 +1,36 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-migrations
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+    {{- include "ragnerock.selectorLabels" (dict "context" . "component" "migrations") | nindent 4 }}
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "-5"
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        {{- include "ragnerock.selectorLabels" (dict "context" . "component" "migrations") | nindent 8 }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      restartPolicy: Never
+      containers:
+        - name: migrations
+          image: {{ include "ragnerock.image" (dict "global" .Values.global "image" .Values.migrations.image) }}
+          imagePullPolicy: {{ .Values.global.image.pullPolicy }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-db
+            - secretRef:
+                name: {{ include "ragnerock.fullname" . }}-db
+          {{- with .Values.migrations.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}

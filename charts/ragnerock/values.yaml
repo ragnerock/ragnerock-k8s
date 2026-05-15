@@ -1,0 +1,207 @@
+global:
+  # -- Global container image configuration
+  image:
+    registry: us-central1-docker.pkg.dev/ragnerock-prod/ragnerock 
+    pullPolicy: IfNotPresent
+    tag: "latest"
+  # -- Secrets use to authenticate with the container registry, list of `- name: <name of the secret>` values
+  imagePullSecrets: []
+
+# -- Database configuration
+database:
+  host: ""
+  port: 5432
+  name: ragnerock
+  user: ragnerock
+  password: ""
+  poolSize: 20
+  maxOverflow: 40
+  poolTimeout: 10
+
+# -- LLM authentication configuration
+llm:
+  geminiApiKey: ""
+  mistralApiKey: ""
+
+encryption:
+  # -- Key Encryption Key (KEK), generate with python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'
+  kek: ""
+
+# -- General app configuration
+config:
+  environmentIdentifier: ragnerock
+  logLevel: INFO
+
+ragnerock:
+  # -- Should Ragnerock treat all prompts as unsafe
+  safetyEnabled: true
+
+# -- Otel metrics/traces/logs export
+otel:
+  enabled: false
+  exporterEndpoint: ""
+  exporterInsecure: false
+  exporterProtocol: "http/protobuf"
+  authHeader: ""
+
+# -- Cloudtask configuration for use with in-cluster emulator
+cloudTasks:
+  jobQueueName: "ragnerock-document-jobs"
+  subtaskQueueName: "ragnerock-subtask-jobs"
+  maxDispatchesPerSecond: 500
+  maxConcurrentDispatches: 500
+  queuePoolSize: 100
+  emulator:
+    port: 8123
+
+auth:
+  # -- Generate with `openssl rand -hex 22`
+  secretKey: ""
+  # -- Generate with `openssl rand -hex 22`
+  accessKey: ""
+  accessTokenExpireMinutes: 10080
+  accessCodeExpireMinutes: 10080
+  lockoutMaxAttempts: 10
+
+cloudflare:
+  apiToken: ""
+  accountId: ""
+
+rateLimits:
+  windowMinutes: 1
+  requestsPerMinute: 600
+  chatCreatePerMinute: 600
+  documentChunkCreatePerMinute: 600
+  frontendEventsPerMinute: 600
+  authLoginPerMinute: 15
+  authRegisterPerMinute: 15
+  authGooglePerMinute: 15
+  authRequestCodePerMinute: 5
+  authValidateCodePerMinute: 15
+  authChangePasswordPerMinute: 5
+  agentPerMinute: 20
+  notebookCodeFeedbackPerMinute: 40
+  documentUploadPerMinute: 60
+  searchPerMinute: 60
+  ingestTriggerPerMinute: 20
+  toolsPerMinute: 60
+  annotationPerMinute: 120
+  debugPerMinute: 20
+  workflowTestConditionPerMinute: 120
+  configValidatePerMinute: 20
+  adminMutationPerMinute: 40
+  iamMutationPerMinute: 60
+
+model:
+  geminiModelName: "gemini-3-flash-preview"
+  httpTimeoutSeconds: 180
+
+api:
+  replicaCount: 1
+  image:
+    name: api
+    tag: ""
+  service:
+    type: ClusterIP
+    port: 8080
+  # -- Deployment resoruce contraints (i.e. requests/limits)
+  resources: {}
+  fqdn: ""
+
+worker:
+  replicaCount: 1
+  image:
+    name: worker
+    tag: ""
+  service:
+    type: ClusterIP
+    port: 8080
+  # -- Deployment resoruce contraints (i.e. requests/limits)
+  resources: {}
+
+subtaskWorker:
+  replicaCount: 1
+  image:
+    name: worker
+    tag: ""
+  service:
+    type: ClusterIP
+    port: 8080
+  # -- Deployment resoruce contraints (i.e. requests/limits)
+  resources: {}
+
+modelService:
+  replicaCount: 1
+  image:
+    name: model-service
+    tag: ""
+  service:
+    type: ClusterIP
+    port: 8080
+  # -- Deployment resoruce contraints (i.e. requests/limits)
+  resources: {}
+
+frontend:
+  replicaCount: 1
+  image:
+    name: frontend
+    tag: ""
+  service:
+    type: ClusterIP
+    port: 3000
+  fqdn: ""
+  # -- Deployment resoruce contraints (i.e. requests/limits)
+  resources: {}
+
+analysisToolkit:
+  replicaCount: 1
+  image:
+    name: analysis-toolkit
+    # -- Overwrites global value if set
+    tag: ""
+  service:
+    type: ClusterIP
+    port: 8080
+  # -- Deployment resoruce contraints (i.e. requests/limits)
+  resources: {}
+
+dataIngestor:
+  replicaCount: 1
+  image:
+    name: data-ingestor
+    tag: ""
+  service:
+    type: ClusterIP
+    port: 8080
+  # -- Deployment resoruce contraints (i.e. requests/limits)
+  resources: {}
+
+migrations:
+  image:
+    name: migrations
+    tag: ""
+  # -- Deployment resoruce contraints (i.e. requests/limits)
+  resources: {}
+
+limits:
+  concurrency:
+    maxConcurrentSubtasks: 50
+    maxConcurrentAnnotations: 10
+    maxConcurrentJobs: 5
+    maxConcurrentTasks: 10
+  usage:
+    maxInputTokens: "1000000"
+    maxOutputTokens: "1000000"
+    maxPages: "2000"
+    maxComputeSeconds: "86400"
+  batches:
+    embedding: 100
+    annotation: 50
+    tabularAnnotation: 200
+    defaultRow: 50
+  subtask:
+    maxAttempts: 3
+    failureThreshold: 0.05
+
+# -- Ragnerock provided license key
+license: ""

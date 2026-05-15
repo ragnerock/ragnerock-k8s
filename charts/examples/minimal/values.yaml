@@ -1,0 +1,40 @@
+global:
+  # -- Global container image configuration
+  image:
+    registry: us-central1-docker.pkg.dev/ragnerock-testing/ragnerock 
+
+database:
+  host: pgvector
+  user: ragnerock
+  name: ragnerock
+  password: password
+
+encryption:
+  kek: "NGk5S1pvfkRVWfjMbGbcze8YqVNUuM86NvmeIhWR21Q="
+
+auth:
+  secretKey: "your-secret-key-for-jwt-tokens"
+  accessKey: "your-secret-key-for-access-codes"
+
+config:
+  environmentIdentifier: minimal
+
+llm:
+  geminiApiKey: ""
+  mistralApiKey: ""
+
+api:
+  service:
+    type: LoadBalancer
+  fqdn: "http://localhost:8080"
+
+frontend:
+  service:
+    type: LoadBalancer
+  fqdn: "http://localhost:3000"
+
+cloudflare:
+  apiToken: ""
+  accountId: ""
+
+license: ""
