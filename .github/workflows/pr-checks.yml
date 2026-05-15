@@ -6,7 +6,7 @@ on:
     paths:
       - 'charts/**'
       - 'scripts/**'
-      - '.github/workflows/ci.yml'
+      - '.github/workflows/pr-checks.yml'
 
 permissions:
   contents: read
