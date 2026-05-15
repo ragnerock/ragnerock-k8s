@@ -1,0 +1,218 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-config
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  ENVIRONMENT_IDENTIFIER: {{ .Values.config.environmentIdentifier }}
+  LOG_LEVEL: {{ .Values.config.logLevel }}
+  RAGNEROCK_SAFETY_ENABLED: "{{ .Values.ragnerock.safetyEnabled }}"
+  MODEL_HTTP_TIMEOUT_SECONDS: "{{ .Values.model.httpTimeoutSeconds }}"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-usage
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  USAGE_MAX_INPUT_TOKENS: "{{ .Values.limits.usage.maxInputTokens }}"
+  USAGE_MAX_OUTPUT_TOKENS: "{{ .Values.limits.usage.maxOutputTokens }}"
+  USAGE_MAX_PAGES: "{{ .Values.limits.usage.maxPages }}"
+  USAGE_MAX_COMPUTE_SECONDS: "{{ .Values.limits.usage.maxComputeSeconds }}"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-api-tokens
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  ACCESS_TOKEN_EXPIRE_MINUTES: "{{ .Values.auth.accessTokenExpireMinutes }}"
+  ACCESS_CODE_EXPIRE_MINUTES: "{{ .Values.auth.accessCodeExpireMinutes }}"
+  AUTH_LOCKOUT_MAX_ATTEMPTS: "{{ .Values.auth.lockoutMaxAttempts }}"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-api
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  API_SELF_URL: "http://{{ include "ragnerock.fullname" . }}-api:8080"
+  DB_POOL_SIZE: "{{ .Values.database.poolSize }}"
+  DB_MAX_OVERFLOW: "{{ .Values.database.maxOverflow }}"
+  DB_POOL_TIMEOUT: "{{ .Values.database.poolTimeout }}"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-rate-limits
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  RATE_LIMIT_WINDOW_MINUTES: "{{ .Values.rateLimits.windowMinutes }}"
+  RATE_LIMIT_REQUESTS_PER_MINUTE: "{{ .Values.rateLimits.requestsPerMinute }}"
+  RATE_LIMIT_CHAT_CREATE_PER_MINUTE: "{{ .Values.rateLimits.chatCreatePerMinute }}"
+  RATE_LIMIT_DOCUMENT_CHUNK_CREATE_PER_MINUTE: "{{ .Values.rateLimits.documentChunkCreatePerMinute }}"
+  RATE_LIMIT_FRONTEND_EVENTS_PER_MINUTE: "{{ .Values.rateLimits.frontendEventsPerMinute }}"
+  RATE_LIMIT_AUTH_LOGIN_PER_MINUTE: "{{ .Values.rateLimits.authLoginPerMinute }}"
+  RATE_LIMIT_AUTH_REGISTER_PER_MINUTE: "{{ .Values.rateLimits.authRegisterPerMinute }}"
+  RATE_LIMIT_AUTH_GOOGLE_PER_MINUTE: "{{ .Values.rateLimits.authGooglePerMinute }}"
+  RATE_LIMIT_AUTH_REQUEST_CODE_PER_MINUTE: "{{ .Values.rateLimits.authRequestCodePerMinute }}"
+  RATE_LIMIT_AUTH_VALIDATE_CODE_PER_MINUTE: "{{ .Values.rateLimits.authValidateCodePerMinute }}"
+  RATE_LIMIT_AUTH_CHANGE_PASSWORD_PER_MINUTE: "{{ .Values.rateLimits.authChangePasswordPerMinute }}"
+  RATE_LIMIT_AGENT_PER_MINUTE: "{{ .Values.rateLimits.agentPerMinute }}"
+  RATE_LIMIT_NOTEBOOK_CODE_FEEDBACK_PER_MINUTE: "{{ .Values.rateLimits.notebookCodeFeedbackPerMinute }}"
+  RATE_LIMIT_DOCUMENT_UPLOAD_PER_MINUTE: "{{ .Values.rateLimits.documentUploadPerMinute }}"
+  RATE_LIMIT_SEARCH_PER_MINUTE: "{{ .Values.rateLimits.searchPerMinute }}"
+  RATE_LIMIT_INGEST_TRIGGER_PER_MINUTE: "{{ .Values.rateLimits.ingestTriggerPerMinute }}"
+  RATE_LIMIT_TOOLS_PER_MINUTE: "{{ .Values.rateLimits.toolsPerMinute }}"
+  RATE_LIMIT_ANNOTATION_PER_MINUTE: "{{ .Values.rateLimits.annotationPerMinute }}"
+  RATE_LIMIT_DEBUG_PER_MINUTE: "{{ .Values.rateLimits.debugPerMinute }}"
+  RATE_LIMIT_WORKFLOW_TEST_CONDITION_PER_MINUTE: "{{ .Values.rateLimits.workflowTestConditionPerMinute }}"
+  RATE_LIMIT_CONFIG_VALIDATE_PER_MINUTE: "{{ .Values.rateLimits.configValidatePerMinute }}"
+  RATE_LIMIT_ADMIN_MUTATION_PER_MINUTE: "{{ .Values.rateLimits.adminMutationPerMinute }}"
+  RATE_LIMIT_IAM_MUTATION_PER_MINUTE: "{{ .Values.rateLimits.iamMutationPerMinute }}"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-analysis-toolkit
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  DATA_INGESTOR_URL: http://{{ include "ragnerock.fullname" . }}-analysis-toolkit:{{ .Values.analysisToolkit.service.port }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-data-ingestor
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  DATA_INGESTOR_URL: http://{{ include "ragnerock.fullname" . }}-data-ingestor:{{ .Values.dataIngestor.service.port }}
+  CALLBACK_ALLOWED_HOSTS: "ragnerock-api:8080"
+  CALLBACK_HTTP_ALLOWED: "true"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-db
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  DB_HOST: {{ .Values.database.host }}
+  DB_PORT: "{{ .Values.database.port }}"
+  DB_NAME: {{ .Values.database.name }}
+  DB_USER: {{ .Values.database.user }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-otel
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  OTEL_ENABLED: "{{ .Values.otel.enabled }}"
+  OTEL_SDK_DISABLED: {{ eq (.Values.otel.enabled | toString) "true" | not | toString | quote }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.otel.exporterEndpoint }}
+  OTEL_EXPORTER_OTLP_INSECURE: "{{ .Values.otel.exporterInsecure }}"
+  OTEL_EXPORTER_OTLP_PROTOCOL: {{ .Values.otel.exporterProtocol }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-frontend
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  NODE_ENV: production
+  NEXT_PUBLIC_API_URL: {{ .Values.api.fqdn }}
+  FRONTEND_ORIGIN: {{ .Values.frontend.fqdn }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-worker
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  WORKER_URL: http://{{ include "ragnerock.fullname" . }}-worker:{{ .Values.worker.service.port }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-subtask-worker
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  SUBTASK_WORKER_URL: http://{{ include "ragnerock.fullname" . }}-subtask-worker:{{ .Values.subtaskWorker.service.port }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-model-service
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  MODEL_URL: http://{{ include "ragnerock.fullname" . }}-model-service:{{ .Values.modelService.service.port }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-model
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  GEMINI_MODEL_NAME: {{ .Values.model.geminiModelName | quote }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-cloud-tasks
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  CLOUD_TASKS_ENABLED: "true"
+  CLOUD_TASKS_JOB_QUEUE_NAME: {{ .Values.cloudTasks.jobQueueName }}
+  CLOUD_TASKS_SUBTASK_QUEUE_NAME: {{ .Values.cloudTasks.subtaskQueueName }}
+  CLOUD_TASKS_MAX_DISPATCHES_PER_SECOND: "{{ .Values.cloudTasks.maxDispatchesPerSecond }}"
+  CLOUD_TASKS_MAX_CONCURRENT_DISPATCHES: "{{ .Values.cloudTasks.maxConcurrentDispatches }}"
+  QUEUE_POOL_SIZE: "{{ .Values.cloudTasks.queuePoolSize }}"
+  CLOUD_TASKS_ENDPOINT: {{ include "ragnerock.fullname" . }}-queue:{{ .Values.cloudTasks.emulator.port }}
+  CLOUD_TASKS_PROJECT_ID: local
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-limits
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  MAX_CONCURRENT_SUBTASKS: "{{ .Values.limits.concurrency.maxConcurrentSubtasks }}"
+  MAX_CONCURRENT_ANNOTATIONS: "{{ .Values.limits.concurrency.maxConcurrentAnnotations }}"
+  MAX_CONCURRENT_JOBS: "{{ .Values.limits.concurrency.maxConcurrentJobs }}"
+  MAX_CONCURRENT_TASKS: "{{ .Values.limits.concurrency.maxConcurrentTasks }}"
+  EMBEDDING_BATCH_SIZE: "{{ .Values.limits.batches.embedding }}"
+  ANNOTATION_BATCH_SIZE: "{{ .Values.limits.batches.annotation }}"
+  TABULAR_ANNOTATION_BATCH_SIZE: "{{ .Values.limits.batches.tabularAnnotation }}"
+  DEFAULT_ROW_BATCH_SIZE: "{{ .Values.limits.batches.defaultRow }}"
+  SUBTASK_MAX_ATTEMPTS: "{{ .Values.limits.subtask.maxAttempts }}"
+  SUBTASK_FAILURE_THRESHOLD: "{{ .Values.limits.subtask.failureThreshold }}"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-audience
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  ANALYSIS_TOOLKIT_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-analysis-toolkit:{{ .Values.analysisToolkit.service.port }}"
+  API_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-api:{{ .Values.api.service.port }}"
+  DATA_INGESTOR_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-data-ingestor:{{ .Values.dataIngestor.service.port }}"
+  MODEL_SERVICE_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-model-service:{{ .Values.modelService.service.port }}"
+  SCHEDULER_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-data-ingestor:{{ .Values.dataIngestor.service.port }}"
+  SUBTASK_WORKER_SERVICE_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-subtask-worker:{{ .Values.subtaskWorker.service.port }}"
+  WORKER_SERVICE_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-worker:{{ .Values.worker.service.port }}"

@@ -1,0 +1,6 @@
+apiVersion: v2
+name: ragnerock
+description: Ragnerock research intelligence platform
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

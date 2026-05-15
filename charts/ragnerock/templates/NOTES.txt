@@ -1,0 +1,15 @@
+Ragnerock has been deployed.
+
+Services:
+  - API:              {{ include "ragnerock.fullname" . }}-api:{{ .Values.api.service.port }}
+  - Worker:           {{ include "ragnerock.fullname" . }}-worker:{{ .Values.worker.service.port }}
+  - Subtask Worker:   {{ include "ragnerock.fullname" . }}-subtask-worker:{{ .Values.subtaskWorker.service.port }}
+  - Model Service:    {{ include "ragnerock.fullname" . }}-model-service:{{ .Values.modelService.service.port }}
+  - Frontend:         {{ include "ragnerock.fullname" . }}-frontend:{{ .Values.frontend.service.port }}
+  - Data Ingestor:    {{ include "ragnerock.fullname" . }}-data-ingestor:{{ .Values.dataIngestor.service.port }}
+  - Analysis Toolkit: {{ include "ragnerock.fullname" . }}-analysis-toolkit:{{ .Values.analysisToolkit.service.port }}
+
+The frontend and API are externally accessible at
+
+  - API:      {{ .Values.api.fqdn }}
+  - Frontend: {{ .Values.frontend.fqdn }}

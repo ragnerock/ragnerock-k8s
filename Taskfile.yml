@@ -1,0 +1,26 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: '3'
+
+tasks:
+  lint:
+    desc: Lint Ragnerock code
+    cmds:
+      - LOG_LEVEL="{{ .LOG_LEVEL }}" ./scripts/ci/lint.sh
+    silent: true
+    vars:
+      LOG_LEVEL: '{{ .LOG_LEVEL | default "INFO" }}'
+  check:
+    desc: Static check Ragnerock code
+    cmds:
+      - LOG_LEVEL="{{ .LOG_LEVEL }}" ./scripts/ci/check.sh
+    silent: true
+    vars:
+      LOG_LEVEL: '{{ .LOG_LEVEL | default "INFO" }}'
+  doc:
+    desc: Generate Ragnerock chart docs (fails if docs are out of date)
+    cmds:
+      - LOG_LEVEL="{{ .LOG_LEVEL }}" ./scripts/ci/doc.sh
+    silent: true
+    vars:
+      LOG_LEVEL: '{{ .LOG_LEVEL | default "INFO" }}'
