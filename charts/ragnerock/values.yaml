@@ -107,6 +107,10 @@ api:
   # -- Deployment resoruce contraints (i.e. requests/limits)
   resources: {}
   fqdn: ""
+  # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
+  volumes: []
+  # -- Container volume mounts (list of Kubernetes volumeMount specs)
+  volumeMounts: []
 
 worker:
   replicaCount: 1
@@ -118,6 +122,10 @@ worker:
     port: 8080
   # -- Deployment resoruce contraints (i.e. requests/limits)
   resources: {}
+  # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
+  volumes: []
+  # -- Container volume mounts (list of Kubernetes volumeMount specs)
+  volumeMounts: []
 
 subtaskWorker:
   replicaCount: 1
@@ -129,6 +137,10 @@ subtaskWorker:
     port: 8080
   # -- Deployment resoruce contraints (i.e. requests/limits)
   resources: {}
+  # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
+  volumes: []
+  # -- Container volume mounts (list of Kubernetes volumeMount specs)
+  volumeMounts: []
 
 modelService:
   replicaCount: 1
@@ -140,6 +152,10 @@ modelService:
     port: 8080
   # -- Deployment resoruce contraints (i.e. requests/limits)
   resources: {}
+  # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
+  volumes: []
+  # -- Container volume mounts (list of Kubernetes volumeMount specs)
+  volumeMounts: []
 
 frontend:
   replicaCount: 1
@@ -152,6 +168,10 @@ frontend:
   fqdn: ""
   # -- Deployment resoruce contraints (i.e. requests/limits)
   resources: {}
+  # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
+  volumes: []
+  # -- Container volume mounts (list of Kubernetes volumeMount specs)
+  volumeMounts: []
 
 analysisToolkit:
   replicaCount: 1
@@ -164,6 +184,10 @@ analysisToolkit:
     port: 8080
   # -- Deployment resoruce contraints (i.e. requests/limits)
   resources: {}
+  # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
+  volumes: []
+  # -- Container volume mounts (list of Kubernetes volumeMount specs)
+  volumeMounts: []
 
 dataIngestor:
   replicaCount: 1
@@ -175,6 +199,10 @@ dataIngestor:
     port: 8080
   # -- Deployment resoruce contraints (i.e. requests/limits)
   resources: {}
+  # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
+  volumes: []
+  # -- Container volume mounts (list of Kubernetes volumeMount specs)
+  volumeMounts: []
 
 migrations:
   image:

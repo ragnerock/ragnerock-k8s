@@ -62,6 +62,10 @@ spec:
               value: service.name=subtask-worker,deployment.environment={{ .Values.config.environmentIdentifier }}
             - name: OTEL_SERVICE_NAME
               value: subtask-worker
+          {{- with .Values.subtaskWorker.volumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           livenessProbe:
             httpGet:
               path: /health/live
@@ -78,6 +82,10 @@ spec:
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+      {{- with .Values.subtaskWorker.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
 ---
 apiVersion: v1
 kind: Service
