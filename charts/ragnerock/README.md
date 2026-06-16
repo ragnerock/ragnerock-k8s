@@ -8,12 +8,18 @@ Ragnerock research intelligence platform
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
+| analysisToolkit.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
+| analysisToolkit.autoscaling.targetCPUUtilizationPercentage | int | `80` | Target average CPU utilization (% of requests). Set to null to disable. |
+| analysisToolkit.autoscaling.targetMemoryUtilizationPercentage | int | `80` | Target average memory utilization (% of requests). Set to null to disable. |
 | analysisToolkit.image.name | string | `"analysis-toolkit"` |  |
 | analysisToolkit.image.tag | string | `""` | Overwrites global value if set |
 | analysisToolkit.replicaCount | int | `1` |  |
 | analysisToolkit.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
 | analysisToolkit.service.port | int | `8080` |  |
 | analysisToolkit.service.type | string | `"ClusterIP"` |  |
+| api.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
+| api.autoscaling.targetCPUUtilizationPercentage | int | `80` | Target average CPU utilization (% of requests). Set to null to disable. |
+| api.autoscaling.targetMemoryUtilizationPercentage | int | `80` | Target average memory utilization (% of requests). Set to null to disable. |
 | api.fqdn | string | `""` |  |
 | api.image.name | string | `"api"` |  |
 | api.image.tag | string | `""` |  |
@@ -30,6 +36,9 @@ Ragnerock research intelligence platform
 | cloudflare.accountId | string | `""` |  |
 | cloudflare.apiToken | string | `""` |  |
 | config | object | `{"environmentIdentifier":"ragnerock","logLevel":"INFO"}` | General app configuration |
+| dataIngestor.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
+| dataIngestor.autoscaling.targetCPUUtilizationPercentage | int | `80` | Target average CPU utilization (% of requests). Set to null to disable. |
+| dataIngestor.autoscaling.targetMemoryUtilizationPercentage | int | `80` | Target average memory utilization (% of requests). Set to null to disable. |
 | dataIngestor.image.name | string | `"data-ingestor"` |  |
 | dataIngestor.image.tag | string | `""` |  |
 | dataIngestor.replicaCount | int | `1` |  |
@@ -38,6 +47,9 @@ Ragnerock research intelligence platform
 | dataIngestor.service.type | string | `"ClusterIP"` |  |
 | database | object | `{"host":"","maxOverflow":40,"name":"ragnerock","password":"","poolSize":20,"poolTimeout":10,"port":5432,"user":"ragnerock"}` | Database configuration |
 | encryption.kek | string | `""` | Key Encryption Key (KEK), generate with python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())' |
+| frontend.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
+| frontend.autoscaling.targetCPUUtilizationPercentage | int | `80` | Target average CPU utilization (% of requests). Set to null to disable. |
+| frontend.autoscaling.targetMemoryUtilizationPercentage | int | `80` | Target average memory utilization (% of requests). Set to null to disable. |
 | frontend.fqdn | string | `""` |  |
 | frontend.image.name | string | `"frontend"` |  |
 | frontend.image.tag | string | `""` |  |
@@ -68,6 +80,9 @@ Ragnerock research intelligence platform
 | migrations.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
 | model.geminiModelName | string | `"gemini-3-flash-preview"` |  |
 | model.httpTimeoutSeconds | int | `180` |  |
+| modelService.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
+| modelService.autoscaling.targetCPUUtilizationPercentage | int | `80` | Target average CPU utilization (% of requests). Set to null to disable. |
+| modelService.autoscaling.targetMemoryUtilizationPercentage | int | `80` | Target average memory utilization (% of requests). Set to null to disable. |
 | modelService.image.name | string | `"model-service"` |  |
 | modelService.image.tag | string | `""` |  |
 | modelService.replicaCount | int | `1` |  |
@@ -99,12 +114,18 @@ Ragnerock research intelligence platform
 | rateLimits.toolsPerMinute | int | `60` |  |
 | rateLimits.windowMinutes | int | `1` |  |
 | rateLimits.workflowTestConditionPerMinute | int | `120` |  |
+| subtaskWorker.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
+| subtaskWorker.autoscaling.targetCPUUtilizationPercentage | int | `80` | Target average CPU utilization (% of requests). Set to null to disable. |
+| subtaskWorker.autoscaling.targetMemoryUtilizationPercentage | int | `80` | Target average memory utilization (% of requests). Set to null to disable. |
 | subtaskWorker.image.name | string | `"worker"` |  |
 | subtaskWorker.image.tag | string | `""` |  |
 | subtaskWorker.replicaCount | int | `1` |  |
 | subtaskWorker.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
 | subtaskWorker.service.port | int | `8080` |  |
 | subtaskWorker.service.type | string | `"ClusterIP"` |  |
+| worker.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
+| worker.autoscaling.targetCPUUtilizationPercentage | int | `80` | Target average CPU utilization (% of requests). Set to null to disable. |
+| worker.autoscaling.targetMemoryUtilizationPercentage | int | `80` | Target average memory utilization (% of requests). Set to null to disable. |
 | worker.image.name | string | `"worker"` |  |
 | worker.image.tag | string | `""` |  |
 | worker.replicaCount | int | `1` |  |
