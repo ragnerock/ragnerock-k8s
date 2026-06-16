@@ -107,6 +107,13 @@ api:
   # -- Deployment resoruce contraints (i.e. requests/limits)
   resources: {}
   fqdn: ""
+  serviceAccount:
+    # -- Create a service account for this deployment's pods
+    create: false
+    # -- Service account name to use; if empty and `create` is true a name is generated
+    name: ""
+    # -- Annotations to add to the created service account (e.g. for workload identity)
+    annotations: {}
 
 worker:
   replicaCount: 1
@@ -118,6 +125,13 @@ worker:
     port: 8080
   # -- Deployment resoruce contraints (i.e. requests/limits)
   resources: {}
+  serviceAccount:
+    # -- Create a service account for this deployment's pods
+    create: false
+    # -- Service account name to use; if empty and `create` is true a name is generated
+    name: ""
+    # -- Annotations to add to the created service account (e.g. for workload identity)
+    annotations: {}
 
 subtaskWorker:
   replicaCount: 1
@@ -129,6 +143,13 @@ subtaskWorker:
     port: 8080
   # -- Deployment resoruce contraints (i.e. requests/limits)
   resources: {}
+  serviceAccount:
+    # -- Create a service account for this deployment's pods
+    create: false
+    # -- Service account name to use; if empty and `create` is true a name is generated
+    name: ""
+    # -- Annotations to add to the created service account (e.g. for workload identity)
+    annotations: {}
 
 modelService:
   replicaCount: 1
@@ -140,6 +161,13 @@ modelService:
     port: 8080
   # -- Deployment resoruce contraints (i.e. requests/limits)
   resources: {}
+  serviceAccount:
+    # -- Create a service account for this deployment's pods
+    create: false
+    # -- Service account name to use; if empty and `create` is true a name is generated
+    name: ""
+    # -- Annotations to add to the created service account (e.g. for workload identity)
+    annotations: {}
 
 frontend:
   replicaCount: 1
@@ -152,6 +180,13 @@ frontend:
   fqdn: ""
   # -- Deployment resoruce contraints (i.e. requests/limits)
   resources: {}
+  serviceAccount:
+    # -- Create a service account for this deployment's pods
+    create: false
+    # -- Service account name to use; if empty and `create` is true a name is generated
+    name: ""
+    # -- Annotations to add to the created service account (e.g. for workload identity)
+    annotations: {}
 
 analysisToolkit:
   replicaCount: 1
@@ -164,6 +199,13 @@ analysisToolkit:
     port: 8080
   # -- Deployment resoruce contraints (i.e. requests/limits)
   resources: {}
+  serviceAccount:
+    # -- Create a service account for this deployment's pods
+    create: false
+    # -- Service account name to use; if empty and `create` is true a name is generated
+    name: ""
+    # -- Annotations to add to the created service account (e.g. for workload identity)
+    annotations: {}
 
 dataIngestor:
   replicaCount: 1
@@ -175,6 +217,13 @@ dataIngestor:
     port: 8080
   # -- Deployment resoruce contraints (i.e. requests/limits)
   resources: {}
+  serviceAccount:
+    # -- Create a service account for this deployment's pods
+    create: false
+    # -- Service account name to use; if empty and `create` is true a name is generated
+    name: ""
+    # -- Annotations to add to the created service account (e.g. for workload identity)
+    annotations: {}
 
 migrations:
   image:
@@ -182,6 +231,23 @@ migrations:
     tag: ""
   # -- Deployment resoruce contraints (i.e. requests/limits)
   resources: {}
+  serviceAccount:
+    # -- Create a service account for the migrations job's pods
+    create: false
+    # -- Service account name to use; if empty and `create` is true a name is generated
+    name: ""
+    # -- Annotations to add to the created service account (e.g. for workload identity)
+    annotations: {}
+
+# -- In-cluster Cloud Tasks emulator deployment
+queue:
+  serviceAccount:
+    # -- Create a service account for this deployment's pods
+    create: false
+    # -- Service account name to use; if empty and `create` is true a name is generated
+    name: ""
+    # -- Annotations to add to the created service account (e.g. for workload identity)
+    annotations: {}
 
 limits:
   concurrency:

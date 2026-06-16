@@ -16,6 +16,9 @@ spec:
       labels:
         {{- include "ragnerock.selectorLabels" (dict "context" . "component" "migrations") | nindent 8 }}
     spec:
+      {{- with (include "ragnerock.serviceAccountName" (dict "context" . "config" .Values.migrations.serviceAccount "component" "migrations")) }}
+      serviceAccountName: {{ . }}
+      {{- end }}
       {{- with .Values.global.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}

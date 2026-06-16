@@ -16,6 +16,9 @@ spec:
         {{- include "ragnerock.labels" . | nindent 8 }}
         {{- include "ragnerock.selectorLabels" (dict "context" . "component" "queue") | nindent 8 }}
     spec:
+      {{- with (include "ragnerock.serviceAccountName" (dict "context" . "config" .Values.queue.serviceAccount "component" "queue")) }}
+      serviceAccountName: {{ . }}
+      {{- end }}
       containers:
         - name: queue
           image: ghcr.io/aertje/cloud-tasks-emulator:latest

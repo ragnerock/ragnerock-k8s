@@ -14,6 +14,9 @@ Ragnerock research intelligence platform
 | analysisToolkit.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
 | analysisToolkit.service.port | int | `8080` |  |
 | analysisToolkit.service.type | string | `"ClusterIP"` |  |
+| analysisToolkit.serviceAccount.annotations | object | `{}` | Annotations to add to the created service account (e.g. for workload identity) |
+| analysisToolkit.serviceAccount.create | bool | `false` | Create a service account for this deployment's pods |
+| analysisToolkit.serviceAccount.name | string | `""` | Service account name to use; if empty and `create` is true a name is generated |
 | api.fqdn | string | `""` |  |
 | api.image.name | string | `"api"` |  |
 | api.image.tag | string | `""` |  |
@@ -21,6 +24,9 @@ Ragnerock research intelligence platform
 | api.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
 | api.service.port | int | `8080` |  |
 | api.service.type | string | `"ClusterIP"` |  |
+| api.serviceAccount.annotations | object | `{}` | Annotations to add to the created service account (e.g. for workload identity) |
+| api.serviceAccount.create | bool | `false` | Create a service account for this deployment's pods |
+| api.serviceAccount.name | string | `""` | Service account name to use; if empty and `create` is true a name is generated |
 | auth.accessCodeExpireMinutes | int | `10080` |  |
 | auth.accessKey | string | `""` | Generate with `openssl rand -hex 22` |
 | auth.accessTokenExpireMinutes | int | `10080` |  |
@@ -36,6 +42,9 @@ Ragnerock research intelligence platform
 | dataIngestor.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
 | dataIngestor.service.port | int | `8080` |  |
 | dataIngestor.service.type | string | `"ClusterIP"` |  |
+| dataIngestor.serviceAccount.annotations | object | `{}` | Annotations to add to the created service account (e.g. for workload identity) |
+| dataIngestor.serviceAccount.create | bool | `false` | Create a service account for this deployment's pods |
+| dataIngestor.serviceAccount.name | string | `""` | Service account name to use; if empty and `create` is true a name is generated |
 | database | object | `{"host":"","maxOverflow":40,"name":"ragnerock","password":"","poolSize":20,"poolTimeout":10,"port":5432,"user":"ragnerock"}` | Database configuration |
 | encryption.kek | string | `""` | Key Encryption Key (KEK), generate with python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())' |
 | frontend.fqdn | string | `""` |  |
@@ -45,6 +54,9 @@ Ragnerock research intelligence platform
 | frontend.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
 | frontend.service.port | int | `3000` |  |
 | frontend.service.type | string | `"ClusterIP"` |  |
+| frontend.serviceAccount.annotations | object | `{}` | Annotations to add to the created service account (e.g. for workload identity) |
+| frontend.serviceAccount.create | bool | `false` | Create a service account for this deployment's pods |
+| frontend.serviceAccount.name | string | `""` | Service account name to use; if empty and `create` is true a name is generated |
 | global.image | object | `{"pullPolicy":"IfNotPresent","registry":"us-central1-docker.pkg.dev/ragnerock-prod/ragnerock","tag":"latest"}` | Global container image configuration |
 | global.imagePullSecrets | list | `[]` | Secrets use to authenticate with the container registry, list of `- name: <name of the secret>` values |
 | license | string | `""` | Ragnerock provided license key |
@@ -66,6 +78,9 @@ Ragnerock research intelligence platform
 | migrations.image.name | string | `"migrations"` |  |
 | migrations.image.tag | string | `""` |  |
 | migrations.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
+| migrations.serviceAccount.annotations | object | `{}` | Annotations to add to the created service account (e.g. for workload identity) |
+| migrations.serviceAccount.create | bool | `false` | Create a service account for the migrations job's pods |
+| migrations.serviceAccount.name | string | `""` | Service account name to use; if empty and `create` is true a name is generated |
 | model.geminiModelName | string | `"gemini-3-flash-preview"` |  |
 | model.httpTimeoutSeconds | int | `180` |  |
 | modelService.image.name | string | `"model-service"` |  |
@@ -74,7 +89,14 @@ Ragnerock research intelligence platform
 | modelService.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
 | modelService.service.port | int | `8080` |  |
 | modelService.service.type | string | `"ClusterIP"` |  |
+| modelService.serviceAccount.annotations | object | `{}` | Annotations to add to the created service account (e.g. for workload identity) |
+| modelService.serviceAccount.create | bool | `false` | Create a service account for this deployment's pods |
+| modelService.serviceAccount.name | string | `""` | Service account name to use; if empty and `create` is true a name is generated |
 | otel | object | `{"authHeader":"","enabled":false,"exporterEndpoint":"","exporterInsecure":false,"exporterProtocol":"http/protobuf"}` | Otel metrics/traces/logs export |
+| queue | object | `{"serviceAccount":{"annotations":{},"create":false,"name":""}}` | In-cluster Cloud Tasks emulator deployment |
+| queue.serviceAccount.annotations | object | `{}` | Annotations to add to the created service account (e.g. for workload identity) |
+| queue.serviceAccount.create | bool | `false` | Create a service account for this deployment's pods |
+| queue.serviceAccount.name | string | `""` | Service account name to use; if empty and `create` is true a name is generated |
 | ragnerock.safetyEnabled | bool | `true` | Should Ragnerock treat all prompts as unsafe |
 | rateLimits.adminMutationPerMinute | int | `40` |  |
 | rateLimits.agentPerMinute | int | `20` |  |
@@ -105,12 +127,18 @@ Ragnerock research intelligence platform
 | subtaskWorker.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
 | subtaskWorker.service.port | int | `8080` |  |
 | subtaskWorker.service.type | string | `"ClusterIP"` |  |
+| subtaskWorker.serviceAccount.annotations | object | `{}` | Annotations to add to the created service account (e.g. for workload identity) |
+| subtaskWorker.serviceAccount.create | bool | `false` | Create a service account for this deployment's pods |
+| subtaskWorker.serviceAccount.name | string | `""` | Service account name to use; if empty and `create` is true a name is generated |
 | worker.image.name | string | `"worker"` |  |
 | worker.image.tag | string | `""` |  |
 | worker.replicaCount | int | `1` |  |
 | worker.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
 | worker.service.port | int | `8080` |  |
 | worker.service.type | string | `"ClusterIP"` |  |
+| worker.serviceAccount.annotations | object | `{}` | Annotations to add to the created service account (e.g. for workload identity) |
+| worker.serviceAccount.create | bool | `false` | Create a service account for this deployment's pods |
+| worker.serviceAccount.name | string | `""` | Service account name to use; if empty and `create` is true a name is generated |
 
 ----------------------------------------------
 Autogenerated from chart metadata using [helm-docs v1.14.2](https://github.com/norwoodj/helm-docs/releases/v1.14.2)

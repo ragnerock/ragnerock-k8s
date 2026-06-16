@@ -54,3 +54,17 @@ Usage: {{ include "ragnerock.image" (dict "global" .Values.global "image" .Value
 {{- $tag := .image.tag | default .global.image.tag -}}
 {{- printf "%s/%s:%s" .global.image.registry .image.name $tag -}}
 {{- end }}
+
+{{/*
+Resolve the ServiceAccount name to use for a component's pods.
+Returns the explicitly configured name, or a generated name when `create` is
+true, or an empty string to fall back to the namespace default ServiceAccount.
+Usage: {{ include "ragnerock.serviceAccountName" (dict "context" . "config" .Values.api.serviceAccount "component" "api") }}
+*/}}
+{{- define "ragnerock.serviceAccountName" -}}
+{{- if .config.name -}}
+{{- .config.name -}}
+{{- else if .config.create -}}
+{{- printf "%s-%s" (include "ragnerock.fullname" .context) .component -}}
+{{- end -}}
+{{- end }}
