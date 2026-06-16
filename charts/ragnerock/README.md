@@ -14,6 +14,7 @@ Ragnerock research intelligence platform
 | analysisToolkit.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
 | analysisToolkit.service.port | int | `8080` |  |
 | analysisToolkit.service.type | string | `"ClusterIP"` |  |
+| analysisToolkit.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | api.fqdn | string | `""` |  |
 | api.image.name | string | `"api"` |  |
 | api.image.tag | string | `""` |  |
@@ -21,12 +22,14 @@ Ragnerock research intelligence platform
 | api.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
 | api.service.port | int | `8080` |  |
 | api.service.type | string | `"ClusterIP"` |  |
+| api.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | auth.accessCodeExpireMinutes | int | `10080` |  |
 | auth.accessKey | string | `""` | Generate with `openssl rand -hex 22` |
 | auth.accessTokenExpireMinutes | int | `10080` |  |
 | auth.lockoutMaxAttempts | int | `10` |  |
 | auth.secretKey | string | `""` | Generate with `openssl rand -hex 22` |
-| cloudTasks | object | `{"emulator":{"port":8123},"jobQueueName":"ragnerock-document-jobs","maxConcurrentDispatches":500,"maxDispatchesPerSecond":500,"queuePoolSize":100,"subtaskQueueName":"ragnerock-subtask-jobs"}` | Cloudtask configuration for use with in-cluster emulator |
+| cloudTasks | object | `{"emulator":{"port":8123,"tolerations":[]},"jobQueueName":"ragnerock-document-jobs","maxConcurrentDispatches":500,"maxDispatchesPerSecond":500,"queuePoolSize":100,"subtaskQueueName":"ragnerock-subtask-jobs"}` | Cloudtask configuration for use with in-cluster emulator |
+| cloudTasks.emulator.tolerations | list | `[]` | Pod tolerations for the cloud-tasks emulator (overrides `global.tolerations`) |
 | cloudflare.accountId | string | `""` |  |
 | cloudflare.apiToken | string | `""` |  |
 | config | object | `{"environmentIdentifier":"ragnerock","logLevel":"INFO"}` | General app configuration |
@@ -36,6 +39,7 @@ Ragnerock research intelligence platform
 | dataIngestor.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
 | dataIngestor.service.port | int | `8080` |  |
 | dataIngestor.service.type | string | `"ClusterIP"` |  |
+| dataIngestor.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | database | object | `{"host":"","maxOverflow":40,"name":"ragnerock","password":"","poolSize":20,"poolTimeout":10,"port":5432,"user":"ragnerock"}` | Database configuration |
 | encryption.kek | string | `""` | Key Encryption Key (KEK), generate with python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())' |
 | frontend.fqdn | string | `""` |  |
@@ -45,8 +49,10 @@ Ragnerock research intelligence platform
 | frontend.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
 | frontend.service.port | int | `3000` |  |
 | frontend.service.type | string | `"ClusterIP"` |  |
+| frontend.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | global.image | object | `{"pullPolicy":"IfNotPresent","registry":"us-central1-docker.pkg.dev/ragnerock-prod/ragnerock","tag":"latest"}` | Global container image configuration |
 | global.imagePullSecrets | list | `[]` | Secrets use to authenticate with the container registry, list of `- name: <name of the secret>` values |
+| global.tolerations | list | `[]` | Default pod tolerations applied to all workloads. Can be overridden per-service with `<service>.tolerations`. See https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/ |
 | license | string | `""` | Ragnerock provided license key |
 | limits.batches.annotation | int | `50` |  |
 | limits.batches.defaultRow | int | `50` |  |
@@ -66,6 +72,7 @@ Ragnerock research intelligence platform
 | migrations.image.name | string | `"migrations"` |  |
 | migrations.image.tag | string | `""` |  |
 | migrations.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
+| migrations.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | model.geminiModelName | string | `"gemini-3-flash-preview"` |  |
 | model.httpTimeoutSeconds | int | `180` |  |
 | modelService.image.name | string | `"model-service"` |  |
@@ -74,6 +81,7 @@ Ragnerock research intelligence platform
 | modelService.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
 | modelService.service.port | int | `8080` |  |
 | modelService.service.type | string | `"ClusterIP"` |  |
+| modelService.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | otel | object | `{"authHeader":"","enabled":false,"exporterEndpoint":"","exporterInsecure":false,"exporterProtocol":"http/protobuf"}` | Otel metrics/traces/logs export |
 | ragnerock.safetyEnabled | bool | `true` | Should Ragnerock treat all prompts as unsafe |
 | rateLimits.adminMutationPerMinute | int | `40` |  |
@@ -105,12 +113,14 @@ Ragnerock research intelligence platform
 | subtaskWorker.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
 | subtaskWorker.service.port | int | `8080` |  |
 | subtaskWorker.service.type | string | `"ClusterIP"` |  |
+| subtaskWorker.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | worker.image.name | string | `"worker"` |  |
 | worker.image.tag | string | `""` |  |
 | worker.replicaCount | int | `1` |  |
 | worker.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
 | worker.service.port | int | `8080` |  |
 | worker.service.type | string | `"ClusterIP"` |  |
+| worker.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 
 ----------------------------------------------
 Autogenerated from chart metadata using [helm-docs v1.14.2](https://github.com/norwoodj/helm-docs/releases/v1.14.2)
