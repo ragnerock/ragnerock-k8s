@@ -24,11 +24,13 @@ Ragnerock research intelligence platform
 | auth.accessCodeExpireMinutes | int | `10080` |  |
 | auth.accessKey | string | `""` | Generate with `openssl rand -hex 22` |
 | auth.accessTokenExpireMinutes | int | `10080` |  |
+| auth.existingSecret | string | `""` | Use a pre-existing secret (must provide keys `SECRET_KEY` and `ACCESS_KEY`) instead of generating one. When set, `secretKey`/`accessKey` are ignored. |
 | auth.lockoutMaxAttempts | int | `10` |  |
 | auth.secretKey | string | `""` | Generate with `openssl rand -hex 22` |
 | cloudTasks | object | `{"emulator":{"port":8123},"jobQueueName":"ragnerock-document-jobs","maxConcurrentDispatches":500,"maxDispatchesPerSecond":500,"queuePoolSize":100,"subtaskQueueName":"ragnerock-subtask-jobs"}` | Cloudtask configuration for use with in-cluster emulator |
 | cloudflare.accountId | string | `""` |  |
 | cloudflare.apiToken | string | `""` |  |
+| cloudflare.existingSecret | string | `""` | Use a pre-existing secret (must provide keys `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`) instead of generating one. When set, `apiToken`/`accountId` are ignored. |
 | config | object | `{"environmentIdentifier":"ragnerock","logLevel":"INFO"}` | General app configuration |
 | dataIngestor.image.name | string | `"data-ingestor"` |  |
 | dataIngestor.image.tag | string | `""` |  |
@@ -36,7 +38,9 @@ Ragnerock research intelligence platform
 | dataIngestor.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
 | dataIngestor.service.port | int | `8080` |  |
 | dataIngestor.service.type | string | `"ClusterIP"` |  |
-| database | object | `{"host":"","maxOverflow":40,"name":"ragnerock","password":"","poolSize":20,"poolTimeout":10,"port":5432,"user":"ragnerock"}` | Database configuration |
+| database | object | `{"existingSecret":"","host":"","maxOverflow":40,"name":"ragnerock","password":"","poolSize":20,"poolTimeout":10,"port":5432,"user":"ragnerock"}` | Database configuration |
+| database.existingSecret | string | `""` | Use a pre-existing secret (must provide key `DB_PASSWORD`) instead of generating one. When set, `password` is ignored. |
+| encryption.existingSecret | string | `""` | Use a pre-existing secret (must provide key `ENCRYPTION_KEK`) instead of generating one. When set, `kek` is ignored. |
 | encryption.kek | string | `""` | Key Encryption Key (KEK), generate with python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())' |
 | frontend.fqdn | string | `""` |  |
 | frontend.image.name | string | `"frontend"` |  |
@@ -48,6 +52,7 @@ Ragnerock research intelligence platform
 | global.image | object | `{"pullPolicy":"IfNotPresent","registry":"us-central1-docker.pkg.dev/ragnerock-prod/ragnerock","tag":"latest"}` | Global container image configuration |
 | global.imagePullSecrets | list | `[]` | Secrets use to authenticate with the container registry, list of `- name: <name of the secret>` values |
 | license | string | `""` | Ragnerock provided license key |
+| licenseExistingSecret | string | `""` | Use a pre-existing secret (must provide key `RAGNEROCK_LICENSE`) instead of generating one. When set, `license` is ignored. |
 | limits.batches.annotation | int | `50` |  |
 | limits.batches.defaultRow | int | `50` |  |
 | limits.batches.embedding | int | `100` |  |
@@ -62,7 +67,8 @@ Ragnerock research intelligence platform
 | limits.usage.maxInputTokens | string | `"1000000"` |  |
 | limits.usage.maxOutputTokens | string | `"1000000"` |  |
 | limits.usage.maxPages | string | `"2000"` |  |
-| llm | object | `{"geminiApiKey":"","mistralApiKey":""}` | LLM authentication configuration |
+| llm | object | `{"existingSecret":"","geminiApiKey":"","mistralApiKey":""}` | LLM authentication configuration |
+| llm.existingSecret | string | `""` | Use a pre-existing secret (must provide keys `GEMINI_API_KEY` and `MISTRAL_API_KEY`) instead of generating one. When set, `geminiApiKey`/`mistralApiKey` are ignored. |
 | migrations.image.name | string | `"migrations"` |  |
 | migrations.image.tag | string | `""` |  |
 | migrations.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
@@ -74,7 +80,8 @@ Ragnerock research intelligence platform
 | modelService.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
 | modelService.service.port | int | `8080` |  |
 | modelService.service.type | string | `"ClusterIP"` |  |
-| otel | object | `{"authHeader":"","enabled":false,"exporterEndpoint":"","exporterInsecure":false,"exporterProtocol":"http/protobuf"}` | Otel metrics/traces/logs export |
+| otel | object | `{"authHeader":"","enabled":false,"existingSecret":"","exporterEndpoint":"","exporterInsecure":false,"exporterProtocol":"http/protobuf"}` | Otel metrics/traces/logs export |
+| otel.existingSecret | string | `""` | Use a pre-existing secret (must provide key `OTEL_EXPORTER_OTLP_HEADERS`) instead of generating one. When set, `authHeader` is ignored. |
 | ragnerock.safetyEnabled | bool | `true` | Should Ragnerock treat all prompts as unsafe |
 | rateLimits.adminMutationPerMinute | int | `40` |  |
 | rateLimits.agentPerMinute | int | `20` |  |

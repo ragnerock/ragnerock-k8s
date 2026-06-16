@@ -36,7 +36,7 @@ spec:
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-frontend
             - secretRef:
-                name: {{ include "ragnerock.fullname" . }}-otel
+                name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "otel" "existingSecret" .Values.otel.existingSecret) }}
           env:
             - name: OTEL_RESOURCE_ATTRIBUTES
               value: service.name=frontend,deployment.environment={{ .Values.config.environmentIdentifier }}

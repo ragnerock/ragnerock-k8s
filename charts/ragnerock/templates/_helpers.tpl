@@ -54,3 +54,16 @@ Usage: {{ include "ragnerock.image" (dict "global" .Values.global "image" .Value
 {{- $tag := .image.tag | default .global.image.tag -}}
 {{- printf "%s/%s:%s" .global.image.registry .image.name $tag -}}
 {{- end }}
+
+{{/*
+Resolve a secret name. When an existing secret name is provided it is used as-is
+(for secrets provisioned outside the chart); otherwise the chart-generated name is returned.
+Usage: {{ include "ragnerock.secretName" (dict "context" . "suffix" "db" "existingSecret" .Values.database.existingSecret) }}
+*/}}
+{{- define "ragnerock.secretName" -}}
+{{- if .existingSecret -}}
+{{- .existingSecret -}}
+{{- else -}}
+{{- printf "%s-%s" (include "ragnerock.fullname" .context) .suffix -}}
+{{- end -}}
+{{- end }}
