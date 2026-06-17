@@ -114,6 +114,20 @@ api:
   tolerations: []
   fqdn: ""
 
+callbackDelivery:
+  replicaCount: 1
+  image:
+    name: api
+    tag: ""
+  service:
+    type: ClusterIP
+    port: 8080
+  # -- Deployment resoruce contraints (i.e. requests/limits)
+  resources: {}
+  # -- Pod tolerations (overrides `global.tolerations`)
+  tolerations: []
+  fqdn: ""
+
 worker:
   replicaCount: 1
   image:
