@@ -16,6 +16,10 @@ spec:
         {{- include "ragnerock.labels" . | nindent 8 }}
         {{- include "ragnerock.selectorLabels" (dict "context" . "component" "queue") | nindent 8 }}
     spec:
+      {{- with .Values.cloudTasks.emulator.tolerations | default .Values.global.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: queue
           image: ghcr.io/aertje/cloud-tasks-emulator:latest

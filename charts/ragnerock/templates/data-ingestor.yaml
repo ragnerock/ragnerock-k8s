@@ -20,6 +20,10 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- with .Values.dataIngestor.tolerations | default .Values.global.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: data-ingestor
           image: {{ include "ragnerock.image" (dict "global" .Values.global "image" .Values.dataIngestor.image) }}
