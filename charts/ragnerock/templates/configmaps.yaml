@@ -251,5 +251,5 @@ data:
   MAX_ROWS: "{{ .Values.analysis.maxRows }}"
   MODEL_FIT_TIMEOUT: "{{ .Values.analysis.modelFitTimeoutSeconds }}"
   PLOT_DPI: "{{ .Values.analysis.plotDPI }}"
-  PLOT_MAX_FIGSIZE: "[{{ .Values.analysis.plotMaxFigsize.x }},{{ .Values.analysis.plotMaxFigsize.y }}]"
+  PLOT_MAX_FIGSIZE: "[{{ .Values.analysis.plotMaxFigsize.dimx }},{{ .Values.analysis.plotMaxFigsize.dimy }}]"
   PLOT_TIMEOUT: "{{ .Values.analysis.plotTimeoutSeconds }}"

@@ -38,3 +38,6 @@ cloudflare:
   accountId: ""
 
 license: ""
+
+endpoints:
+  HMACMasterKey: "your-endpoints-hmac-key"

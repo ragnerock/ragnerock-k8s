@@ -60,6 +60,13 @@ queue:
   port: 8123
   # -- Pod tolerations for the queue deployment (overrides `global.tolerations`)
   tolerations: []
+  serviceAccount:
+    # -- Create a service account for this deployment's pods
+    create: false
+    # -- Service account name to use; if empty and `create` is true a name is generated
+    name: ""
+    # -- Annotations to add to the created service account (e.g. for workload identity)
+    annotations: {}
 
 auth:
   # -- Generate with `openssl rand -hex 22`
@@ -384,18 +391,6 @@ migrations:
     # -- Annotations to add to the created service account (e.g. for workload identity)
     annotations: {}
 
-# -- In-cluster Cloud Tasks emulator deployment
-queue:
-  serviceAccount:
-    # -- Create a service account for this deployment's pods
-    create: false
-    # -- Service account name to use; if empty and `create` is true a name is generated
-    name: ""
-    # -- Annotations to add to the created service account (e.g. for workload identity)
-    annotations: {}
-  # -- Pod tolerations (overrides `global.tolerations`)
-  tolerations: []
-
 limits:
   concurrency:
     maxConcurrentSubtasks: 50
@@ -434,6 +429,6 @@ analysis:
   modelFitTimeoutSeconds: 120
   plotDPI: 150
   plotMaxFigsize: 
-    x: 12.0
-    y: 16.0
+    dimx: 12.0
+    dimy: 16.0
   plotTimeoutSeconds: 60

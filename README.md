@@ -88,3 +88,32 @@ helm upgrade --install ragnerock ragnerock/ragnerock --values ./values.yaml
 ```
 
 After installation you will see the URLs for each Ragnerock service printed as well as the externally accessible URLs to access the application
+
+### First-time Setup
+
+Now that you have deployed Ragnerock, investigate the API logs and look for the following log line:
+
+```
+============================================================
+INITIAL ADMIN CREDENTIALS \u2014 RECORD THESE NOW
+============================================================
+email:    admin@localhost.local
+password: <your admin password>
+    
+Login with the admin credentials to finish setting up\n  your system. You will be prompted to set a new password\n  on first login. This message will not be shown again.
+============================================================
+```
+
+Login to your Ragnerock instance with the admin credentials provided. You will then be prompted to change the admin password and subsequently redirected to the application
+
+**Bring Your Own AI (BYOAI)**
+
+If you want to use a different AI provider from the default Gemini, click on the profile on the bottom left and select `Settings` from the menu that appears. From within the settings page, click on `AI Providers` from the integrations menu to bring up the BYOAI configuration screen. Click on `Add Provider` and fill out the configuration modal with your AI provider information. You can explicitly test a configuration with the `Test Configuration` button, however tests will run as part of the provider creation as well once you click on `Create Configuration`. Once the configuration has been created, click on the `...` to the right of your configuration and select `Activate` to make this your default AI provider.
+
+**Bring Your Own Database (BYODB)**
+
+If you want to store your non-application (e.g. job statuses, configurations) data in a separate database from Ragnerock, click on the profile button on the bottom left and select `Settings` from the menu that appears. From within the settings page, click on `Databases` under the interations menu to bring up the BYODB configuration screen. Fill out the configuration modal and click on `Create Configuration` to create your database configuration. After doing so, click on the `Initialize` button next to your configuration to initialize the database schema that is required by Ragnerock. After this has completed, click on the `...` to the right of your configuration and select `Activate` to make this your default database provider.
+
+**Bring Your Own Blob Storage**
+
+To configure the location which Ragnerock will store raw document files, click on the profile button on the bottom left and select `Settings` from the menu that appears. From within the settings page, click on `Storage` under the integrations menu to bring up the BYOBS configuration screen. Click on `Add Storage` to bring up the configuration modal. Configure your blob storage as desired (GCP bucket, S3, or Azure blob storage) and click on `Create Configuration`. Once the configuration has been created, click on the `Validate` button to the right of your configuration to setup the bucket and validate the configuration. Finally, clickj on the `...` to the right of your configuration and select `Activate` to begin using the blob storage provider.

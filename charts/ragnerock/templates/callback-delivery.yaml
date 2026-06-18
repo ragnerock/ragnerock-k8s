@@ -47,6 +47,14 @@ spec:
                 name: {{ include "ragnerock.fullname" . }}-db
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-endpoints
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-model-service
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-worker
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-data-ingestor
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-api
             - secretRef:
                 name: {{ include "ragnerock.fullname" . }}-otel
             - secretRef:
@@ -55,6 +63,8 @@ spec:
                 name: {{ include "ragnerock.fullname" . }}-encryption
             - secretRef:
                 name: {{ include "ragnerock.fullname" . }}-endpoints
+            - secretRef:
+                name: {{ include "ragnerock.fullname" . }}-license
           env:
             - name: OTEL_RESOURCE_ATTRIBUTES
               value: service.name=callback-delivery,deployment.environment={{ .Values.config.environmentIdentifier }}
