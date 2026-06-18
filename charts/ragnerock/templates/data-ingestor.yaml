@@ -41,10 +41,16 @@ spec:
                 name: {{ include "ragnerock.fullname" . }}-data-ingestor
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-audience
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-callback
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-queue
             - secretRef:
                 name: {{ include "ragnerock.fullname" . }}-cloudflare
             - secretRef:
                 name: {{ include "ragnerock.fullname" . }}-otel
+            - secretRef:
+                name: {{ include "ragnerock.fullname" . }}-encryption
           env:
             - name: OTEL_RESOURCE_ATTRIBUTES
               value: service.name=data-ingestor,deployment.environment={{ .Values.config.environmentIdentifier }}
