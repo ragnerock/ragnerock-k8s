@@ -36,7 +36,7 @@ spec:
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-db
             - secretRef:
-                name: {{ include "ragnerock.fullname" . }}-db
+                name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "db" "existingSecret" .Values.database.existingSecret) }}
           {{- with .Values.migrations.resources }}
           resources:
             {{- toYaml . | nindent 12 }}

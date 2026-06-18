@@ -71,13 +71,13 @@ spec:
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-ingest
             - secretRef:
-                name: {{ include "ragnerock.fullname" . }}-db
+                name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "db" "existingSecret" .Values.database.existingSecret) }}
             - secretRef:
-                name: {{ include "ragnerock.fullname" . }}-auth
+                name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "auth" "existingSecret" .Values.auth.existingSecret) }}
             - secretRef:
-                name: {{ include "ragnerock.fullname" . }}-encryption
+                name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "encryption" "existingSecret" .Values.encryption.existingSecret) }}
             - secretRef:
-                name: {{ include "ragnerock.fullname" . }}-otel
+                name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "otel" "existingSecret" .Values.otel.existingSecret) }}
             - secretRef:
                 name: {{ include "ragnerock.fullname" . }}-license
             - secretRef:

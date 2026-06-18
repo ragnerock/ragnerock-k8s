@@ -51,7 +51,7 @@ spec:
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-queue
             - secretRef:
-                name: {{ include "ragnerock.fullname" . }}-cloudflare
+                name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "cloudflare" "existingSecret" .Values.cloudflare.existingSecret) }}
             - secretRef:
                 name: {{ include "ragnerock.fullname" . }}-otel
             - secretRef:
