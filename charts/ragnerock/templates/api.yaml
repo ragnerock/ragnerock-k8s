@@ -23,6 +23,10 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- with .Values.api.tolerations | default .Values.global.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: api
           image: {{ include "ragnerock.image" (dict "global" .Values.global "image" .Values.api.image) }}
@@ -77,7 +81,10 @@ spec:
               value: service.name=api,deployment.environment={{ .Values.config.environmentIdentifier }}
             - name: OTEL_SERVICE_NAME
               value: api
+          {{- with .Values.api.volumeMounts }}
           volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           livenessProbe:
             httpGet:
               path: /health/live
@@ -94,6 +101,10 @@ spec:
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+      {{- with .Values.api.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
 ---
 apiVersion: v1
 kind: Service

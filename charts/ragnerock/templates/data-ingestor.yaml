@@ -23,6 +23,10 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- with .Values.dataIngestor.tolerations | default .Values.global.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: data-ingestor
           image: {{ include "ragnerock.image" (dict "global" .Values.global "image" .Values.dataIngestor.image) }}
@@ -49,6 +53,10 @@ spec:
               value: service.name=data-ingestor,deployment.environment={{ .Values.config.environmentIdentifier }}
             - name: OTEL_SERVICE_NAME
               value: data-ingestor
+          {{- with .Values.dataIngestor.volumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           livenessProbe:
             httpGet:
               path: /health/live
@@ -65,6 +73,10 @@ spec:
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+      {{- with .Values.dataIngestor.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
 ---
 apiVersion: v1
 kind: Service

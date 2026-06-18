@@ -25,6 +25,10 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- with .Values.frontend.tolerations | default .Values.global.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: frontend
           image: {{ include "ragnerock.image" (dict "global" .Values.global "image" .Values.frontend.image) }}
@@ -45,6 +49,10 @@ spec:
               value: service.name=frontend,deployment.environment={{ .Values.config.environmentIdentifier }}
             - name: OTEL_SERVICE_NAME
               value: frontend
+          {{- with .Values.frontend.volumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           livenessProbe:
             httpGet:
               path: /
@@ -61,6 +69,10 @@ spec:
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+      {{- with .Values.frontend.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
 ---
 apiVersion: v1
 kind: Service

@@ -17,6 +17,9 @@ Ragnerock research intelligence platform
 | analysisToolkit.serviceAccount.annotations | object | `{}` | Annotations to add to the created service account (e.g. for workload identity) |
 | analysisToolkit.serviceAccount.create | bool | `false` | Create a service account for this deployment's pods |
 | analysisToolkit.serviceAccount.name | string | `""` | Service account name to use; if empty and `create` is true a name is generated |
+| analysisToolkit.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
+| analysisToolkit.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
+| analysisToolkit.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
 | api.fqdn | string | `""` |  |
 | api.image.name | string | `"api"` |  |
 | api.image.tag | string | `""` |  |
@@ -27,12 +30,16 @@ Ragnerock research intelligence platform
 | api.serviceAccount.annotations | object | `{}` | Annotations to add to the created service account (e.g. for workload identity) |
 | api.serviceAccount.create | bool | `false` | Create a service account for this deployment's pods |
 | api.serviceAccount.name | string | `""` | Service account name to use; if empty and `create` is true a name is generated |
+| api.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
+| api.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
+| api.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
 | auth.accessCodeExpireMinutes | int | `10080` |  |
 | auth.accessKey | string | `""` | Generate with `openssl rand -hex 22` |
 | auth.accessTokenExpireMinutes | int | `10080` |  |
 | auth.lockoutMaxAttempts | int | `10` |  |
 | auth.secretKey | string | `""` | Generate with `openssl rand -hex 22` |
-| cloudTasks | object | `{"emulator":{"port":8123},"jobQueueName":"ragnerock-document-jobs","maxConcurrentDispatches":500,"maxDispatchesPerSecond":500,"queuePoolSize":100,"subtaskQueueName":"ragnerock-subtask-jobs"}` | Cloudtask configuration for use with in-cluster emulator |
+| cloudTasks | object | `{"emulator":{"port":8123,"tolerations":[]},"jobQueueName":"ragnerock-document-jobs","maxConcurrentDispatches":500,"maxDispatchesPerSecond":500,"queuePoolSize":100,"subtaskQueueName":"ragnerock-subtask-jobs"}` | Cloudtask configuration for use with in-cluster emulator |
+| cloudTasks.emulator.tolerations | list | `[]` | Pod tolerations for the cloud-tasks emulator (overrides `global.tolerations`) |
 | cloudflare.accountId | string | `""` |  |
 | cloudflare.apiToken | string | `""` |  |
 | config | object | `{"environmentIdentifier":"ragnerock","logLevel":"INFO"}` | General app configuration |
@@ -45,6 +52,9 @@ Ragnerock research intelligence platform
 | dataIngestor.serviceAccount.annotations | object | `{}` | Annotations to add to the created service account (e.g. for workload identity) |
 | dataIngestor.serviceAccount.create | bool | `false` | Create a service account for this deployment's pods |
 | dataIngestor.serviceAccount.name | string | `""` | Service account name to use; if empty and `create` is true a name is generated |
+| dataIngestor.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
+| dataIngestor.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
+| dataIngestor.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
 | database | object | `{"host":"","maxOverflow":40,"name":"ragnerock","password":"","poolSize":20,"poolTimeout":10,"port":5432,"user":"ragnerock"}` | Database configuration |
 | encryption.kek | string | `""` | Key Encryption Key (KEK), generate with python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())' |
 | frontend.fqdn | string | `""` |  |
@@ -57,8 +67,12 @@ Ragnerock research intelligence platform
 | frontend.serviceAccount.annotations | object | `{}` | Annotations to add to the created service account (e.g. for workload identity) |
 | frontend.serviceAccount.create | bool | `false` | Create a service account for this deployment's pods |
 | frontend.serviceAccount.name | string | `""` | Service account name to use; if empty and `create` is true a name is generated |
+| frontend.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
+| frontend.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
+| frontend.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
 | global.image | object | `{"pullPolicy":"IfNotPresent","registry":"us-central1-docker.pkg.dev/ragnerock-prod/ragnerock","tag":"latest"}` | Global container image configuration |
 | global.imagePullSecrets | list | `[]` | Secrets use to authenticate with the container registry, list of `- name: <name of the secret>` values |
+| global.tolerations | list | `[]` | Default pod tolerations applied to all workloads. Can be overridden per-service with `<service>.tolerations`. See https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/ |
 | license | string | `""` | Ragnerock provided license key |
 | limits.batches.annotation | int | `50` |  |
 | limits.batches.defaultRow | int | `50` |  |
@@ -92,11 +106,15 @@ Ragnerock research intelligence platform
 | modelService.serviceAccount.annotations | object | `{}` | Annotations to add to the created service account (e.g. for workload identity) |
 | modelService.serviceAccount.create | bool | `false` | Create a service account for this deployment's pods |
 | modelService.serviceAccount.name | string | `""` | Service account name to use; if empty and `create` is true a name is generated |
+| modelService.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
+| modelService.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
+| modelService.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
 | otel | object | `{"authHeader":"","enabled":false,"exporterEndpoint":"","exporterInsecure":false,"exporterProtocol":"http/protobuf"}` | Otel metrics/traces/logs export |
-| queue | object | `{"serviceAccount":{"annotations":{},"create":false,"name":""}}` | In-cluster Cloud Tasks emulator deployment |
+| queue | object | `{"serviceAccount":{"annotations":{},"create":false,"name":""},"tolerations":[]}` | In-cluster Cloud Tasks emulator deployment |
 | queue.serviceAccount.annotations | object | `{}` | Annotations to add to the created service account (e.g. for workload identity) |
 | queue.serviceAccount.create | bool | `false` | Create a service account for this deployment's pods |
 | queue.serviceAccount.name | string | `""` | Service account name to use; if empty and `create` is true a name is generated |
+| queue.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | ragnerock.safetyEnabled | bool | `true` | Should Ragnerock treat all prompts as unsafe |
 | rateLimits.adminMutationPerMinute | int | `40` |  |
 | rateLimits.agentPerMinute | int | `20` |  |
@@ -130,6 +148,9 @@ Ragnerock research intelligence platform
 | subtaskWorker.serviceAccount.annotations | object | `{}` | Annotations to add to the created service account (e.g. for workload identity) |
 | subtaskWorker.serviceAccount.create | bool | `false` | Create a service account for this deployment's pods |
 | subtaskWorker.serviceAccount.name | string | `""` | Service account name to use; if empty and `create` is true a name is generated |
+| subtaskWorker.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
+| subtaskWorker.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
+| subtaskWorker.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
 | worker.image.name | string | `"worker"` |  |
 | worker.image.tag | string | `""` |  |
 | worker.replicaCount | int | `1` |  |
@@ -139,6 +160,9 @@ Ragnerock research intelligence platform
 | worker.serviceAccount.annotations | object | `{}` | Annotations to add to the created service account (e.g. for workload identity) |
 | worker.serviceAccount.create | bool | `false` | Create a service account for this deployment's pods |
 | worker.serviceAccount.name | string | `""` | Service account name to use; if empty and `create` is true a name is generated |
+| worker.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
+| worker.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
+| worker.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
 
 ----------------------------------------------
 Autogenerated from chart metadata using [helm-docs v1.14.2](https://github.com/norwoodj/helm-docs/releases/v1.14.2)

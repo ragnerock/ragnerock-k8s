@@ -23,6 +23,10 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- with .Values.analysisToolkit.tolerations | default .Values.global.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: analysis-toolkit
           image: {{ include "ragnerock.image" (dict "global" .Values.global "image" .Values.analysisToolkit.image) }}
@@ -45,6 +49,10 @@ spec:
               value: service.name=analysis-toolkit,deployment.environment={{ .Values.config.environmentIdentifier }}
             - name: OTEL_SERVICE_NAME
               value: analysis-toolkit
+          {{- with .Values.analysisToolkit.volumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           livenessProbe:
             httpGet:
               path: /health
@@ -61,6 +69,10 @@ spec:
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+      {{- with .Values.analysisToolkit.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
 ---
 apiVersion: v1
 kind: Service

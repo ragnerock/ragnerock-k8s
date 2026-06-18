@@ -19,6 +19,10 @@ spec:
       {{- with (include "ragnerock.serviceAccountName" (dict "context" . "config" .Values.queue.serviceAccount "component" "queue")) }}
       serviceAccountName: {{ . }}
       {{- end }}
+      {{- with .Values.cloudTasks.emulator.tolerations | default .Values.global.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: queue
           image: ghcr.io/aertje/cloud-tasks-emulator:latest
