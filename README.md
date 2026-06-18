@@ -40,6 +40,8 @@ Note that in the event you are using the pgvector manifest, the default values w
 
 - `encryption.kek` -- The encryption key for your instance. DO NOT USE THE VALUE IN THE MANIFEST, instead generate your own with `python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'`
 
+- `enpoints.HMACMasterKey` -- generate with `openssl rand -hex 22`
+
 - `auth.secretKey` -- generate with `openssl rand -hex 22`
 - `auth.accessKey` -- generate with `openssl rand -hex 22`
 
@@ -62,7 +64,19 @@ You'll also have to confiugre your API and frontend services to ensure they can 
 - `frontend.service.type` -- the k8s service type to deploy for the frontend, most likely `LoadBalancer` or `NodePort`
 - `frontend.fqdn` -- the externally accessible URL the frontend will live behind, e.g. `app-dev.ragnerock.com`
 
-Finally configure your license by setting it to the license value provided by Ragnerock
+Add your LLM API keys
+
+- `llm.geminiApiKey` -- API key for the default Gemini agent
+- `llm.mistralApiKey` -- API key for Mistral (used for OCR and image processing)
+
+You'll then need to configure Cloudflare if you are using the web scrape data ingestion feature of Ragnerock. If not, set these following values to `not_implemented` (or any other placeholder value you desire)
+
+- `cloudflare.apiToken` -- API token with the `Account.Browser Rendering` permissions granted
+- `cloudflare.accountId` -- ID of the Cloudflare account associated with the API token
+
+Finally configure your license
+
+- `license` -- provided by Ragnerock
 
 ### Deployment
 
@@ -70,12 +84,7 @@ Now that you have configured your values (we will assume they live at `./values.
 
 ```
 helm repo add ragnerock https://ragnerock.github.io/ragnerock-k8s
-helm upgrade --install ragnerock ragnerock/ragnerock \
---values ./values.yaml \
---set llm.geminiApiKey=$GEMINI_API_KEY \
---set llm.mistralApiKey=$MISTRAL_API_KEY \
---set cloudflare.apiToken=$CLOUDFLARE_API_TOKEN \
---set cloudflare.accountId=$CLOUDFLARE_ACCOUNT_ID
+helm upgrade --install ragnerock ragnerock/ragnerock --values ./values.yaml
 ```
 
 After installation you will see the URLs for each Ragnerock service printed as well as the externally accessible URLs to access the application

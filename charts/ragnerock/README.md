@@ -29,7 +29,7 @@ Ragnerock research intelligence platform
 | auth.lockoutMaxAttempts | int | `10` |  |
 | auth.secretKey | string | `""` | Generate with `openssl rand -hex 22` |
 | cloudTasks | object | `{"emulator":{"port":8123,"tolerations":[]},"jobQueueName":"ragnerock-document-jobs","maxConcurrentDispatches":500,"maxDispatchesPerSecond":500,"queuePoolSize":100,"subtaskQueueName":"ragnerock-subtask-jobs"}` | Cloudtask configuration for use with in-cluster emulator |
-| cloudTasks.emulator.tolerations | list | `[]` | Pod tolerations for the cloud-tasks emulator (overrides `global.tolerations`) |
+| cloudTasks.emulator.tolerations | list | `[]` | Pod tolerations for the queue service (overrides `global.tolerations`) |
 | cloudflare.accountId | string | `""` |  |
 | cloudflare.apiToken | string | `""` |  |
 | config | object | `{"environmentIdentifier":"ragnerock","logLevel":"INFO"}` | General app configuration |

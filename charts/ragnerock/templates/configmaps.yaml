@@ -65,9 +65,9 @@ data:
   RATE_LIMIT_IAM_MUTATION_PER_MINUTE: "{{ .Values.rateLimits.iamMutationPerMinute }}"
   RATE_LIMIT_API_TOKEN_PER_MINUTE: "{{ .Values.rateLimits.apiTokenPerMinute }}"
   RATE_LIMIT_NOTIFICATION_STREAM_PER_MINUTE: "{{ .Values.rateLimits.notificationStreamPerMinute }}"
-  RATE_LIMIT_QUERY_ASSIST: "{{ .Values.queryAssistPerMinute }}"
-  RATE_LIMIT_QUERY_EXECUTE: "{{ .Values.queryExecutePerMinute }}"
-  RATE_LIMIT_QUERY_VALIDATE: "{{ .Values.queryValidatePerMinute }}"
+  RATE_LIMIT_QUERY_ASSIST: "{{ .Values.rateLimits.queryAssistPerMinute }}"
+  RATE_LIMIT_QUERY_EXECUTE: "{{ .Values.rateLimits.queryExecutePerMinute }}"
+  RATE_LIMIT_QUERY_VALIDATE: "{{ .Values.rateLimits.queryValidatePerMinute }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -246,10 +246,10 @@ metadata:
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
-  DATAFRAME_OP_TIMEOUT: "{{ .Values.analsys.dataframeOpTimeout }}"
-  MAX_COLUMNS: "{{ .Values.analsys.maxColumns }}"
-  MAX_ROWS: "{{ .Values.analsys.maxRows }}"
-  MODEL_FIT_TIMEOUT: "{{ .Values.analsys.modelFitTimeoutSeconds }}"
-  PLOT_DPI: "{{ .Values.analsys.plotDPI }}"
-  PLOT_MAX_FIGSIZE: "{{ .Values.analsys.plotMaxFigsize }}"
-  PLOT_TIMEOUT: "{{ .Values.analsys.plotTimeoutSeconds }}"
+  DATAFRAME_OP_TIMEOUT: "{{ .Values.analysis.dataframeOpTimeout }}"
+  MAX_COLUMNS: "{{ .Values.analysis.maxColumns }}"
+  MAX_ROWS: "{{ .Values.analysis.maxRows }}"
+  MODEL_FIT_TIMEOUT: "{{ .Values.analysis.modelFitTimeoutSeconds }}"
+  PLOT_DPI: "{{ .Values.analysis.plotDPI }}"
+  PLOT_MAX_FIGSIZE: "[{{ .Values.analysis.plotMaxFigsize.x }},{{ .Values.analysis.plotMaxFigsize.y }}]"
+  PLOT_TIMEOUT: "{{ .Values.analysis.plotTimeoutSeconds }}"

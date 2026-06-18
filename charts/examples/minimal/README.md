@@ -12,8 +12,7 @@ admin UI after install.
 | ----------------- | ----------------------------------- |
 | Postgres + vector | `pgvector.yaml` (StatefulSet)       |
 | S3-compatible blob storage | `cloudserver.yaml` (Zenko CloudServer + bucket-init Job) |
-| Cloud Tasks queue | `cloud-tasks-emulator` (in-chart)   |
-| API / worker / subtask-worker / model-service / analysis-toolkit / data-ingestor / frontend / migrations | The `ragnerock` chart |
+| API / worker / subtask-worker / model-service / analysis-toolkit / data-ingestor / frontend / migrations/ queue service | The `ragnerock` chart |
 
 There is no GCS bucket, no Cloud SQL instance, no Cloud Tasks project. The
 chart's default blob path falls back to in-pod `LocalBlobStorage`, which is

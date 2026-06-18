@@ -13,5 +13,6 @@ _log "DEBUG" "Checking Helm chart"
 
 helm template charts/ragnerock | kubeconform -strict -verbose
 python $HERE/../helpers/check-configmaps.py
+python $HERE/../helpers/check-values.py $HERE/../../charts/ragnerock
 
 _log "SUCCESS" "Static checking done"

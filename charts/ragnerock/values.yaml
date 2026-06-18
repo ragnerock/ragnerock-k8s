@@ -1,3 +1,6 @@
+nameOverride: ~
+fullnameOverride: ~
+
 global:
   # -- Global container image configuration
   image:
@@ -47,16 +50,16 @@ otel:
   authHeader: ""
 
 # -- Cloudtask configuration for use with in-cluster emulator
-cloudTasks:
+queue:
   jobQueueName: "ragnerock-document-jobs"
   subtaskQueueName: "ragnerock-subtask-jobs"
+  callbackQueueName: "ragnerock-callbacks"
   maxDispatchesPerSecond: 500
   maxConcurrentDispatches: 500
   queuePoolSize: 100
-  emulator:
-    port: 8123
-    # -- Pod tolerations for the cloud-tasks emulator (overrides `global.tolerations`)
-    tolerations: []
+  port: 8123
+  # -- Pod tolerations for the queue deployment (overrides `global.tolerations`)
+  tolerations: []
 
 auth:
   # -- Generate with `openssl rand -hex 22`
@@ -95,6 +98,11 @@ rateLimits:
   configValidatePerMinute: 20
   adminMutationPerMinute: 40
   iamMutationPerMinute: 60
+  apiTokenPerMinute: 30
+  notificationStreamPerMinute: 10
+  queryAssistPerMinute: 30
+  queryExecutePerMinute: 120
+  queryValidatePerMinute: 60 
 
 model:
   geminiModelName: "gemini-3-flash-preview"
@@ -221,8 +229,7 @@ limits:
   concurrency:
     maxConcurrentSubtasks: 50
     maxConcurrentAnnotations: 10
-    maxConcurrentJobs: 5
-    maxConcurrentTasks: 10
+    maxConcurrentJobs: 10
   usage:
     maxInputTokens: "1000000"
     maxOutputTokens: "1000000"
@@ -239,3 +246,23 @@ limits:
 
 # -- Ragnerock provided license key
 license: ""
+
+endpoints:
+  HMACMasterKey: ""
+  allowPrivateCallbacks: true
+  ephemeralTTLHours: 24
+  maxFileSizeMB: 50
+
+ingest:
+  staleTimeoutSeconds: 3600
+
+analysis:
+  dataframeOpTimeout: 60
+  maxColumns: 500
+  maxRows: 50000
+  modelFitTimeoutSeconds: 120
+  plotDPI: 150
+  plotMaxFigsize: 
+    x: 12.0
+    y: 16.0
+  plotTimeoutSeconds: 60
