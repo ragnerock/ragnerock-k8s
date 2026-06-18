@@ -14,9 +14,9 @@ Ragnerock research intelligence platform
 | analysisToolkit.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
 | analysisToolkit.service.port | int | `8080` |  |
 | analysisToolkit.service.type | string | `"ClusterIP"` |  |
+| analysisToolkit.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | analysisToolkit.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
 | analysisToolkit.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
-| analysisToolkit.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | api.fqdn | string | `""` |  |
 | api.image.name | string | `"api"` |  |
 | api.image.tag | string | `""` |  |
@@ -24,9 +24,9 @@ Ragnerock research intelligence platform
 | api.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
 | api.service.port | int | `8080` |  |
 | api.service.type | string | `"ClusterIP"` |  |
+| api.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | api.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
 | api.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
-| api.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | auth.accessCodeExpireMinutes | int | `10080` |  |
 | auth.accessKey | string | `""` | Generate with `openssl rand -hex 22` |
 | auth.accessTokenExpireMinutes | int | `10080` |  |
@@ -43,9 +43,9 @@ Ragnerock research intelligence platform
 | dataIngestor.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
 | dataIngestor.service.port | int | `8080` |  |
 | dataIngestor.service.type | string | `"ClusterIP"` |  |
+| dataIngestor.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | dataIngestor.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
 | dataIngestor.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
-| dataIngestor.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | database | object | `{"host":"","maxOverflow":40,"name":"ragnerock","password":"","poolSize":20,"poolTimeout":10,"port":5432,"user":"ragnerock"}` | Database configuration |
 | encryption.kek | string | `""` | Key Encryption Key (KEK), generate with python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())' |
 | frontend.fqdn | string | `""` |  |
@@ -55,9 +55,9 @@ Ragnerock research intelligence platform
 | frontend.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
 | frontend.service.port | int | `3000` |  |
 | frontend.service.type | string | `"ClusterIP"` |  |
+| frontend.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | frontend.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
 | frontend.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
-| frontend.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | global.image | object | `{"pullPolicy":"IfNotPresent","registry":"us-central1-docker.pkg.dev/ragnerock-prod/ragnerock","tag":"latest"}` | Global container image configuration |
 | global.imagePullSecrets | list | `[]` | Secrets use to authenticate with the container registry, list of `- name: <name of the secret>` values |
 | global.tolerations | list | `[]` | Default pod tolerations applied to all workloads. Can be overridden per-service with `<service>.tolerations`. See https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/ |
@@ -89,9 +89,9 @@ Ragnerock research intelligence platform
 | modelService.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
 | modelService.service.port | int | `8080` |  |
 | modelService.service.type | string | `"ClusterIP"` |  |
+| modelService.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | modelService.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
 | modelService.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
-| modelService.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | otel | object | `{"authHeader":"","enabled":false,"exporterEndpoint":"","exporterInsecure":false,"exporterProtocol":"http/protobuf"}` | Otel metrics/traces/logs export |
 | ragnerock.safetyEnabled | bool | `true` | Should Ragnerock treat all prompts as unsafe |
 | rateLimits.adminMutationPerMinute | int | `40` |  |
@@ -123,18 +123,18 @@ Ragnerock research intelligence platform
 | subtaskWorker.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
 | subtaskWorker.service.port | int | `8080` |  |
 | subtaskWorker.service.type | string | `"ClusterIP"` |  |
+| subtaskWorker.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | subtaskWorker.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
 | subtaskWorker.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
-| subtaskWorker.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | worker.image.name | string | `"worker"` |  |
 | worker.image.tag | string | `""` |  |
 | worker.replicaCount | int | `1` |  |
 | worker.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
 | worker.service.port | int | `8080` |  |
 | worker.service.type | string | `"ClusterIP"` |  |
+| worker.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | worker.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
 | worker.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
-| worker.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 
 ----------------------------------------------
 Autogenerated from chart metadata using [helm-docs v1.14.2](https://github.com/norwoodj/helm-docs/releases/v1.14.2)
