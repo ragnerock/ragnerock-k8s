@@ -16,6 +16,9 @@ spec:
         {{- include "ragnerock.labels" . | nindent 8 }}
         {{- include "ragnerock.selectorLabels" (dict "context" . "component" "data-ingestor") | nindent 8 }}
     spec:
+      {{- with (include "ragnerock.serviceAccountName" (dict "context" . "config" .Values.dataIngestor.serviceAccount "component" "data-ingestor")) }}
+      serviceAccountName: {{ . }}
+      {{- end }}
       {{- with .Values.global.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
