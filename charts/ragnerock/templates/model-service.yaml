@@ -41,6 +41,10 @@ spec:
                 name: {{ include "ragnerock.fullname" . }}-model
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-audience
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-queue
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-callback
             - secretRef:
                 name: {{ include "ragnerock.fullname" . }}-llm
             - secretRef:
