@@ -43,8 +43,14 @@ spec:
                 name: {{ include "ragnerock.fullname" . }}-queue
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-audience
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-db
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-endpoint
             - secretRef:
                 name: {{ include "ragnerock.fullname" . }}-otel
+            - secretRef:
+                name: {{ include "ragnerock.fullname" . }}-db
           env:
             - name: OTEL_RESOURCE_ATTRIBUTES
               value: service.name=callback-delivery,deployment.environment={{ .Values.config.environmentIdentifier }}
