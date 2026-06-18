@@ -46,7 +46,7 @@ spec:
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-model-service
             - configMapRef:
-                name: {{ include "ragnerock.fullname" . }}-cloud-tasks
+                name: {{ include "ragnerock.fullname" . }}-queue
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-limits
             - configMapRef:

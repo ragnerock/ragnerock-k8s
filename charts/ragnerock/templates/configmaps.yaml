@@ -76,7 +76,7 @@ metadata:
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
-  DATA_INGESTOR_URL: http://{{ include "ragnerock.fullname" . }}-analysis-toolkit:{{ .Values.analysisToolkit.service.port }}
+  ANALYSIS_TOOLKIT_URL: http://{{ include "ragnerock.fullname" . }}-analysis-toolkit:{{ .Values.analysisToolkit.service.port }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -86,8 +86,6 @@ metadata:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
   DATA_INGESTOR_URL: http://{{ include "ragnerock.fullname" . }}-data-ingestor:{{ .Values.dataIngestor.service.port }}
-  CALLBACK_ALLOWED_HOSTS: "ragnerock-api:8080"
-  CALLBACK_HTTP_ALLOWED: "true"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -164,17 +162,18 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "ragnerock.fullname" . }}-cloud-tasks
+  name: {{ include "ragnerock.fullname" . }}-queue
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
   CLOUD_TASKS_ENABLED: "true"
-  CLOUD_TASKS_JOB_QUEUE_NAME: {{ .Values.cloudTasks.jobQueueName }}
-  CLOUD_TASKS_SUBTASK_QUEUE_NAME: {{ .Values.cloudTasks.subtaskQueueName }}
-  CLOUD_TASKS_MAX_DISPATCHES_PER_SECOND: "{{ .Values.cloudTasks.maxDispatchesPerSecond }}"
-  CLOUD_TASKS_MAX_CONCURRENT_DISPATCHES: "{{ .Values.cloudTasks.maxConcurrentDispatches }}"
-  QUEUE_POOL_SIZE: "{{ .Values.cloudTasks.queuePoolSize }}"
-  CLOUD_TASKS_ENDPOINT: {{ include "ragnerock.fullname" . }}-queue:{{ .Values.cloudTasks.emulator.port }}
+  CLOUD_TASKS_JOB_QUEUE_NAME: "{{ .Values.queue.jobQueueName }}"
+  CLOUD_TASKS_SUBTASK_QUEUE_NAME: "{{ .Values.queue.subtaskQueueName }}"
+  CLOUD_TASKS_CALLBACK_QUEUE: "{{ .Values.queue.callbackQueueName }}"
+  CLOUD_TASKS_MAX_DISPATCHES_PER_SECOND: "{{ .Values.queue.maxDispatchesPerSecond }}"
+  CLOUD_TASKS_MAX_CONCURRENT_DISPATCHES: "{{ .Values.queue.maxConcurrentDispatches }}"
+  QUEUE_POOL_SIZE: "{{ .Values.queue.queuePoolSize }}"
+  CLOUD_TASKS_ENDPOINT: {{ include "ragnerock.fullname" . }}-queue:{{ .Values.queue.port }}
   CLOUD_TASKS_PROJECT_ID: local
 ---
 apiVersion: v1
@@ -218,7 +217,7 @@ metadata:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
   ENDPOINTS_ALLOW_PRIVATE_CALLBACKS: "{{ .Values.endpoints.allowPrivateCallbacks }}"
-  ENDPOINTS_EPHEMERAL_TLL_HOURS: "{{ .Values.endpoints.ephemeralTTLHours }}"
+  ENDPOINTS_EPHEMERAL_TTL_HOURS: "{{ .Values.endpoints.ephemeralTTLHours }}"
   ENDPOINTS_MAX_FILE_SIZE_MB: "{{ .Values.endpoints.maxFileSizeMB }}"
 ---
 apiVersion: v1
@@ -229,3 +228,14 @@ metadata:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
   INGEST_RUN_STALE_TIMEOUT_SECONDS: "{{ .Values.ingest.staleTimeoutSeconds }}"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-callback
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  CALLBACK_DELIVERY_URL: http://{{ include "ragnerock.fullname" . }}-callback-delivery:{{ .Values.callbackDelivery.service.port }}
+  CALLBACK_ALLOWED_HOSTS: "ragnerock-api:8080"
+  CALLBACK_HTTP_ALLOWED: "true"

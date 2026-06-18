@@ -56,15 +56,17 @@ spec:
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-model-service
             - configMapRef:
-                name: {{ include "ragnerock.fullname" . }}-cloud-tasks
+                name: {{ include "ragnerock.fullname" . }}-queue
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-audience
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-endpoints
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-callback
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-ingest
             - secretRef:
                 name: {{ include "ragnerock.fullname" . }}-db
-            - secretRef:
-                name: {{ include "ragnerock.fullname" . }}-llm
             - secretRef:
                 name: {{ include "ragnerock.fullname" . }}-auth
             - secretRef:

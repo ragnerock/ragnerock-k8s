@@ -16,17 +16,17 @@ spec:
         {{- include "ragnerock.labels" . | nindent 8 }}
         {{- include "ragnerock.selectorLabels" (dict "context" . "component" "queue") | nindent 8 }}
     spec:
-      {{- with .Values.cloudTasks.emulator.tolerations | default .Values.global.tolerations }}
+      {{- with .Values.queue.tolerations | default .Values.global.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       containers:
         - name: queue
           image: ghcr.io/aertje/cloud-tasks-emulator:latest
-          command: ["./emulator", "-host", "0.0.0.0", "-port", "{{ .Values.cloudTasks.emulator.port }}"]
+          command: ["./emulator", "-host", "0.0.0.0", "-port", "{{ .Values.queue.port }}"]
           ports:
             - name: grpc
-              containerPort: {{ .Values.cloudTasks.emulator.port }}
+              containerPort: {{ .Values.queue.port }}
               protocol: TCP
           env:
             - name: APP_ENGINE_EMULATOR_HOST
@@ -52,7 +52,7 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-    - port: {{ .Values.cloudTasks.emulator.port }}
+    - port: {{ .Values.queue.port }}
       targetPort: grpc
       protocol: TCP
       name: grpc
