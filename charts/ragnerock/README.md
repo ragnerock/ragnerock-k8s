@@ -1,6 +1,6 @@
 # ragnerock
 
-![Version: 0.1.0](https://img.shields.io/badge/Version-0.1.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.0.0](https://img.shields.io/badge/AppVersion-1.0.0-informational?style=flat-square)
+![Version: 0.1.1](https://img.shields.io/badge/Version-0.1.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.0.0](https://img.shields.io/badge/AppVersion-1.0.0-informational?style=flat-square)
 
 Ragnerock research intelligence platform
 
@@ -17,10 +17,12 @@ Ragnerock research intelligence platform
 | analysisToolkit.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
 | analysisToolkit.service.port | int | `8080` |  |
 | analysisToolkit.service.type | string | `"ClusterIP"` |  |
+| analysisToolkit.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
+| analysisToolkit.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
+| analysisToolkit.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
 | api.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
 | api.autoscaling.targetCPUUtilizationPercentage | int | `80` | Target average CPU utilization (% of requests). Set to null to disable. |
 | api.autoscaling.targetMemoryUtilizationPercentage | int | `80` | Target average memory utilization (% of requests). Set to null to disable. |
-| analysisToolkit.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | api.fqdn | string | `""` |  |
 | api.image.name | string | `"api"` |  |
 | api.image.tag | string | `""` |  |
@@ -29,6 +31,8 @@ Ragnerock research intelligence platform
 | api.service.port | int | `8080` |  |
 | api.service.type | string | `"ClusterIP"` |  |
 | api.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
+| api.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
+| api.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
 | auth.accessCodeExpireMinutes | int | `10080` |  |
 | auth.accessKey | string | `""` | Generate with `openssl rand -hex 22` |
 | auth.accessTokenExpireMinutes | int | `10080` |  |
@@ -49,6 +53,8 @@ Ragnerock research intelligence platform
 | dataIngestor.service.port | int | `8080` |  |
 | dataIngestor.service.type | string | `"ClusterIP"` |  |
 | dataIngestor.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
+| dataIngestor.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
+| dataIngestor.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
 | database | object | `{"host":"","maxOverflow":40,"name":"ragnerock","password":"","poolSize":20,"poolTimeout":10,"port":5432,"user":"ragnerock"}` | Database configuration |
 | encryption.kek | string | `""` | Key Encryption Key (KEK), generate with python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())' |
 | frontend.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
@@ -62,6 +68,8 @@ Ragnerock research intelligence platform
 | frontend.service.port | int | `3000` |  |
 | frontend.service.type | string | `"ClusterIP"` |  |
 | frontend.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
+| frontend.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
+| frontend.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
 | global.image | object | `{"pullPolicy":"IfNotPresent","registry":"us-central1-docker.pkg.dev/ragnerock-prod/ragnerock","tag":"latest"}` | Global container image configuration |
 | global.imagePullSecrets | list | `[]` | Secrets use to authenticate with the container registry, list of `- name: <name of the secret>` values |
 | global.tolerations | list | `[]` | Default pod tolerations applied to all workloads. Can be overridden per-service with `<service>.tolerations`. See https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/ |
@@ -97,6 +105,8 @@ Ragnerock research intelligence platform
 | modelService.service.port | int | `8080` |  |
 | modelService.service.type | string | `"ClusterIP"` |  |
 | modelService.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
+| modelService.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
+| modelService.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
 | otel | object | `{"authHeader":"","enabled":false,"exporterEndpoint":"","exporterInsecure":false,"exporterProtocol":"http/protobuf"}` | Otel metrics/traces/logs export |
 | ragnerock.safetyEnabled | bool | `true` | Should Ragnerock treat all prompts as unsafe |
 | rateLimits.adminMutationPerMinute | int | `40` |  |
@@ -131,10 +141,12 @@ Ragnerock research intelligence platform
 | subtaskWorker.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
 | subtaskWorker.service.port | int | `8080` |  |
 | subtaskWorker.service.type | string | `"ClusterIP"` |  |
+| subtaskWorker.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
+| subtaskWorker.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
+| subtaskWorker.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
 | worker.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
 | worker.autoscaling.targetCPUUtilizationPercentage | int | `80` | Target average CPU utilization (% of requests). Set to null to disable. |
 | worker.autoscaling.targetMemoryUtilizationPercentage | int | `80` | Target average memory utilization (% of requests). Set to null to disable. |
-| subtaskWorker.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | worker.image.name | string | `"worker"` |  |
 | worker.image.tag | string | `""` |  |
 | worker.replicaCount | int | `1` |  |
@@ -142,6 +154,8 @@ Ragnerock research intelligence platform
 | worker.service.port | int | `8080` |  |
 | worker.service.type | string | `"ClusterIP"` |  |
 | worker.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
+| worker.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
+| worker.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
 
 ----------------------------------------------
 Autogenerated from chart metadata using [helm-docs v1.14.2](https://github.com/norwoodj/helm-docs/releases/v1.14.2)

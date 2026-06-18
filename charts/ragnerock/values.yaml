@@ -124,6 +124,10 @@ api:
     targetCPUUtilizationPercentage: 80
     # -- Target average memory utilization (% of requests). Set to null to disable.
     targetMemoryUtilizationPercentage: 80
+  # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
+  volumes: []
+  # -- Container volume mounts (list of Kubernetes volumeMount specs)
+  volumeMounts: []
 
 worker:
   replicaCount: 1
@@ -146,6 +150,10 @@ worker:
     targetCPUUtilizationPercentage: 80
     # -- Target average memory utilization (% of requests). Set to null to disable.
     targetMemoryUtilizationPercentage: 80
+  # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
+  volumes: []
+  # -- Container volume mounts (list of Kubernetes volumeMount specs)
+  volumeMounts: []
   # -- Pod tolerations (overrides `global.tolerations`)
   tolerations: []
 
@@ -170,6 +178,10 @@ subtaskWorker:
     targetCPUUtilizationPercentage: 80
     # -- Target average memory utilization (% of requests). Set to null to disable.
     targetMemoryUtilizationPercentage: 80
+  # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
+  volumes: []
+  # -- Container volume mounts (list of Kubernetes volumeMount specs)
+  volumeMounts: []
   # -- Pod tolerations (overrides `global.tolerations`)
   tolerations: []
 
@@ -194,6 +206,10 @@ modelService:
     targetCPUUtilizationPercentage: 80
     # -- Target average memory utilization (% of requests). Set to null to disable.
     targetMemoryUtilizationPercentage: 80
+  # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
+  volumes: []
+  # -- Container volume mounts (list of Kubernetes volumeMount specs)
+  volumeMounts: []
   # -- Pod tolerations (overrides `global.tolerations`)
   tolerations: []
 
@@ -219,6 +235,10 @@ frontend:
     targetCPUUtilizationPercentage: 80
     # -- Target average memory utilization (% of requests). Set to null to disable.
     targetMemoryUtilizationPercentage: 80
+  # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
+  volumes: []
+  # -- Container volume mounts (list of Kubernetes volumeMount specs)
+  volumeMounts: []
   # -- Pod tolerations (overrides `global.tolerations`)
   tolerations: []
 
@@ -244,6 +264,10 @@ analysisToolkit:
     targetCPUUtilizationPercentage: 80
     # -- Target average memory utilization (% of requests). Set to null to disable.
     targetMemoryUtilizationPercentage: 80
+  # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
+  volumes: []
+  # -- Container volume mounts (list of Kubernetes volumeMount specs)
+  volumeMounts: []
   # -- Pod tolerations (overrides `global.tolerations`)
   tolerations: []
 
@@ -268,6 +292,10 @@ dataIngestor:
     targetCPUUtilizationPercentage: 80
     # -- Target average memory utilization (% of requests). Set to null to disable.
     targetMemoryUtilizationPercentage: 80
+  # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
+  volumes: []
+  # -- Container volume mounts (list of Kubernetes volumeMount specs)
+  volumeMounts: []
   # -- Pod tolerations (overrides `global.tolerations`)
   tolerations: []
 
