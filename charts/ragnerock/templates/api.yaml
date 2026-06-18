@@ -40,8 +40,6 @@ spec:
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-api-tokens
             - configMapRef:
-                name: {{ include "ragnerock.fullname" . }}-usage
-            - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-rate-limits
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-analysis-toolkit
@@ -61,6 +59,8 @@ spec:
                 name: {{ include "ragnerock.fullname" . }}-cloud-tasks
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-audience
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-endpoints
             - secretRef:
                 name: {{ include "ragnerock.fullname" . }}-db
             - secretRef:
@@ -73,6 +73,8 @@ spec:
                 name: {{ include "ragnerock.fullname" . }}-otel
             - secretRef:
                 name: {{ include "ragnerock.fullname" . }}-license
+            - secretRef:
+                name: {{ include "ragnerock.fullname" . }}-endpoints
           env:
             - name: OTEL_RESOURCE_ATTRIBUTES
               value: service.name=api,deployment.environment={{ .Values.config.environmentIdentifier }}

@@ -13,18 +13,6 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "ragnerock.fullname" . }}-usage
-  labels:
-    {{- include "ragnerock.labels" . | nindent 4 }}
-data:
-  USAGE_MAX_INPUT_TOKENS: "{{ .Values.limits.usage.maxInputTokens }}"
-  USAGE_MAX_OUTPUT_TOKENS: "{{ .Values.limits.usage.maxOutputTokens }}"
-  USAGE_MAX_PAGES: "{{ .Values.limits.usage.maxPages }}"
-  USAGE_MAX_COMPUTE_SECONDS: "{{ .Values.limits.usage.maxComputeSeconds }}"
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
   name: {{ include "ragnerock.fullname" . }}-api-tokens
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
@@ -75,6 +63,11 @@ data:
   RATE_LIMIT_CONFIG_VALIDATE_PER_MINUTE: "{{ .Values.rateLimits.configValidatePerMinute }}"
   RATE_LIMIT_ADMIN_MUTATION_PER_MINUTE: "{{ .Values.rateLimits.adminMutationPerMinute }}"
   RATE_LIMIT_IAM_MUTATION_PER_MINUTE: "{{ .Values.rateLimits.iamMutationPerMinute }}"
+  RATE_LIMIT_API_TOKEN_PER_MINUTE: "{{ .Values.rateLimits.apiTokenPerMinute }}"
+  RATE_LIMIT_NOTIFICATION_STREAM_PER_MINUTE: "{{ .Values.rateLimits.notificationStreamPerMinute }}"
+  RATE_LIMIT_QUERY_ASSIST: "{{ .Values.queryAssistPerMinute }}"
+  RATE_LIMIT_QUERY_EXECUTE: "{{ .Values.queryExecutePerMinute }}"
+  RATE_LIMIT_QUERY_VALIDATE: "{{ .Values.queryValidatePerMinute }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -216,3 +209,23 @@ data:
   SCHEDULER_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-data-ingestor:{{ .Values.dataIngestor.service.port }}"
   SUBTASK_WORKER_SERVICE_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-subtask-worker:{{ .Values.subtaskWorker.service.port }}"
   WORKER_SERVICE_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-worker:{{ .Values.worker.service.port }}"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-endpoints
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  ENDPOINTS_ALLOW_PRIVATE_CALLBACKS: "{{ .Values.endpoints.allowPrivateCallbacks }}"
+  ENDPOINTS_EPHEMERAL_TLL_HOURS: "{{ .Values.endpoints.ephemeralTTLHours }}"
+  ENDPOINTS_MAX_FILE_SIZE_MB: "{{ .Values.endpoints.maxFileSizeMB }}"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-ingest
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  INGEST_RUN_STALE_TIMEOUT_SECONDS: "{{ .Values.ingest.staleTimeoutSeconds }}"
