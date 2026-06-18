@@ -57,15 +57,15 @@ spec:
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-audience
             - secretRef:
-                name: {{ include "ragnerock.fullname" . }}-db
+                name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "db" "existingSecret" .Values.database.existingSecret) }}
             - secretRef:
-                name: {{ include "ragnerock.fullname" . }}-llm
+                name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "llm" "existingSecret" .Values.llm.existingSecret) }}
             - secretRef:
-                name: {{ include "ragnerock.fullname" . }}-encryption
+                name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "encryption" "existingSecret" .Values.encryption.existingSecret) }}
             - secretRef:
-                name: {{ include "ragnerock.fullname" . }}-otel
+                name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "otel" "existingSecret" .Values.otel.existingSecret) }}
             - secretRef:
-                name: {{ include "ragnerock.fullname" . }}-license
+                name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "license" "existingSecret" .Values.licenseExistingSecret) }}
           env:
             - name: OTEL_RESOURCE_ATTRIBUTES
               value: service.name=subtask-worker,deployment.environment={{ .Values.config.environmentIdentifier }}

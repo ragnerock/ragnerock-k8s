@@ -16,6 +16,8 @@ database:
   name: ragnerock
   user: ragnerock
   password: ""
+  # -- Use a pre-existing secret (must provide key `DB_PASSWORD`) instead of generating one. When set, `password` is ignored.
+  existingSecret: ""
   poolSize: 20
   maxOverflow: 40
   poolTimeout: 10
@@ -24,10 +26,14 @@ database:
 llm:
   geminiApiKey: ""
   mistralApiKey: ""
+  # -- Use a pre-existing secret (must provide keys `GEMINI_API_KEY` and `MISTRAL_API_KEY`) instead of generating one. When set, `geminiApiKey`/`mistralApiKey` are ignored.
+  existingSecret: ""
 
 encryption:
   # -- Key Encryption Key (KEK), generate with python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'
   kek: ""
+  # -- Use a pre-existing secret (must provide key `ENCRYPTION_KEK`) instead of generating one. When set, `kek` is ignored.
+  existingSecret: ""
 
 # -- General app configuration
 config:
@@ -45,6 +51,8 @@ otel:
   exporterInsecure: false
   exporterProtocol: "http/protobuf"
   authHeader: ""
+  # -- Use a pre-existing secret (must provide key `OTEL_EXPORTER_OTLP_HEADERS`) instead of generating one. When set, `authHeader` is ignored.
+  existingSecret: ""
 
 # -- Cloudtask configuration for use with in-cluster emulator
 cloudTasks:
@@ -63,6 +71,8 @@ auth:
   secretKey: ""
   # -- Generate with `openssl rand -hex 22`
   accessKey: ""
+  # -- Use a pre-existing secret (must provide keys `SECRET_KEY` and `ACCESS_KEY`) instead of generating one. When set, `secretKey`/`accessKey` are ignored.
+  existingSecret: ""
   accessTokenExpireMinutes: 10080
   accessCodeExpireMinutes: 10080
   lockoutMaxAttempts: 10
@@ -70,6 +80,8 @@ auth:
 cloudflare:
   apiToken: ""
   accountId: ""
+  # -- Use a pre-existing secret (must provide keys `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`) instead of generating one. When set, `apiToken`/`accountId` are ignored.
+  existingSecret: ""
 
 rateLimits:
   windowMinutes: 1
@@ -396,3 +408,5 @@ limits:
 
 # -- Ragnerock provided license key
 license: ""
+# -- Use a pre-existing secret (must provide key `RAGNEROCK_LICENSE`) instead of generating one. When set, `license` is ignored.
+licenseExistingSecret: ""

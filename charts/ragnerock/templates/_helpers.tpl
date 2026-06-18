@@ -56,6 +56,17 @@ Usage: {{ include "ragnerock.image" (dict "global" .Values.global "image" .Value
 {{- end }}
 
 {{/*
+Resolve a secret name. When an existing secret name is provided it is used as-is
+(for secrets provisioned outside the chart); otherwise the chart-generated name is returned.
+Usage: {{ include "ragnerock.secretName" (dict "context" . "suffix" "db" "existingSecret" .Values.database.existingSecret) }}
+*/}}
+{{- define "ragnerock.secretName" -}}
+{{- if .existingSecret -}}
+{{- .existingSecret -}}
+{{- else -}}
+{{- printf "%s-%s" (include "ragnerock.fullname" .context) .suffix -}}
+{{- end -}}
+{{- end -}}
 Render a HorizontalPodAutoscaler for a component.
 Usage: {{ include "ragnerock.hpa" (dict "context" $ "component" "api" "values" .Values.api) }}
 The component's values must contain an `autoscaling` block. Caller is
@@ -108,4 +119,4 @@ Usage: {{ include "ragnerock.serviceAccountName" (dict "context" . "config" .Val
 {{- else if .config.create -}}
 {{- printf "%s-%s" (include "ragnerock.fullname" .context) .component -}}
 {{- end -}}
-{{- end }}
+{{- end -}}
