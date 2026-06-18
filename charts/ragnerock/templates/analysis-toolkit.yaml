@@ -41,6 +41,10 @@ spec:
                 name: {{ include "ragnerock.fullname" . }}-audience
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-analysis
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-callback
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-queue
             - secretRef:
                 name: {{ include "ragnerock.fullname" . }}-otel
             - secretRef:
