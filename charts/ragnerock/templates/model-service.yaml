@@ -6,7 +6,9 @@ metadata:
     {{- include "ragnerock.labels" . | nindent 4 }}
     {{- include "ragnerock.selectorLabels" (dict "context" . "component" "model-service") | nindent 4 }}
 spec:
+  {{- if not .Values.modelService.autoscaling.enabled }}
   replicas: {{ .Values.modelService.replicaCount }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "ragnerock.selectorLabels" (dict "context" . "component" "model-service") | nindent 6 }}
@@ -16,8 +18,15 @@ spec:
         {{- include "ragnerock.labels" . | nindent 8 }}
         {{- include "ragnerock.selectorLabels" (dict "context" . "component" "model-service") | nindent 8 }}
     spec:
+      {{- with (include "ragnerock.serviceAccountName" (dict "context" . "config" .Values.modelService.serviceAccount "component" "model-service")) }}
+      serviceAccountName: {{ . }}
+      {{- end }}
       {{- with .Values.global.imagePullSecrets }}
       imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.modelService.tolerations | default .Values.global.tolerations }}
+      tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       containers:
@@ -48,15 +57,19 @@ spec:
               value: service.name=model-service,deployment.environment={{ .Values.config.environmentIdentifier }}
             - name: OTEL_SERVICE_NAME
               value: model-service
+          {{- with .Values.modelService.volumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           livenessProbe:
             httpGet:
-              path: /health
+              path: /health/live
               port: http
             initialDelaySeconds: 15
             periodSeconds: 20
           readinessProbe:
             httpGet:
-              path: /ready
+              path: /health/ready
               port: http
             initialDelaySeconds: 5
             periodSeconds: 10
@@ -64,6 +77,10 @@ spec:
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+      {{- with .Values.modelService.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
 ---
 apiVersion: v1
 kind: Service
