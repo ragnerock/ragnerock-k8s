@@ -186,7 +186,6 @@ data:
   MAX_CONCURRENT_SUBTASKS: "{{ .Values.limits.concurrency.maxConcurrentSubtasks }}"
   MAX_CONCURRENT_ANNOTATIONS: "{{ .Values.limits.concurrency.maxConcurrentAnnotations }}"
   MAX_CONCURRENT_JOBS: "{{ .Values.limits.concurrency.maxConcurrentJobs }}"
-  MAX_CONCURRENT_TASKS: "{{ .Values.limits.concurrency.maxConcurrentTasks }}"
   EMBEDDING_BATCH_SIZE: "{{ .Values.limits.batches.embedding }}"
   ANNOTATION_BATCH_SIZE: "{{ .Values.limits.batches.annotation }}"
   TABULAR_ANNOTATION_BATCH_SIZE: "{{ .Values.limits.batches.tabularAnnotation }}"
