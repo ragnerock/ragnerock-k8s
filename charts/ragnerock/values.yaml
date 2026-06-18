@@ -113,6 +113,10 @@ api:
   # -- Pod tolerations (overrides `global.tolerations`)
   tolerations: []
   fqdn: ""
+  # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
+  volumes: []
+  # -- Container volume mounts (list of Kubernetes volumeMount specs)
+  volumeMounts: []
 
 worker:
   replicaCount: 1
@@ -124,6 +128,10 @@ worker:
     port: 8080
   # -- Deployment resoruce contraints (i.e. requests/limits)
   resources: {}
+  # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
+  volumes: []
+  # -- Container volume mounts (list of Kubernetes volumeMount specs)
+  volumeMounts: []
   # -- Pod tolerations (overrides `global.tolerations`)
   tolerations: []
 
@@ -137,6 +145,10 @@ subtaskWorker:
     port: 8080
   # -- Deployment resoruce contraints (i.e. requests/limits)
   resources: {}
+  # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
+  volumes: []
+  # -- Container volume mounts (list of Kubernetes volumeMount specs)
+  volumeMounts: []
   # -- Pod tolerations (overrides `global.tolerations`)
   tolerations: []
 
@@ -150,6 +162,10 @@ modelService:
     port: 8080
   # -- Deployment resoruce contraints (i.e. requests/limits)
   resources: {}
+  # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
+  volumes: []
+  # -- Container volume mounts (list of Kubernetes volumeMount specs)
+  volumeMounts: []
   # -- Pod tolerations (overrides `global.tolerations`)
   tolerations: []
 
@@ -164,6 +180,10 @@ frontend:
   fqdn: ""
   # -- Deployment resoruce contraints (i.e. requests/limits)
   resources: {}
+  # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
+  volumes: []
+  # -- Container volume mounts (list of Kubernetes volumeMount specs)
+  volumeMounts: []
   # -- Pod tolerations (overrides `global.tolerations`)
   tolerations: []
 
@@ -178,6 +198,10 @@ analysisToolkit:
     port: 8080
   # -- Deployment resoruce contraints (i.e. requests/limits)
   resources: {}
+  # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
+  volumes: []
+  # -- Container volume mounts (list of Kubernetes volumeMount specs)
+  volumeMounts: []
   # -- Pod tolerations (overrides `global.tolerations`)
   tolerations: []
 
@@ -191,6 +215,10 @@ dataIngestor:
     port: 8080
   # -- Deployment resoruce contraints (i.e. requests/limits)
   resources: {}
+  # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
+  volumes: []
+  # -- Container volume mounts (list of Kubernetes volumeMount specs)
+  volumeMounts: []
   # -- Pod tolerations (overrides `global.tolerations`)
   tolerations: []
 
