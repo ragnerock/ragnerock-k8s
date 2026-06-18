@@ -6,7 +6,9 @@ metadata:
     {{- include "ragnerock.labels" . | nindent 4 }}
     {{- include "ragnerock.selectorLabels" (dict "context" . "component" "analysis-toolkit") | nindent 4 }}
 spec:
+  {{- if not .Values.analysisToolkit.autoscaling.enabled }}
   replicas: {{ .Values.analysisToolkit.replicaCount }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "ragnerock.selectorLabels" (dict "context" . "component" "analysis-toolkit") | nindent 6 }}

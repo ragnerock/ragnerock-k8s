@@ -6,7 +6,9 @@ metadata:
     {{- include "ragnerock.labels" . | nindent 4 }}
     {{- include "ragnerock.selectorLabels" (dict "context" . "component" "model-service") | nindent 4 }}
 spec:
+  {{- if not .Values.modelService.autoscaling.enabled }}
   replicas: {{ .Values.modelService.replicaCount }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "ragnerock.selectorLabels" (dict "context" . "component" "model-service") | nindent 6 }}
@@ -61,13 +63,13 @@ spec:
           {{- end }}
           livenessProbe:
             httpGet:
-              path: /health
+              path: /health/live
               port: http
             initialDelaySeconds: 15
             periodSeconds: 20
           readinessProbe:
             httpGet:
-              path: /ready
+              path: /health/ready
               port: http
             initialDelaySeconds: 5
             periodSeconds: 10

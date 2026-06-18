@@ -56,6 +56,47 @@ Usage: {{ include "ragnerock.image" (dict "global" .Values.global "image" .Value
 {{- end }}
 
 {{/*
+Render a HorizontalPodAutoscaler for a component.
+Usage: {{ include "ragnerock.hpa" (dict "context" $ "component" "api" "values" .Values.api) }}
+The component's values must contain an `autoscaling` block. Caller is
+responsible for checking `autoscaling.enabled`.
+*/}}
+{{- define "ragnerock.hpa" -}}
+{{- $ctx := .context -}}
+{{- $component := .component -}}
+{{- $autoscaling := .values.autoscaling -}}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "ragnerock.fullname" $ctx }}-{{ $component }}
+  labels:
+    {{- include "ragnerock.labels" $ctx | nindent 4 }}
+    {{- include "ragnerock.selectorLabels" (dict "context" $ctx "component" $component) | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "ragnerock.fullname" $ctx }}-{{ $component }}
+  minReplicas: {{ $autoscaling.minReplicas }}
+  maxReplicas: {{ $autoscaling.maxReplicas }}
+  metrics:
+    {{- with $autoscaling.targetCPUUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ . }}
+    {{- end }}
+    {{- with $autoscaling.targetMemoryUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ . }}
+    {{- end }}
+{{- end }}
 Resolve the ServiceAccount name to use for a component's pods.
 Returns the explicitly configured name, or a generated name when `create` is
 true, or an empty string to fall back to the namespace default ServiceAccount.
