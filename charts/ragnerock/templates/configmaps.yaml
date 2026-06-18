@@ -238,3 +238,18 @@ data:
   CALLBACK_DELIVERY_URL: http://{{ include "ragnerock.fullname" . }}-callback-delivery:{{ .Values.callbackDelivery.service.port }}
   CALLBACK_ALLOWED_HOSTS: "ragnerock-api:8080"
   CALLBACK_HTTP_ALLOWED: "true"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-analysis
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  DATAFRAME_OP_TIMEOUT: "{{ .Values.analsys.dataframeOpTimeout }}"
+  MAX_COLUMNS: "{{ .Values.analsys.maxColumns }}"
+  MAX_ROWS: "{{ .Values.analsys.maxRows }}"
+  MODEL_FIT_TIMEOUT: "{{ .Values.analsys.modelFitTimeoutSeconds }}"
+  PLOT_DPI: "{{ .Values.analsys.plotDPI }}"
+  PLOT_MAX_FIGSIZE: "{{ .Values.analsys.plotMaxFigsize }}"
+  PLOT_TIMEOUT: "{{ .Values.analsys.plotTimeoutSeconds }}"

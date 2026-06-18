@@ -39,8 +39,12 @@ spec:
                 name: {{ include "ragnerock.fullname" . }}-otel
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-audience
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-analysis
             - secretRef:
                 name: {{ include "ragnerock.fullname" . }}-otel
+            - secretRef:
+                name: {{ include "ragnerock.fullname" . }}-encryption
           env:
             - name: OTEL_RESOURCE_ATTRIBUTES
               value: service.name=analysis-toolkit,deployment.environment={{ .Values.config.environmentIdentifier }}
