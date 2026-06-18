@@ -52,7 +52,7 @@ spec:
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-audience
             - configMapRef:
-                name: {{ include "ragnerock.fullname" . }}-callback
+                name: {{ include "ragnerock.fullname" . }}-callback-delivery
             - secretRef:
                 name: {{ include "ragnerock.fullname" . }}-db
             - secretRef:

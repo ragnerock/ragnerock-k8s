@@ -62,7 +62,7 @@ spec:
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-endpoints
             - configMapRef:
-                name: {{ include "ragnerock.fullname" . }}-callback
+                name: {{ include "ragnerock.fullname" . }}-callback-delivery
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-ingest
             - secretRef:

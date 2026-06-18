@@ -44,7 +44,7 @@ spec:
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-queue
             - configMapRef:
-                name: {{ include "ragnerock.fullname" . }}-callback
+                name: {{ include "ragnerock.fullname" . }}-callback-delivery
             - secretRef:
                 name: {{ include "ragnerock.fullname" . }}-llm
             - secretRef:
