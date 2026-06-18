@@ -6,6 +6,8 @@ global:
     tag: "latest"
   # -- Secrets use to authenticate with the container registry, list of `- name: <name of the secret>` values
   imagePullSecrets: []
+  # -- Default pod tolerations applied to all workloads. Can be overridden per-service with `<service>.tolerations`. See https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
+  tolerations: []
 
 # -- Database configuration
 database:
@@ -53,6 +55,8 @@ cloudTasks:
   queuePoolSize: 100
   emulator:
     port: 8123
+    # -- Pod tolerations for the cloud-tasks emulator (overrides `global.tolerations`)
+    tolerations: []
 
 auth:
   # -- Generate with `openssl rand -hex 22`
@@ -106,6 +110,8 @@ api:
     port: 8080
   # -- Deployment resoruce contraints (i.e. requests/limits)
   resources: {}
+  # -- Pod tolerations (overrides `global.tolerations`)
+  tolerations: []
   fqdn: ""
   # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
   volumes: []
@@ -126,6 +132,8 @@ worker:
   volumes: []
   # -- Container volume mounts (list of Kubernetes volumeMount specs)
   volumeMounts: []
+  # -- Pod tolerations (overrides `global.tolerations`)
+  tolerations: []
 
 subtaskWorker:
   replicaCount: 1
@@ -141,6 +149,8 @@ subtaskWorker:
   volumes: []
   # -- Container volume mounts (list of Kubernetes volumeMount specs)
   volumeMounts: []
+  # -- Pod tolerations (overrides `global.tolerations`)
+  tolerations: []
 
 modelService:
   replicaCount: 1
@@ -156,6 +166,8 @@ modelService:
   volumes: []
   # -- Container volume mounts (list of Kubernetes volumeMount specs)
   volumeMounts: []
+  # -- Pod tolerations (overrides `global.tolerations`)
+  tolerations: []
 
 frontend:
   replicaCount: 1
@@ -172,6 +184,8 @@ frontend:
   volumes: []
   # -- Container volume mounts (list of Kubernetes volumeMount specs)
   volumeMounts: []
+  # -- Pod tolerations (overrides `global.tolerations`)
+  tolerations: []
 
 analysisToolkit:
   replicaCount: 1
@@ -188,6 +202,8 @@ analysisToolkit:
   volumes: []
   # -- Container volume mounts (list of Kubernetes volumeMount specs)
   volumeMounts: []
+  # -- Pod tolerations (overrides `global.tolerations`)
+  tolerations: []
 
 dataIngestor:
   replicaCount: 1
@@ -203,6 +219,8 @@ dataIngestor:
   volumes: []
   # -- Container volume mounts (list of Kubernetes volumeMount specs)
   volumeMounts: []
+  # -- Pod tolerations (overrides `global.tolerations`)
+  tolerations: []
 
 migrations:
   image:
@@ -210,6 +228,8 @@ migrations:
     tag: ""
   # -- Deployment resoruce contraints (i.e. requests/limits)
   resources: {}
+  # -- Pod tolerations (overrides `global.tolerations`)
+  tolerations: []
 
 limits:
   concurrency:
