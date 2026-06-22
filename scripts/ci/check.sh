@@ -11,6 +11,8 @@ _log "INFO" "Static checking repo"
 
 _log "DEBUG" "Checking Helm chart"
 
+pip install pyyaml
+
 helm template charts/ragnerock | kubeconform -strict -verbose
 python $HERE/../helpers/check-configmaps.py
 python $HERE/../helpers/check-values.py $HERE/../../charts/ragnerock
