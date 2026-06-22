@@ -1,7 +1,9 @@
 global:
   # -- Global container image configuration
   image:
-    registry: us-central1-docker.pkg.dev/ragnerock-testing/ragnerock 
+    registry: us-central1-docker.pkg.dev/ragnerock-prod/ragnerock 
+  imagePullSecrets:
+    - name: ragnerock-image-pull-secret
 
 database:
   host: pgvector
@@ -38,3 +40,6 @@ cloudflare:
   accountId: ""
 
 license: ""
+
+endpoints:
+  HMACMasterKey: "your-endpoints-hmac-key"

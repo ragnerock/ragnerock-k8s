@@ -53,9 +53,11 @@ spec:
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-model-service
             - configMapRef:
-                name: {{ include "ragnerock.fullname" . }}-cloud-tasks
+                name: {{ include "ragnerock.fullname" . }}-queue
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-audience
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-callback-delivery
             - secretRef:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "db" "existingSecret" .Values.database.existingSecret) }}
             - secretRef:

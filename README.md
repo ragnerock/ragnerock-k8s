@@ -16,6 +16,8 @@ In order to install Ragnerock, you'll need the following
 - Cloudflare account ID (optional)
 - An S3, GCS, or Azure bucket
 - A postgres database with the `vector` and `uuid-ossp` extensions installed
+- A Ragnerock License (Provided by Ragnerock)
+- A Ragnerock service account dockerconfig (Provided by Ragnerock)
 
 The Gemini and Mistral API keys are required for base operation, while thie Cloudflare settings are required for the web-scrape data ingestion feature. If you do not intend to use this feature, you can leave out those settings.
 
@@ -29,7 +31,7 @@ If you would prefer to use an in-cluster database or bucket, see the supporting 
 
 ### Configuration
 
-Now that you have everything ready, copy the values file from `charts/examples/minimal/values.yaml` and place it whereever you want to store that for your deployment. Edit the values as follows:
+Now that you have everything ready, copy the values file from `charts/examples/minimal/values.yaml` and place it wherever you want to store that for your deployment. Edit the values as follows:
 
 - `database.host` -- hostname of your provisioned database
 - `database.user` -- username to access your database
@@ -39,6 +41,8 @@ Now that you have everything ready, copy the values file from `charts/examples/m
 Note that in the event you are using the pgvector manifest, the default values will connect OOTB
 
 - `encryption.kek` -- The encryption key for your instance. DO NOT USE THE VALUE IN THE MANIFEST, instead generate your own with `python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'`
+
+- `enpoints.HMACMasterKey` -- generate with `openssl rand -hex 22`
 
 - `auth.secretKey` -- generate with `openssl rand -hex 22`
 - `auth.accessKey` -- generate with `openssl rand -hex 22`
@@ -62,20 +66,71 @@ You'll also have to confiugre your API and frontend services to ensure they can 
 - `frontend.service.type` -- the k8s service type to deploy for the frontend, most likely `LoadBalancer` or `NodePort`
 - `frontend.fqdn` -- the externally accessible URL the frontend will live behind, e.g. `app-dev.ragnerock.com`
 
-Finally configure your license by setting it to the license value provided by Ragnerock
+Add your LLM API keys
+
+- `llm.geminiApiKey` -- API key for the default Gemini agent/image summarization
+- `llm.mistralApiKey` -- API key for Mistral (used for OCR and image processing)
+
+You'll then need to configure Cloudflare if you are using the web scrape data ingestion feature of Ragnerock. If not, set these following values to `not_implemented` (or any other placeholder value you desire)
+
+- `cloudflare.apiToken` -- API token with the `Account.Browser Rendering` permissions granted
+- `cloudflare.accountId` -- ID of the Cloudflare account associated with the API token
+
+Finally configure your license
+
+- `license` -- The License provided by Ragnerock
 
 ### Deployment
 
-Now that you have configured your values (we will assume they live at `./values.yaml` for this example), you can deploy Ragnerock to your cluster with
+First deploy your imagePullSecret:
+
+```bash
+kubectl apply -f - <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ragnerock-image-pull-secret
+  namespace: default
+type: kubernetes.io/dockerconfigjson
+data:
+  .dockerconfigjson: <YOUR RAGNEROCK PROVIDED SERVICE ACCOUNT DOCKERCONFIG>
+EOF
+```
+
+Now that you have configured your values (we will assume they live at `./values.yaml` for this example) and configured your image pull secret, you can deploy Ragnerock to your cluster with
 
 ```
 helm repo add ragnerock https://ragnerock.github.io/ragnerock-k8s
-helm upgrade --install ragnerock ragnerock/ragnerock \
---values ./values.yaml \
---set llm.geminiApiKey=$GEMINI_API_KEY \
---set llm.mistralApiKey=$MISTRAL_API_KEY \
---set cloudflare.apiToken=$CLOUDFLARE_API_TOKEN \
---set cloudflare.accountId=$CLOUDFLARE_ACCOUNT_ID
+helm upgrade --install ragnerock ragnerock/ragnerock --values ./values.yaml
 ```
 
 After installation you will see the URLs for each Ragnerock service printed as well as the externally accessible URLs to access the application
+
+### First-time Setup
+
+Now that you have deployed Ragnerock, investigate the API logs and look for the following log line:
+
+```
+============================================================
+INITIAL ADMIN CREDENTIALS \u2014 RECORD THESE NOW
+============================================================
+email:    admin@localhost.local
+password: <your admin password>
+    
+Login with the admin credentials to finish setting up\n  your system. You will be prompted to set a new password\n  on first login. This message will not be shown again.
+============================================================
+```
+
+Login to your Ragnerock instance with the admin credentials provided. You will then be prompted to change the admin password and subsequently redirected to the application
+
+**Bring Your Own AI (BYOAI)**
+
+If you want to use a different AI provider from the default Gemini, click on the profile on the bottom left and select `Settings` from the menu that appears. From within the settings page, click on `AI Providers` from the integrations menu to bring up the BYOAI configuration screen. Click on `Add Provider` and fill out the configuration modal with your AI provider information. You can explicitly test a configuration with the `Test Configuration` button, however tests will run as part of the provider creation as well once you click on `Create Configuration`. Once the configuration has been created, click on the `...` to the right of your configuration and select `Activate` to make this your default AI provider.
+
+**Bring Your Own Database (BYODB)**
+
+If you want to store your non-application (e.g. job statuses, configurations) data in a separate database from Ragnerock, click on the profile button on the bottom left and select `Settings` from the menu that appears. From within the settings page, click on `Databases` under the interations menu to bring up the BYODB configuration screen. Fill out the configuration modal and click on `Create Configuration` to create your database configuration. After doing so, click on the `Initialize` button next to your configuration to initialize the database schema that is required by Ragnerock. After this has completed, click on the `...` to the right of your configuration and select `Activate` to make this your default database provider.
+
+**Bring Your Own Blob Storage**
+
+To configure the location which Ragnerock will store raw document files, click on the profile button on the bottom left and select `Settings` from the menu that appears. From within the settings page, click on `Storage` under the integrations menu to bring up the BYOBS configuration screen. Click on `Add Storage` to bring up the configuration modal. Configure your blob storage as desired (GCP bucket, S3, or Azure blob storage) and click on `Create Configuration`. Once the configuration has been created, click on the `Validate` button to the right of your configuration to setup the bucket and validate the configuration. Finally, clickj on the `...` to the right of your configuration and select `Activate` to begin using the blob storage provider.

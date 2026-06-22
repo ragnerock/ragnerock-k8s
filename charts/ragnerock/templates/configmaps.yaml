@@ -13,18 +13,6 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "ragnerock.fullname" . }}-usage
-  labels:
-    {{- include "ragnerock.labels" . | nindent 4 }}
-data:
-  USAGE_MAX_INPUT_TOKENS: "{{ .Values.limits.usage.maxInputTokens }}"
-  USAGE_MAX_OUTPUT_TOKENS: "{{ .Values.limits.usage.maxOutputTokens }}"
-  USAGE_MAX_PAGES: "{{ .Values.limits.usage.maxPages }}"
-  USAGE_MAX_COMPUTE_SECONDS: "{{ .Values.limits.usage.maxComputeSeconds }}"
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
   name: {{ include "ragnerock.fullname" . }}-api-tokens
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
@@ -75,6 +63,11 @@ data:
   RATE_LIMIT_CONFIG_VALIDATE_PER_MINUTE: "{{ .Values.rateLimits.configValidatePerMinute }}"
   RATE_LIMIT_ADMIN_MUTATION_PER_MINUTE: "{{ .Values.rateLimits.adminMutationPerMinute }}"
   RATE_LIMIT_IAM_MUTATION_PER_MINUTE: "{{ .Values.rateLimits.iamMutationPerMinute }}"
+  RATE_LIMIT_API_TOKEN_PER_MINUTE: "{{ .Values.rateLimits.apiTokenPerMinute }}"
+  RATE_LIMIT_NOTIFICATION_STREAM_PER_MINUTE: "{{ .Values.rateLimits.notificationStreamPerMinute }}"
+  RATE_LIMIT_QUERY_ASSIST: "{{ .Values.rateLimits.queryAssistPerMinute }}"
+  RATE_LIMIT_QUERY_EXECUTE: "{{ .Values.rateLimits.queryExecutePerMinute }}"
+  RATE_LIMIT_QUERY_VALIDATE: "{{ .Values.rateLimits.queryValidatePerMinute }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -83,7 +76,7 @@ metadata:
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
-  DATA_INGESTOR_URL: http://{{ include "ragnerock.fullname" . }}-analysis-toolkit:{{ .Values.analysisToolkit.service.port }}
+  ANALYSIS_TOOLKIT_URL: http://{{ include "ragnerock.fullname" . }}-analysis-toolkit:{{ .Values.analysisToolkit.service.port }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -93,8 +86,6 @@ metadata:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
   DATA_INGESTOR_URL: http://{{ include "ragnerock.fullname" . }}-data-ingestor:{{ .Values.dataIngestor.service.port }}
-  CALLBACK_ALLOWED_HOSTS: "ragnerock-api:8080"
-  CALLBACK_HTTP_ALLOWED: "true"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -171,17 +162,18 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "ragnerock.fullname" . }}-cloud-tasks
+  name: {{ include "ragnerock.fullname" . }}-queue
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
   CLOUD_TASKS_ENABLED: "true"
-  CLOUD_TASKS_JOB_QUEUE_NAME: {{ .Values.cloudTasks.jobQueueName }}
-  CLOUD_TASKS_SUBTASK_QUEUE_NAME: {{ .Values.cloudTasks.subtaskQueueName }}
-  CLOUD_TASKS_MAX_DISPATCHES_PER_SECOND: "{{ .Values.cloudTasks.maxDispatchesPerSecond }}"
-  CLOUD_TASKS_MAX_CONCURRENT_DISPATCHES: "{{ .Values.cloudTasks.maxConcurrentDispatches }}"
-  QUEUE_POOL_SIZE: "{{ .Values.cloudTasks.queuePoolSize }}"
-  CLOUD_TASKS_ENDPOINT: {{ include "ragnerock.fullname" . }}-queue:{{ .Values.cloudTasks.emulator.port }}
+  CLOUD_TASKS_JOB_QUEUE_NAME: "{{ .Values.queue.jobQueueName }}"
+  CLOUD_TASKS_SUBTASK_QUEUE_NAME: "{{ .Values.queue.subtaskQueueName }}"
+  CLOUD_TASKS_CALLBACK_QUEUE: "{{ .Values.queue.callbackQueueName }}"
+  CLOUD_TASKS_MAX_DISPATCHES_PER_SECOND: "{{ .Values.queue.maxDispatchesPerSecond }}"
+  CLOUD_TASKS_MAX_CONCURRENT_DISPATCHES: "{{ .Values.queue.maxConcurrentDispatches }}"
+  QUEUE_POOL_SIZE: "{{ .Values.queue.queuePoolSize }}"
+  CLOUD_TASKS_ENDPOINT: {{ include "ragnerock.fullname" . }}-queue:{{ .Values.queue.port }}
   CLOUD_TASKS_PROJECT_ID: local
 ---
 apiVersion: v1
@@ -194,7 +186,6 @@ data:
   MAX_CONCURRENT_SUBTASKS: "{{ .Values.limits.concurrency.maxConcurrentSubtasks }}"
   MAX_CONCURRENT_ANNOTATIONS: "{{ .Values.limits.concurrency.maxConcurrentAnnotations }}"
   MAX_CONCURRENT_JOBS: "{{ .Values.limits.concurrency.maxConcurrentJobs }}"
-  MAX_CONCURRENT_TASKS: "{{ .Values.limits.concurrency.maxConcurrentTasks }}"
   EMBEDDING_BATCH_SIZE: "{{ .Values.limits.batches.embedding }}"
   ANNOTATION_BATCH_SIZE: "{{ .Values.limits.batches.annotation }}"
   TABULAR_ANNOTATION_BATCH_SIZE: "{{ .Values.limits.batches.tabularAnnotation }}"
@@ -216,3 +207,49 @@ data:
   SCHEDULER_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-data-ingestor:{{ .Values.dataIngestor.service.port }}"
   SUBTASK_WORKER_SERVICE_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-subtask-worker:{{ .Values.subtaskWorker.service.port }}"
   WORKER_SERVICE_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-worker:{{ .Values.worker.service.port }}"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-endpoints
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  ENDPOINTS_ALLOW_PRIVATE_CALLBACKS: "{{ .Values.endpoints.allowPrivateCallbacks }}"
+  ENDPOINTS_EPHEMERAL_TTL_HOURS: "{{ .Values.endpoints.ephemeralTTLHours }}"
+  ENDPOINTS_MAX_FILE_SIZE_MB: "{{ .Values.endpoints.maxFileSizeMB }}"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-ingest
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  INGEST_RUN_STALE_TIMEOUT_SECONDS: "{{ .Values.ingest.staleTimeoutSeconds }}"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-callback-delivery
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  CALLBACK_DELIVERY_URL: http://{{ include "ragnerock.fullname" . }}-callback-delivery:{{ .Values.callbackDelivery.service.port }}
+  CALLBACK_ALLOWED_HOSTS: "ragnerock-api:8080"
+  CALLBACK_HTTP_ALLOWED: "true"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-analysis
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  DATAFRAME_OP_TIMEOUT: "{{ .Values.analysis.dataframeOpTimeout }}"
+  MAX_COLUMNS: "{{ .Values.analysis.maxColumns }}"
+  MAX_ROWS: "{{ .Values.analysis.maxRows }}"
+  MODEL_FIT_TIMEOUT: "{{ .Values.analysis.modelFitTimeoutSeconds }}"
+  PLOT_DPI: "{{ .Values.analysis.plotDPI }}"
+  PLOT_MAX_FIGSIZE: "[{{ .Values.analysis.plotMaxFigsize.dimx }},{{ .Values.analysis.plotMaxFigsize.dimy }}]"
+  PLOT_TIMEOUT: "{{ .Values.analysis.plotTimeoutSeconds }}"

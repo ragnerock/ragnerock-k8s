@@ -8,6 +8,14 @@ Ragnerock research intelligence platform
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
+| analysis.dataframeOpTimeout | int | `60` |  |
+| analysis.maxColumns | int | `500` |  |
+| analysis.maxRows | int | `50000` |  |
+| analysis.modelFitTimeoutSeconds | int | `120` |  |
+| analysis.plotDPI | int | `150` |  |
+| analysis.plotMaxFigsize.dimx | float | `12` |  |
+| analysis.plotMaxFigsize.dimy | float | `16` |  |
+| analysis.plotTimeoutSeconds | int | `60` |  |
 | analysisToolkit.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
 | analysisToolkit.autoscaling.targetCPUUtilizationPercentage | int | `80` | Target average CPU utilization (% of requests). Set to null to disable. |
 | analysisToolkit.autoscaling.targetMemoryUtilizationPercentage | int | `80` | Target average memory utilization (% of requests). Set to null to disable. |
@@ -45,8 +53,14 @@ Ragnerock research intelligence platform
 | auth.existingSecret | string | `""` | Use a pre-existing secret (must provide keys `SECRET_KEY` and `ACCESS_KEY`) instead of generating one. When set, `secretKey`/`accessKey` are ignored. |
 | auth.lockoutMaxAttempts | int | `10` |  |
 | auth.secretKey | string | `""` | Generate with `openssl rand -hex 22` |
-| cloudTasks | object | `{"emulator":{"port":8123,"tolerations":[]},"jobQueueName":"ragnerock-document-jobs","maxConcurrentDispatches":500,"maxDispatchesPerSecond":500,"queuePoolSize":100,"subtaskQueueName":"ragnerock-subtask-jobs"}` | Cloudtask configuration for use with in-cluster emulator |
-| cloudTasks.emulator.tolerations | list | `[]` | Pod tolerations for the cloud-tasks emulator (overrides `global.tolerations`) |
+| callbackDelivery.fqdn | string | `""` |  |
+| callbackDelivery.image.name | string | `"api"` |  |
+| callbackDelivery.image.tag | string | `""` |  |
+| callbackDelivery.replicaCount | int | `1` |  |
+| callbackDelivery.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
+| callbackDelivery.service.port | int | `8080` |  |
+| callbackDelivery.service.type | string | `"ClusterIP"` |  |
+| callbackDelivery.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | cloudflare.accountId | string | `""` |  |
 | cloudflare.apiToken | string | `""` |  |
 | cloudflare.existingSecret | string | `""` | Use a pre-existing secret (must provide keys `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`) instead of generating one. When set, `apiToken`/`accountId` are ignored. |
@@ -70,6 +84,11 @@ Ragnerock research intelligence platform
 | database.existingSecret | string | `""` | Use a pre-existing secret (must provide key `DB_PASSWORD`) instead of generating one. When set, `password` is ignored. |
 | encryption.existingSecret | string | `""` | Use a pre-existing secret (must provide key `ENCRYPTION_KEK`) instead of generating one. When set, `kek` is ignored. |
 | encryption.kek | string | `""` | Key Encryption Key (KEK), generate with python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())' |
+| endpoints.HMACMasterKey | string | `""` |  |
+| endpoints.allowPrivateCallbacks | bool | `true` |  |
+| endpoints.ephemeralTTLHours | int | `24` |  |
+| endpoints.existingSecret | string | `""` | Use a pre-existing secret (must provide key `ENDPOINTS_HMAC_MASTER_KEY`) instead of generating one. When set, `HMACMasterKey` is ignored. |
+| endpoints.maxFileSizeMB | int | `50` |  |
 | frontend.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
 | frontend.autoscaling.targetCPUUtilizationPercentage | int | `80` | Target average CPU utilization (% of requests). Set to null to disable. |
 | frontend.autoscaling.targetMemoryUtilizationPercentage | int | `80` | Target average memory utilization (% of requests). Set to null to disable. |
@@ -86,9 +105,11 @@ Ragnerock research intelligence platform
 | frontend.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | frontend.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
 | frontend.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
+| fullnameOverride | string | `nil` |  |
 | global.image | object | `{"pullPolicy":"IfNotPresent","registry":"us-central1-docker.pkg.dev/ragnerock-prod/ragnerock","tag":"latest"}` | Global container image configuration |
 | global.imagePullSecrets | list | `[]` | Secrets use to authenticate with the container registry, list of `- name: <name of the secret>` values |
 | global.tolerations | list | `[]` | Default pod tolerations applied to all workloads. Can be overridden per-service with `<service>.tolerations`. See https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/ |
+| ingest.staleTimeoutSeconds | int | `3600` |  |
 | license | string | `""` | Ragnerock provided license key |
 | licenseExistingSecret | string | `""` | Use a pre-existing secret (must provide key `RAGNEROCK_LICENSE`) instead of generating one. When set, `license` is ignored. |
 | limits.batches.annotation | int | `50` |  |
@@ -96,9 +117,8 @@ Ragnerock research intelligence platform
 | limits.batches.embedding | int | `100` |  |
 | limits.batches.tabularAnnotation | int | `200` |  |
 | limits.concurrency.maxConcurrentAnnotations | int | `10` |  |
-| limits.concurrency.maxConcurrentJobs | int | `5` |  |
+| limits.concurrency.maxConcurrentJobs | int | `10` |  |
 | limits.concurrency.maxConcurrentSubtasks | int | `50` |  |
-| limits.concurrency.maxConcurrentTasks | int | `10` |  |
 | limits.subtask.failureThreshold | float | `0.05` |  |
 | limits.subtask.maxAttempts | int | `3` |  |
 | limits.usage.maxComputeSeconds | string | `"86400"` |  |
@@ -113,6 +133,7 @@ Ragnerock research intelligence platform
 | migrations.serviceAccount.annotations | object | `{}` | Annotations to add to the created service account (e.g. for workload identity) |
 | migrations.serviceAccount.create | bool | `false` | Create a service account for the migrations job's pods |
 | migrations.serviceAccount.name | string | `""` | Service account name to use; if empty and `create` is true a name is generated |
+| migrations.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | model.geminiModelName | string | `"gemini-3-flash-preview"` |  |
 | model.httpTimeoutSeconds | int | `180` |  |
 | modelService.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
@@ -130,17 +151,19 @@ Ragnerock research intelligence platform
 | modelService.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | modelService.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
 | modelService.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
+| nameOverride | string | `nil` |  |
 | otel | object | `{"authHeader":"","enabled":false,"existingSecret":"","exporterEndpoint":"","exporterInsecure":false,"exporterProtocol":"http/protobuf"}` | Otel metrics/traces/logs export |
 | otel.existingSecret | string | `""` | Use a pre-existing secret (must provide key `OTEL_EXPORTER_OTLP_HEADERS`) instead of generating one. When set, `authHeader` is ignored. |
-| queue | object | `{"serviceAccount":{"annotations":{},"create":false,"name":""},"tolerations":[]}` | In-cluster Cloud Tasks emulator deployment |
+| queue | object | `{"callbackQueueName":"ragnerock-callbacks","jobQueueName":"ragnerock-document-jobs","maxConcurrentDispatches":500,"maxDispatchesPerSecond":500,"port":8123,"queuePoolSize":100,"serviceAccount":{"annotations":{},"create":false,"name":""},"subtaskQueueName":"ragnerock-subtask-jobs","tolerations":[]}` | Cloudtask configuration for use with in-cluster emulator |
 | queue.serviceAccount.annotations | object | `{}` | Annotations to add to the created service account (e.g. for workload identity) |
 | queue.serviceAccount.create | bool | `false` | Create a service account for this deployment's pods |
 | queue.serviceAccount.name | string | `""` | Service account name to use; if empty and `create` is true a name is generated |
-| queue.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
+| queue.tolerations | list | `[]` | Pod tolerations for the queue deployment (overrides `global.tolerations`) |
 | ragnerock.safetyEnabled | bool | `true` | Should Ragnerock treat all prompts as unsafe |
 | rateLimits.adminMutationPerMinute | int | `40` |  |
 | rateLimits.agentPerMinute | int | `20` |  |
 | rateLimits.annotationPerMinute | int | `120` |  |
+| rateLimits.apiTokenPerMinute | int | `30` |  |
 | rateLimits.authChangePasswordPerMinute | int | `5` |  |
 | rateLimits.authGooglePerMinute | int | `15` |  |
 | rateLimits.authLoginPerMinute | int | `15` |  |
@@ -156,6 +179,10 @@ Ragnerock research intelligence platform
 | rateLimits.iamMutationPerMinute | int | `60` |  |
 | rateLimits.ingestTriggerPerMinute | int | `20` |  |
 | rateLimits.notebookCodeFeedbackPerMinute | int | `40` |  |
+| rateLimits.notificationStreamPerMinute | int | `10` |  |
+| rateLimits.queryAssistPerMinute | int | `30` |  |
+| rateLimits.queryExecutePerMinute | int | `120` |  |
+| rateLimits.queryValidatePerMinute | int | `60` |  |
 | rateLimits.requestsPerMinute | int | `600` |  |
 | rateLimits.searchPerMinute | int | `60` |  |
 | rateLimits.toolsPerMinute | int | `60` |  |
