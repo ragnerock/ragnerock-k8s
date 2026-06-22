@@ -16,6 +16,8 @@ In order to install Ragnerock, you'll need the following
 - Cloudflare account ID (optional)
 - An S3, GCS, or Azure bucket
 - A postgres database with the `vector` and `uuid-ossp` extensions installed
+- A Ragnerock License (Provided by Ragnerock)
+- A Ragnerock service account dockerconfig (Provided by Ragnerock)
 
 The Gemini and Mistral API keys are required for base operation, while thie Cloudflare settings are required for the web-scrape data ingestion feature. If you do not intend to use this feature, you can leave out those settings.
 
@@ -29,7 +31,7 @@ If you would prefer to use an in-cluster database or bucket, see the supporting 
 
 ### Configuration
 
-Now that you have everything ready, copy the values file from `charts/examples/minimal/values.yaml` and place it whereever you want to store that for your deployment. Edit the values as follows:
+Now that you have everything ready, copy the values file from `charts/examples/minimal/values.yaml` and place it wherever you want to store that for your deployment. Edit the values as follows:
 
 - `database.host` -- hostname of your provisioned database
 - `database.user` -- username to access your database
@@ -66,7 +68,7 @@ You'll also have to confiugre your API and frontend services to ensure they can 
 
 Add your LLM API keys
 
-- `llm.geminiApiKey` -- API key for the default Gemini agent
+- `llm.geminiApiKey` -- API key for the default Gemini agent/image summarization
 - `llm.mistralApiKey` -- API key for Mistral (used for OCR and image processing)
 
 You'll then need to configure Cloudflare if you are using the web scrape data ingestion feature of Ragnerock. If not, set these following values to `not_implemented` (or any other placeholder value you desire)
@@ -76,11 +78,26 @@ You'll then need to configure Cloudflare if you are using the web scrape data in
 
 Finally configure your license
 
-- `license` -- provided by Ragnerock
+- `license` -- The License provided by Ragnerock
 
 ### Deployment
 
-Now that you have configured your values (we will assume they live at `./values.yaml` for this example), you can deploy Ragnerock to your cluster with
+First deploy your imagePullSecret:
+
+```bash
+kubectl apply -f - <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ragnerock-image-pull-secret
+  namespace: default
+type: kubernetes.io/dockerconfigjson
+data:
+  .dockerconfigjson: <YOUR RAGNEROCK PROVIDED SERVICE ACCOUNT DOCKERCONFIG>
+EOF
+```
+
+Now that you have configured your values (we will assume they live at `./values.yaml` for this example) and configured your image pull secret, you can deploy Ragnerock to your cluster with
 
 ```
 helm repo add ragnerock https://ragnerock.github.io/ragnerock-k8s

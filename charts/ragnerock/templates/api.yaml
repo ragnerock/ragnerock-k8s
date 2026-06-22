@@ -79,9 +79,9 @@ spec:
             - secretRef:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "otel" "existingSecret" .Values.otel.existingSecret) }}
             - secretRef:
-                name: {{ include "ragnerock.fullname" . }}-license
+                name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "license" "existingSecret" .Values.licenseExistingSecret) }}
             - secretRef:
-                name: {{ include "ragnerock.fullname" . }}-endpoints
+                name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "endpoints" "existingSecret" .Values.endpoints.existingSecret) }}
           env:
             - name: OTEL_RESOURCE_ATTRIBUTES
               value: service.name=api,deployment.environment={{ .Values.config.environmentIdentifier }}

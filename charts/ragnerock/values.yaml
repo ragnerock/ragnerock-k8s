@@ -402,6 +402,8 @@ migrations:
     name: ""
     # -- Annotations to add to the created service account (e.g. for workload identity)
     annotations: {}
+  # -- Pod tolerations (overrides `global.tolerations`)
+  tolerations: []
 
 limits:
   concurrency:
@@ -429,6 +431,8 @@ licenseExistingSecret: ""
 
 endpoints:
   HMACMasterKey: ""
+  # -- Use a pre-existing secret (must provide key `ENDPOINTS_HMAC_MASTER_KEY`) instead of generating one. When set, `HMACMasterKey` is ignored.
+  existingSecret: ""
   allowPrivateCallbacks: true
   ephemeralTTLHours: 24
   maxFileSizeMB: 50

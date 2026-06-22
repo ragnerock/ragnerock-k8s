@@ -51,9 +51,9 @@ spec:
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-queue
             - secretRef:
-                name: {{ include "ragnerock.fullname" . }}-otel
+                name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "otel" "existingSecret" .Values.otel.existingSecret) }}
             - secretRef:
-                name: {{ include "ragnerock.fullname" . }}-encryption
+                name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "encryption" "existingSecret" .Values.encryption.existingSecret) }}
           env:
             - name: OTEL_RESOURCE_ATTRIBUTES
               value: service.name=analysis-toolkit,deployment.environment={{ .Values.config.environmentIdentifier }}
