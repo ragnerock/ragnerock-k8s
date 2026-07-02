@@ -11,6 +11,8 @@ global:
   imagePullSecrets: []
   # -- Default pod tolerations applied to all workloads. Can be overridden per-service with `<service>.tolerations`. See https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
   tolerations: []
+  # -- Number of replicaset revisions to keep around for deployments
+  revisionHistoryLimit: 10
 
 # -- Database configuration
 database:
@@ -173,9 +175,30 @@ callbackDelivery:
     port: 8080
   # -- Deployment resoruce contraints (i.e. requests/limits)
   resources: {}
+  # -- Optional horizontal pod autoscaler. Requires CPU/memory requests to be
+  # set under `resources` for the targeted metrics to work. When enabled,
+  # `replicaCount` is ignored (the HPA manages the replica count).
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 5
+    # -- Target average CPU utilization (% of requests). Set to null to disable.
+    targetCPUUtilizationPercentage: 80
+    # -- Target average memory utilization (% of requests). Set to null to disable.
+    targetMemoryUtilizationPercentage: 80
+  serviceAccount:
+    # -- Create a service account for this deployment's pods
+    create: false
+    # -- Service account name to use; if empty and `create` is true a name is generated
+    name: ""
+    # -- Annotations to add to the created service account (e.g. for workload identity)
+    annotations: {}
+  # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
+  volumes: []
+  # -- Container volume mounts (list of Kubernetes volumeMount specs)
+  volumeMounts: []
   # -- Pod tolerations (overrides `global.tolerations`)
   tolerations: []
-  fqdn: ""
 
 worker:
   replicaCount: 1

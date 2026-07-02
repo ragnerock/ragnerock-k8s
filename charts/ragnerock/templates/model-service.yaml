@@ -9,6 +9,7 @@ spec:
   {{- if not .Values.modelService.autoscaling.enabled }}
   replicas: {{ .Values.modelService.replicaCount }}
   {{- end }}
+  revisionHistoryLimit: {{ .Values.global.revisionHistoryLimit }}
   selector:
     matchLabels:
       {{- include "ragnerock.selectorLabels" (dict "context" . "component" "model-service") | nindent 6 }}
