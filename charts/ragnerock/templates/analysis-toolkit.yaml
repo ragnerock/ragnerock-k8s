@@ -9,6 +9,7 @@ spec:
   {{- if not .Values.analysisToolkit.autoscaling.enabled }}
   replicas: {{ .Values.analysisToolkit.replicaCount }}
   {{- end }}
+  revisionHistoryLimit: {{ .Values.global.revisionHistoryLimit }}
   selector:
     matchLabels:
       {{- include "ragnerock.selectorLabels" (dict "context" . "component" "analysis-toolkit") | nindent 6 }}

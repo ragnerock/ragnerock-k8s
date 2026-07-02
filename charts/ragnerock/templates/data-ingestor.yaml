@@ -9,6 +9,7 @@ spec:
   {{- if not .Values.dataIngestor.autoscaling.enabled }}
   replicas: {{ .Values.dataIngestor.replicaCount }}
   {{- end }}
+  revisionHistoryLimit: {{ .Values.global.revisionHistoryLimit }}
   selector:
     matchLabels:
       {{- include "ragnerock.selectorLabels" (dict "context" . "component" "data-ingestor") | nindent 6 }}

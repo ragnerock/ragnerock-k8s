@@ -1,6 +1,6 @@
 # ragnerock
 
-![Version: 0.1.1](https://img.shields.io/badge/Version-0.1.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.0.0](https://img.shields.io/badge/AppVersion-1.0.0-informational?style=flat-square)
+![Version: 1.0.1](https://img.shields.io/badge/Version-1.0.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 2026.06.18](https://img.shields.io/badge/AppVersion-2026.06.18-informational?style=flat-square)
 
 Ragnerock research intelligence platform
 
@@ -53,14 +53,21 @@ Ragnerock research intelligence platform
 | auth.existingSecret | string | `""` | Use a pre-existing secret (must provide keys `SECRET_KEY` and `ACCESS_KEY`) instead of generating one. When set, `secretKey`/`accessKey` are ignored. |
 | auth.lockoutMaxAttempts | int | `10` |  |
 | auth.secretKey | string | `""` | Generate with `openssl rand -hex 22` |
-| callbackDelivery.fqdn | string | `""` |  |
+| callbackDelivery.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
+| callbackDelivery.autoscaling.targetCPUUtilizationPercentage | int | `80` | Target average CPU utilization (% of requests). Set to null to disable. |
+| callbackDelivery.autoscaling.targetMemoryUtilizationPercentage | int | `80` | Target average memory utilization (% of requests). Set to null to disable. |
 | callbackDelivery.image.name | string | `"api"` |  |
 | callbackDelivery.image.tag | string | `""` |  |
 | callbackDelivery.replicaCount | int | `1` |  |
 | callbackDelivery.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
 | callbackDelivery.service.port | int | `8080` |  |
 | callbackDelivery.service.type | string | `"ClusterIP"` |  |
+| callbackDelivery.serviceAccount.annotations | object | `{}` | Annotations to add to the created service account (e.g. for workload identity) |
+| callbackDelivery.serviceAccount.create | bool | `false` | Create a service account for this deployment's pods |
+| callbackDelivery.serviceAccount.name | string | `""` | Service account name to use; if empty and `create` is true a name is generated |
 | callbackDelivery.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
+| callbackDelivery.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
+| callbackDelivery.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
 | cloudflare.accountId | string | `""` |  |
 | cloudflare.apiToken | string | `""` |  |
 | cloudflare.existingSecret | string | `""` | Use a pre-existing secret (must provide keys `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`) instead of generating one. When set, `apiToken`/`accountId` are ignored. |
@@ -108,6 +115,7 @@ Ragnerock research intelligence platform
 | fullnameOverride | string | `nil` |  |
 | global.image | object | `{"pullPolicy":"IfNotPresent","registry":"us-central1-docker.pkg.dev/ragnerock-prod/ragnerock","tag":"latest"}` | Global container image configuration |
 | global.imagePullSecrets | list | `[]` | Secrets use to authenticate with the container registry, list of `- name: <name of the secret>` values |
+| global.revisionHistoryLimit | int | `10` | Number of replicaset revisions to keep around for deployments |
 | global.tolerations | list | `[]` | Default pod tolerations applied to all workloads. Can be overridden per-service with `<service>.tolerations`. See https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/ |
 | ingest.staleTimeoutSeconds | int | `3600` |  |
 | license | string | `""` | Ragnerock provided license key |

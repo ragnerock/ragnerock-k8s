@@ -9,6 +9,7 @@ spec:
   {{- if not .Values.subtaskWorker.autoscaling.enabled }}
   replicas: {{ .Values.subtaskWorker.replicaCount }}
   {{- end }}
+  revisionHistoryLimit: {{ .Values.global.revisionHistoryLimit }}
   selector:
     matchLabels:
       {{- include "ragnerock.selectorLabels" (dict "context" . "component" "subtask-worker") | nindent 6 }}
