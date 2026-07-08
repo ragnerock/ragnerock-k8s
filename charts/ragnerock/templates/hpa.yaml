@@ -11,6 +11,7 @@ The `queue` (single-instance emulator) and `migrations` (Job) are excluded.
   "frontend" .Values.frontend
   "analysis-toolkit" .Values.analysisToolkit
   "data-ingestor" .Values.dataIngestor
+  "db-service" .Values.dbService
 }}
 {{- range $component, $values := $components }}
 {{- if and $values.autoscaling $values.autoscaling.enabled }}

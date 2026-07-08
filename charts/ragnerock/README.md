@@ -89,6 +89,25 @@ Ragnerock research intelligence platform
 | dataIngestor.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
 | database | object | `{"existingSecret":"","host":"","maxOverflow":40,"name":"ragnerock","password":"","poolSize":20,"poolTimeout":10,"port":5432,"user":"ragnerock"}` | Database configuration |
 | database.existingSecret | string | `""` | Use a pre-existing secret (must provide key `DB_PASSWORD`) instead of generating one. When set, `password` is ignored. |
+| dbService.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
+| dbService.autoscaling.targetCPUUtilizationPercentage | int | `80` | Target average CPU utilization (% of requests). Set to null to disable. |
+| dbService.autoscaling.targetMemoryUtilizationPercentage | int | `80` | Target average memory utilization (% of requests). Set to null to disable. |
+| dbService.batchLimit | int | `10000` |  |
+| dbService.connectionFailureThreshold | int | `5` | Consecutive connection failures before a config is flagged for deactivation |
+| dbService.image.name | string | `"db-service"` |  |
+| dbService.image.tag | string | `""` | Overwrites global value if set |
+| dbService.rateLimitMaxTokens | int | `100` | Per-customer-DB rate limit: token bucket capacity (the default data DB is exempt) |
+| dbService.rateLimitRefillRate | float | `20` | Per-customer-DB rate limit: token refill rate (tokens per second) |
+| dbService.replicaCount | int | `1` |  |
+| dbService.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
+| dbService.service.port | int | `8080` |  |
+| dbService.service.type | string | `"ClusterIP"` |  |
+| dbService.serviceAccount.annotations | object | `{}` | Annotations to add to the created service account (e.g. for workload identity) |
+| dbService.serviceAccount.create | bool | `false` | Create a service account for this deployment's pods |
+| dbService.serviceAccount.name | string | `""` | Service account name to use; if empty and `create` is true a name is generated |
+| dbService.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
+| dbService.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
+| dbService.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
 | encryption.existingSecret | string | `""` | Use a pre-existing secret (must provide key `ENCRYPTION_KEK`) instead of generating one. When set, `kek` is ignored. |
 | encryption.kek | string | `""` | Key Encryption Key (KEK), generate with python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())' |
 | endpoints.HMACMasterKey | string | `""` |  |

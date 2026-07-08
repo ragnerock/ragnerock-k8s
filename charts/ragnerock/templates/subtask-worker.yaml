@@ -44,6 +44,8 @@ spec:
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-db
             - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-db-service
+            - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-limits
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-otel
