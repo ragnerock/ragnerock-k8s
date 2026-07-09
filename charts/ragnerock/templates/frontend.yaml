@@ -7,6 +7,10 @@ metadata:
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
     {{- include "ragnerock.selectorLabels" (dict "context" . "component" "frontend") | nindent 4 }}
+{{- with (include "ragnerock.annotations" (dict "context" . "config" .Values.frontend)) }}
+  annotations:
+    {{- . | nindent 4 }}
+{{- end }}
 spec:
 {{- if not .Values.frontend.autoscaling.enabled }}
   replicas: {{ .Values.frontend.replicaCount }}

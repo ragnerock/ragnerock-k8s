@@ -5,6 +5,10 @@ metadata:
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
     {{- include "ragnerock.selectorLabels" (dict "context" . "component" "callback-delivery") | nindent 4 }}
+{{- with (include "ragnerock.annotations" (dict "context" . "config" .Values.callbackDelivery)) }}
+  annotations:
+    {{- . | nindent 4 }}
+{{- end }}
 spec:
 {{- if not .Values.callbackDelivery.autoscaling.enabled }}
   replicas: {{ .Values.callbackDelivery.replicaCount }}

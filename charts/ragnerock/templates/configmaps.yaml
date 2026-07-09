@@ -152,6 +152,10 @@ metadata:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
   WORKER_URL: http://{{ include "ragnerock.fullname" . }}-worker:{{ .Values.worker.service.port }}
+  PDF_PARSER_BACKEND: "{{ .Values.llm.pdfParserBackend }}"
+{{- if eq .Values.llm.pdfParserBackend "azure" }}
+  AZURE_DOC_INTEL_ENDPOINT: "{{ .Values.llm.azure.endpoint }}"
+{{- end }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -161,6 +165,10 @@ metadata:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
   SUBTASK_WORKER_URL: http://{{ include "ragnerock.fullname" . }}-subtask-worker:{{ .Values.subtaskWorker.service.port }}
+  PDF_PARSER_BACKEND: "{{ .Values.llm.pdfParserBackend }}"
+{{- if eq .Values.llm.pdfParserBackend "azure" }}
+  AZURE_DOC_INTEL_ENDPOINT: "{{ .Values.llm.azure.endpoint }}"
+{{- end }}
 ---
 apiVersion: v1
 kind: ConfigMap

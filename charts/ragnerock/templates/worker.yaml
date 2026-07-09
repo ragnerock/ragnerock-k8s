@@ -5,6 +5,10 @@ metadata:
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
     {{- include "ragnerock.selectorLabels" (dict "context" . "component" "worker") | nindent 4 }}
+{{- with (include "ragnerock.annotations" (dict "context" . "config" .Values.worker)) }}
+  annotations:
+    {{- . | nindent 4 }}
+{{- end }}
 spec:
 {{- if not .Values.worker.autoscaling.enabled }}
   replicas: {{ .Values.worker.replicaCount }}

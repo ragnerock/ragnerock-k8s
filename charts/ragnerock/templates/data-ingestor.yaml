@@ -5,6 +5,10 @@ metadata:
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
     {{- include "ragnerock.selectorLabels" (dict "context" . "component" "data-ingestor") | nindent 4 }}
+{{- with (include "ragnerock.annotations" (dict "context" . "config" .Values.dataIngestor)) }}
+  annotations:
+    {{- . | nindent 4 }}
+{{- end }}
 spec:
 {{- if not .Values.dataIngestor.autoscaling.enabled }}
   replicas: {{ .Values.dataIngestor.replicaCount }}

@@ -12,6 +12,8 @@ global:
   imagePullSecrets: []
   # -- Default pod tolerations applied to all workloads. Can be overridden per-service with `<service>.tolerations`. See https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
   tolerations: []
+  # -- Default annotations applied to the metadata of all workloads (Deployments/Job). Merged with per-service `<service>.annotations`, where per-service keys take precedence.
+  annotations: {}
   # -- Number of replicaset revisions to keep around for deployments
   revisionHistoryLimit: 10
 
@@ -30,10 +32,17 @@ database:
 
 # -- LLM authentication configuration
 llm:
-  geminiApiKey: ""
-  mistralApiKey: ""
+  gemini:
+    apiKey: ""
+  mistral:
+    apiKey: ""
+  azure:
+    apiKey: ""
+    endpoint: ""
+  
   # -- Use a pre-existing secret (must provide keys `GEMINI_API_KEY` and `MISTRAL_API_KEY`) instead of generating one. When set, `geminiApiKey`/`mistralApiKey` are ignored.
   existingSecret: ""
+  pdfParserBackend: "mistral"
 
 encryption:
   # -- Key Encryption Key (KEK), generate with python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'
@@ -71,6 +80,8 @@ queue:
   port: 8123
   # -- Pod tolerations for the queue deployment (overrides `global.tolerations`)
   tolerations: []
+  # -- Annotations added to the queue deployment's metadata (merged with `global.annotations`; per-service keys take precedence)
+  annotations: {}
   serviceAccount:
     # -- Create a service account for this deployment's pods
     create: false
@@ -142,6 +153,8 @@ api:
   resources: {}
   # -- Pod tolerations (overrides `global.tolerations`)
   tolerations: []
+  # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
+  annotations: {}
   fqdn: ""
   # -- Optional horizontal pod autoscaler. Requires CPU/memory requests to be
   # set under `resources` for the targeted metrics to work. When enabled,
@@ -200,6 +213,8 @@ callbackDelivery:
   volumeMounts: []
   # -- Pod tolerations (overrides `global.tolerations`)
   tolerations: []
+  # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
+  annotations: {}
 
 worker:
   replicaCount: 1
@@ -235,6 +250,8 @@ worker:
   volumeMounts: []
   # -- Pod tolerations (overrides `global.tolerations`)
   tolerations: []
+  # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
+  annotations: {}
 
 subtaskWorker:
   replicaCount: 1
@@ -270,6 +287,8 @@ subtaskWorker:
   volumeMounts: []
   # -- Pod tolerations (overrides `global.tolerations`)
   tolerations: []
+  # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
+  annotations: {}
 
 modelService:
   replicaCount: 1
@@ -305,6 +324,8 @@ modelService:
   volumeMounts: []
   # -- Pod tolerations (overrides `global.tolerations`)
   tolerations: []
+  # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
+  annotations: {}
 
 frontend:
   replicaCount: 1
@@ -341,6 +362,8 @@ frontend:
   volumeMounts: []
   # -- Pod tolerations (overrides `global.tolerations`)
   tolerations: []
+  # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
+  annotations: {}
 
 analysisToolkit:
   replicaCount: 1
@@ -377,6 +400,8 @@ analysisToolkit:
   volumeMounts: []
   # -- Pod tolerations (overrides `global.tolerations`)
   tolerations: []
+  # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
+  annotations: {}
 
 dbService:
   replicaCount: 1
@@ -421,6 +446,8 @@ dbService:
   volumeMounts: []
   # -- Pod tolerations (overrides `global.tolerations`)
   tolerations: []
+  # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
+  annotations: {}
 
 dataIngestor:
   replicaCount: 1
@@ -456,6 +483,8 @@ dataIngestor:
   volumeMounts: []
   # -- Pod tolerations (overrides `global.tolerations`)
   tolerations: []
+  # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
+  annotations: {}
 
 migrations:
   image:
@@ -472,6 +501,8 @@ migrations:
     annotations: {}
   # -- Pod tolerations (overrides `global.tolerations`)
   tolerations: []
+  # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
+  annotations: {}
 
 limits:
   concurrency:
