@@ -9,23 +9,23 @@ Expand the name of the chart.
 Create a default fully qualified app name.
 */}}
 {{- define "ragnerock.fullname" -}}
-{{- if .Values.fullnameOverride }}
+  {{- if .Values.fullnameOverride }}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- $name := default .Chart.Name .Values.nameOverride }}
-{{- if contains $name .Release.Name }}
+  {{- else }}
+    {{- $name := default .Chart.Name .Values.nameOverride }}
+    {{- if contains $name .Release.Name }}
 {{- .Release.Name | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" }}
-{{- end }}
-{{- end }}
+    {{- else }}
+      {{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" }}
+    {{- end }}
+  {{- end }}
 {{- end }}
 
 {{/*
 Create chart name and version as used by the chart label.
 */}}
 {{- define "ragnerock.chart" -}}
-{{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
+  {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
@@ -48,11 +48,12 @@ app.kubernetes.io/component: {{ .component }}
 
 {{/*
 Render an image reference.
-Usage: {{ include "ragnerock.image" (dict "global" .Values.global "image" .Values.api.image) }}
+Usage: {{ include "ragnerock.image" (dict "global" .Values.global "image" .Values.api.image "chart" .Chart) }}
+Tag resolution order: per-service image.tag, then global.image.tag, then the chart's appVersion.
 */}}
 {{- define "ragnerock.image" -}}
-{{- $tag := .image.tag | default .global.image.tag -}}
-{{- printf "%s/%s:%s" .global.image.registry .image.name $tag -}}
+  {{- $tag := .image.tag | default .global.image.tag | default .chart.AppVersion -}}
+  {{- printf "%s/%s:%s" .global.image.registry .image.name $tag -}}
 {{- end }}
 
 {{/*
@@ -61,11 +62,11 @@ Resolve a secret name. When an existing secret name is provided it is used as-is
 Usage: {{ include "ragnerock.secretName" (dict "context" . "suffix" "db" "existingSecret" .Values.database.existingSecret) }}
 */}}
 {{- define "ragnerock.secretName" -}}
-{{- if .existingSecret -}}
+  {{- if .existingSecret -}}
 {{- .existingSecret -}}
-{{- else -}}
-{{- printf "%s-%s" (include "ragnerock.fullname" .context) .suffix -}}
-{{- end -}}
+  {{- else -}}
+    {{- printf "%s-%s" (include "ragnerock.fullname" .context) .suffix -}}
+  {{- end -}}
 {{- end -}}
 Render a HorizontalPodAutoscaler for a component.
 Usage: {{ include "ragnerock.hpa" (dict "context" $ "component" "api" "values" .Values.api) }}
@@ -73,9 +74,9 @@ The component's values must contain an `autoscaling` block. Caller is
 responsible for checking `autoscaling.enabled`.
 */}}
 {{- define "ragnerock.hpa" -}}
-{{- $ctx := .context -}}
-{{- $component := .component -}}
-{{- $autoscaling := .values.autoscaling -}}
+  {{- $ctx := .context -}}
+  {{- $component := .component -}}
+  {{- $autoscaling := .values.autoscaling -}}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -91,22 +92,22 @@ spec:
   minReplicas: {{ $autoscaling.minReplicas }}
   maxReplicas: {{ $autoscaling.maxReplicas }}
   metrics:
-    {{- with $autoscaling.targetCPUUtilizationPercentage }}
+  {{- with $autoscaling.targetCPUUtilizationPercentage }}
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
           averageUtilization: {{ . }}
-    {{- end }}
-    {{- with $autoscaling.targetMemoryUtilizationPercentage }}
+  {{- end }}
+  {{- with $autoscaling.targetMemoryUtilizationPercentage }}
     - type: Resource
       resource:
         name: memory
         target:
           type: Utilization
           averageUtilization: {{ . }}
-    {{- end }}
+  {{- end }}
 {{- end }}
 Resolve the ServiceAccount name to use for a component's pods.
 Returns the explicitly configured name, or a generated name when `create` is
@@ -114,9 +115,9 @@ true, or an empty string to fall back to the namespace default ServiceAccount.
 Usage: {{ include "ragnerock.serviceAccountName" (dict "context" . "config" .Values.api.serviceAccount "component" "api") }}
 */}}
 {{- define "ragnerock.serviceAccountName" -}}
-{{- if .config.name -}}
+  {{- if .config.name -}}
 {{- .config.name -}}
-{{- else if .config.create -}}
-{{- printf "%s-%s" (include "ragnerock.fullname" .context) .component -}}
-{{- end -}}
+  {{- else if .config.create -}}
+    {{- printf "%s-%s" (include "ragnerock.fullname" .context) .component -}}
+  {{- end -}}
 {{- end -}}

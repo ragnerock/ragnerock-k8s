@@ -8,6 +8,7 @@ Services:
   - Frontend:         {{ include "ragnerock.fullname" . }}-frontend:{{ .Values.frontend.service.port }}
   - Data Ingestor:    {{ include "ragnerock.fullname" . }}-data-ingestor:{{ .Values.dataIngestor.service.port }}
   - Analysis Toolkit: {{ include "ragnerock.fullname" . }}-analysis-toolkit:{{ .Values.analysisToolkit.service.port }}
+  - DB Service:       {{ include "ragnerock.fullname" . }}-db-service:{{ .Values.dbService.service.port }}
 
 The frontend and API are externally accessible at
 

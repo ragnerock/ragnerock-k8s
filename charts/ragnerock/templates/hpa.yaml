@@ -4,17 +4,18 @@ Each component is rendered only when its `autoscaling.enabled` is true.
 The `queue` (single-instance emulator) and `migrations` (Job) are excluded.
 */ -}}
 {{- $components := dict
-  "api" .Values.api
-  "worker" .Values.worker
-  "subtask-worker" .Values.subtaskWorker
-  "model-service" .Values.modelService
-  "frontend" .Values.frontend
-  "analysis-toolkit" .Values.analysisToolkit
-  "data-ingestor" .Values.dataIngestor
+"api" .Values.api
+"worker" .Values.worker
+"subtask-worker" .Values.subtaskWorker
+"model-service" .Values.modelService
+"frontend" .Values.frontend
+"analysis-toolkit" .Values.analysisToolkit
+"data-ingestor" .Values.dataIngestor
+"db-service" .Values.dbService
 }}
 {{- range $component, $values := $components }}
-{{- if and $values.autoscaling $values.autoscaling.enabled }}
+  {{- if and $values.autoscaling $values.autoscaling.enabled }}
 ---
 {{ include "ragnerock.hpa" (dict "context" $ "component" $component "values" $values) }}
-{{- end }}
+  {{- end }}
 {{- end }}

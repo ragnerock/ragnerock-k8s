@@ -90,6 +90,27 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
+  name: {{ include "ragnerock.fullname" . }}-db-service
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  DB_SERVICE_URL: http://{{ include "ragnerock.fullname" . }}-db-service:{{ .Values.dbService.service.port }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-db-service-config
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  BATCH_LIMIT: "{{ .Values.dbService.batchLimit }}"
+  RATE_LIMIT_MAX_TOKENS: "{{ .Values.dbService.rateLimitMaxTokens }}"
+  RATE_LIMIT_REFILL_RATE: "{{ .Values.dbService.rateLimitRefillRate }}"
+  CONNECTION_FAILURE_THRESHOLD: "{{ .Values.dbService.connectionFailureThreshold }}"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
   name: {{ include "ragnerock.fullname" . }}-db
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
@@ -203,6 +224,7 @@ data:
   ANALYSIS_TOOLKIT_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-analysis-toolkit:{{ .Values.analysisToolkit.service.port }}"
   API_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-api:{{ .Values.api.service.port }}"
   DATA_INGESTOR_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-data-ingestor:{{ .Values.dataIngestor.service.port }}"
+  DB_SERVICE_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-db-service:{{ .Values.dbService.service.port }}"
   MODEL_SERVICE_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-model-service:{{ .Values.modelService.service.port }}"
   SCHEDULER_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-data-ingestor:{{ .Values.dataIngestor.service.port }}"
   SUBTASK_WORKER_SERVICE_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-subtask-worker:{{ .Values.subtaskWorker.service.port }}"

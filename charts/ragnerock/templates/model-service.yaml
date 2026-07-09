@@ -6,9 +6,9 @@ metadata:
     {{- include "ragnerock.labels" . | nindent 4 }}
     {{- include "ragnerock.selectorLabels" (dict "context" . "component" "model-service") | nindent 4 }}
 spec:
-  {{- if not .Values.modelService.autoscaling.enabled }}
+{{- if not .Values.modelService.autoscaling.enabled }}
   replicas: {{ .Values.modelService.replicaCount }}
-  {{- end }}
+{{- end }}
   revisionHistoryLimit: {{ .Values.global.revisionHistoryLimit }}
   selector:
     matchLabels:
@@ -19,20 +19,20 @@ spec:
         {{- include "ragnerock.labels" . | nindent 8 }}
         {{- include "ragnerock.selectorLabels" (dict "context" . "component" "model-service") | nindent 8 }}
     spec:
-      {{- with (include "ragnerock.serviceAccountName" (dict "context" . "config" .Values.modelService.serviceAccount "component" "model-service")) }}
+{{- with (include "ragnerock.serviceAccountName" (dict "context" . "config" .Values.modelService.serviceAccount "component" "model-service")) }}
       serviceAccountName: {{ . }}
-      {{- end }}
-      {{- with .Values.global.imagePullSecrets }}
+{{- end }}
+{{- with .Values.global.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.modelService.tolerations | default .Values.global.tolerations }}
+{{- end }}
+{{- with .Values.modelService.tolerations | default .Values.global.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
-      {{- end }}
+{{- end }}
       containers:
         - name: model-service
-          image: {{ include "ragnerock.image" (dict "global" .Values.global "image" .Values.modelService.image) }}
+          image: {{ include "ragnerock.image" (dict "global" .Values.global "image" .Values.modelService.image "chart" .Chart) }}
           imagePullPolicy: {{ .Values.global.image.pullPolicy }}
           ports:
             - name: http
@@ -62,10 +62,10 @@ spec:
               value: service.name=model-service,deployment.environment={{ .Values.config.environmentIdentifier }}
             - name: OTEL_SERVICE_NAME
               value: model-service
-          {{- with .Values.modelService.volumeMounts }}
+{{- with .Values.modelService.volumeMounts }}
           volumeMounts:
             {{- toYaml . | nindent 12 }}
-          {{- end }}
+{{- end }}
           livenessProbe:
             httpGet:
               path: /health/live
@@ -78,14 +78,14 @@ spec:
               port: http
             initialDelaySeconds: 5
             periodSeconds: 10
-          {{- with .Values.modelService.resources }}
+{{- with .Values.modelService.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
-          {{- end }}
-      {{- with .Values.modelService.volumes }}
+{{- end }}
+{{- with .Values.modelService.volumes }}
       volumes:
         {{- toYaml . | nindent 8 }}
-      {{- end }}
+{{- end }}
 ---
 apiVersion: v1
 kind: Service

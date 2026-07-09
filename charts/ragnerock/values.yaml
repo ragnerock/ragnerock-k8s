@@ -4,9 +4,10 @@ fullnameOverride: ~
 global:
   # -- Global container image configuration
   image:
-    registry: us-central1-docker.pkg.dev/ragnerock-prod/ragnerock 
+    registry: us-central1-docker.pkg.dev/ragnerock-prod/ragnerock
     pullPolicy: IfNotPresent
-    tag: "latest"
+    # -- Default image tag for all services. When empty, falls back to the chart's appVersion.
+    tag: ""
   # -- Secrets use to authenticate with the container registry, list of `- name: <name of the secret>` values
   imagePullSecrets: []
   # -- Default pod tolerations applied to all workloads. Can be overridden per-service with `<service>.tolerations`. See https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
@@ -350,6 +351,50 @@ analysisToolkit:
   service:
     type: ClusterIP
     port: 8080
+  # -- Deployment resoruce contraints (i.e. requests/limits)
+  resources: {}
+  # -- Optional horizontal pod autoscaler. Requires CPU/memory requests to be
+  # set under `resources` for the targeted metrics to work. When enabled,
+  # `replicaCount` is ignored (the HPA manages the replica count).
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 5
+    # -- Target average CPU utilization (% of requests). Set to null to disable.
+    targetCPUUtilizationPercentage: 80
+    # -- Target average memory utilization (% of requests). Set to null to disable.
+    targetMemoryUtilizationPercentage: 80
+  serviceAccount:
+    # -- Create a service account for this deployment's pods
+    create: false
+    # -- Service account name to use; if empty and `create` is true a name is generated
+    name: ""
+    # -- Annotations to add to the created service account (e.g. for workload identity)
+    annotations: {}
+  # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
+  volumes: []
+  # -- Container volume mounts (list of Kubernetes volumeMount specs)
+  volumeMounts: []
+  # -- Pod tolerations (overrides `global.tolerations`)
+  tolerations: []
+
+dbService:
+  replicaCount: 1
+  image:
+    name: db-service
+    # -- Overwrites global value if set
+    tag: ""
+  service:
+    type: ClusterIP
+    port: 8080
+    # -- Maximum number of rows accepted in a single batch write
+  batchLimit: 10000
+  # -- Per-customer-DB rate limit: token bucket capacity (the default data DB is exempt)
+  rateLimitMaxTokens: 100
+  # -- Per-customer-DB rate limit: token refill rate (tokens per second)
+  rateLimitRefillRate: 20.0
+  # -- Consecutive connection failures before a config is flagged for deactivation
+  connectionFailureThreshold: 5
   # -- Deployment resoruce contraints (i.e. requests/limits)
   resources: {}
   # -- Optional horizontal pod autoscaler. Requires CPU/memory requests to be
