@@ -121,3 +121,19 @@ Usage: {{ include "ragnerock.serviceAccountName" (dict "context" . "config" .Val
     {{- printf "%s-%s" (include "ragnerock.fullname" .context) .component -}}
   {{- end -}}
 {{- end -}}
+
+{{/*
+Merge global and per-service annotations into a single set of key/value pairs.
+Per-service keys (`<service>.annotations`) take precedence over `global.annotations`.
+Renders the annotation lines only (no `annotations:` header) so callers can nest
+them under an existing `metadata.annotations` block; renders nothing when empty.
+Usage: {{ include "ragnerock.annotations" (dict "context" . "config" .Values.api) }}
+*/}}
+{{- define "ragnerock.annotations" -}}
+  {{- $global := .context.Values.global.annotations | default dict -}}
+  {{- $service := .config.annotations | default dict -}}
+  {{- $merged := merge (deepCopy $service) $global -}}
+  {{- with $merged -}}
+{{ toYaml . }}
+  {{- end -}}
+{{- end -}}

@@ -16,6 +16,7 @@ Ragnerock research intelligence platform
 | analysis.plotMaxFigsize.dimx | float | `12` |  |
 | analysis.plotMaxFigsize.dimy | float | `16` |  |
 | analysis.plotTimeoutSeconds | int | `60` |  |
+| analysisToolkit.annotations | object | `{}` | Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence) |
 | analysisToolkit.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
 | analysisToolkit.autoscaling.targetCPUUtilizationPercentage | int | `80` | Target average CPU utilization (% of requests). Set to null to disable. |
 | analysisToolkit.autoscaling.targetMemoryUtilizationPercentage | int | `80` | Target average memory utilization (% of requests). Set to null to disable. |
@@ -31,6 +32,7 @@ Ragnerock research intelligence platform
 | analysisToolkit.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | analysisToolkit.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
 | analysisToolkit.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
+| api.annotations | object | `{}` | Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence) |
 | api.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
 | api.autoscaling.targetCPUUtilizationPercentage | int | `80` | Target average CPU utilization (% of requests). Set to null to disable. |
 | api.autoscaling.targetMemoryUtilizationPercentage | int | `80` | Target average memory utilization (% of requests). Set to null to disable. |
@@ -53,6 +55,7 @@ Ragnerock research intelligence platform
 | auth.existingSecret | string | `""` | Use a pre-existing secret (must provide keys `SECRET_KEY` and `ACCESS_KEY`) instead of generating one. When set, `secretKey`/`accessKey` are ignored. |
 | auth.lockoutMaxAttempts | int | `10` |  |
 | auth.secretKey | string | `""` | Generate with `openssl rand -hex 22` |
+| callbackDelivery.annotations | object | `{}` | Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence) |
 | callbackDelivery.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
 | callbackDelivery.autoscaling.targetCPUUtilizationPercentage | int | `80` | Target average CPU utilization (% of requests). Set to null to disable. |
 | callbackDelivery.autoscaling.targetMemoryUtilizationPercentage | int | `80` | Target average memory utilization (% of requests). Set to null to disable. |
@@ -72,6 +75,7 @@ Ragnerock research intelligence platform
 | cloudflare.apiToken | string | `""` |  |
 | cloudflare.existingSecret | string | `""` | Use a pre-existing secret (must provide keys `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`) instead of generating one. When set, `apiToken`/`accountId` are ignored. |
 | config | object | `{"environmentIdentifier":"ragnerock","logLevel":"INFO"}` | General app configuration |
+| dataIngestor.annotations | object | `{}` | Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence) |
 | dataIngestor.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
 | dataIngestor.autoscaling.targetCPUUtilizationPercentage | int | `80` | Target average CPU utilization (% of requests). Set to null to disable. |
 | dataIngestor.autoscaling.targetMemoryUtilizationPercentage | int | `80` | Target average memory utilization (% of requests). Set to null to disable. |
@@ -89,6 +93,7 @@ Ragnerock research intelligence platform
 | dataIngestor.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
 | database | object | `{"existingSecret":"","host":"","maxOverflow":40,"name":"ragnerock","password":"","poolSize":20,"poolTimeout":10,"port":5432,"user":"ragnerock"}` | Database configuration |
 | database.existingSecret | string | `""` | Use a pre-existing secret (must provide key `DB_PASSWORD`) instead of generating one. When set, `password` is ignored. |
+| dbService.annotations | object | `{}` | Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence) |
 | dbService.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
 | dbService.autoscaling.targetCPUUtilizationPercentage | int | `80` | Target average CPU utilization (% of requests). Set to null to disable. |
 | dbService.autoscaling.targetMemoryUtilizationPercentage | int | `80` | Target average memory utilization (% of requests). Set to null to disable. |
@@ -115,6 +120,7 @@ Ragnerock research intelligence platform
 | endpoints.ephemeralTTLHours | int | `24` |  |
 | endpoints.existingSecret | string | `""` | Use a pre-existing secret (must provide key `ENDPOINTS_HMAC_MASTER_KEY`) instead of generating one. When set, `HMACMasterKey` is ignored. |
 | endpoints.maxFileSizeMB | int | `50` |  |
+| frontend.annotations | object | `{}` | Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence) |
 | frontend.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
 | frontend.autoscaling.targetCPUUtilizationPercentage | int | `80` | Target average CPU utilization (% of requests). Set to null to disable. |
 | frontend.autoscaling.targetMemoryUtilizationPercentage | int | `80` | Target average memory utilization (% of requests). Set to null to disable. |
@@ -132,6 +138,7 @@ Ragnerock research intelligence platform
 | frontend.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
 | frontend.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
 | fullnameOverride | string | `nil` |  |
+| global.annotations | object | `{}` | Default annotations applied to the metadata of all workloads (Deployments/Job). Merged with per-service `<service>.annotations`, where per-service keys take precedence. |
 | global.image | object | `{"pullPolicy":"IfNotPresent","registry":"us-central1-docker.pkg.dev/ragnerock-prod/ragnerock","tag":""}` | Global container image configuration |
 | global.image.tag | string | `""` | Default image tag for all services. When empty, falls back to the chart's appVersion. |
 | global.imagePullSecrets | list | `[]` | Secrets use to authenticate with the container registry, list of `- name: <name of the secret>` values |
@@ -153,8 +160,9 @@ Ragnerock research intelligence platform
 | limits.usage.maxInputTokens | string | `"1000000"` |  |
 | limits.usage.maxOutputTokens | string | `"1000000"` |  |
 | limits.usage.maxPages | string | `"2000"` |  |
-| llm | object | `{"existingSecret":"","geminiApiKey":"","mistralApiKey":""}` | LLM authentication configuration |
+| llm | object | `{"azure":{"apiKey":"","endpoint":""},"existingSecret":"","gemini":{"apiKey":""},"mistral":{"apiKey":""},"pdfParserBackend":"mistral"}` | LLM authentication configuration |
 | llm.existingSecret | string | `""` | Use a pre-existing secret (must provide keys `GEMINI_API_KEY` and `MISTRAL_API_KEY`) instead of generating one. When set, `geminiApiKey`/`mistralApiKey` are ignored. |
+| migrations.annotations | object | `{}` | Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence) |
 | migrations.image.name | string | `"migrations"` |  |
 | migrations.image.tag | string | `""` |  |
 | migrations.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
@@ -164,6 +172,7 @@ Ragnerock research intelligence platform
 | migrations.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | model.geminiModelName | string | `"gemini-3-flash-preview"` |  |
 | model.httpTimeoutSeconds | int | `180` |  |
+| modelService.annotations | object | `{}` | Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence) |
 | modelService.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
 | modelService.autoscaling.targetCPUUtilizationPercentage | int | `80` | Target average CPU utilization (% of requests). Set to null to disable. |
 | modelService.autoscaling.targetMemoryUtilizationPercentage | int | `80` | Target average memory utilization (% of requests). Set to null to disable. |
@@ -182,7 +191,8 @@ Ragnerock research intelligence platform
 | nameOverride | string | `nil` |  |
 | otel | object | `{"authHeader":"","enabled":false,"existingSecret":"","exporterEndpoint":"","exporterInsecure":false,"exporterProtocol":"http/protobuf"}` | Otel metrics/traces/logs export |
 | otel.existingSecret | string | `""` | Use a pre-existing secret (must provide key `OTEL_EXPORTER_OTLP_HEADERS`) instead of generating one. When set, `authHeader` is ignored. |
-| queue | object | `{"callbackQueueName":"ragnerock-callbacks","jobQueueName":"ragnerock-document-jobs","maxConcurrentDispatches":500,"maxDispatchesPerSecond":500,"port":8123,"queuePoolSize":100,"serviceAccount":{"annotations":{},"create":false,"name":""},"subtaskQueueName":"ragnerock-subtask-jobs","tolerations":[]}` | Cloudtask configuration for use with in-cluster emulator |
+| queue | object | `{"annotations":{},"callbackQueueName":"ragnerock-callbacks","jobQueueName":"ragnerock-document-jobs","maxConcurrentDispatches":500,"maxDispatchesPerSecond":500,"port":8123,"queuePoolSize":100,"serviceAccount":{"annotations":{},"create":false,"name":""},"subtaskQueueName":"ragnerock-subtask-jobs","tolerations":[]}` | Cloudtask configuration for use with in-cluster emulator |
+| queue.annotations | object | `{}` | Annotations added to the queue deployment's metadata (merged with `global.annotations`; per-service keys take precedence) |
 | queue.serviceAccount.annotations | object | `{}` | Annotations to add to the created service account (e.g. for workload identity) |
 | queue.serviceAccount.create | bool | `false` | Create a service account for this deployment's pods |
 | queue.serviceAccount.name | string | `""` | Service account name to use; if empty and `create` is true a name is generated |
@@ -216,6 +226,7 @@ Ragnerock research intelligence platform
 | rateLimits.toolsPerMinute | int | `60` |  |
 | rateLimits.windowMinutes | int | `1` |  |
 | rateLimits.workflowTestConditionPerMinute | int | `120` |  |
+| subtaskWorker.annotations | object | `{}` | Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence) |
 | subtaskWorker.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
 | subtaskWorker.autoscaling.targetCPUUtilizationPercentage | int | `80` | Target average CPU utilization (% of requests). Set to null to disable. |
 | subtaskWorker.autoscaling.targetMemoryUtilizationPercentage | int | `80` | Target average memory utilization (% of requests). Set to null to disable. |
@@ -231,6 +242,7 @@ Ragnerock research intelligence platform
 | subtaskWorker.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | subtaskWorker.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
 | subtaskWorker.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
+| worker.annotations | object | `{}` | Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence) |
 | worker.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
 | worker.autoscaling.targetCPUUtilizationPercentage | int | `80` | Target average CPU utilization (% of requests). Set to null to disable. |
 | worker.autoscaling.targetMemoryUtilizationPercentage | int | `80` | Target average memory utilization (% of requests). Set to null to disable. |
