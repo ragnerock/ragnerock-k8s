@@ -44,5 +44,5 @@ jobs:
           rm -f "$tarball" kubeconform
           kubeconform -v
 
-      - name: helm template + kubeconform + configmap refs
+      - name: helm static check
         run: ./scripts/ci/check.sh

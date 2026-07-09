@@ -16,17 +16,17 @@ spec:
       labels:
         {{- include "ragnerock.selectorLabels" (dict "context" . "component" "migrations") | nindent 8 }}
     spec:
-      {{- with (include "ragnerock.serviceAccountName" (dict "context" . "config" .Values.migrations.serviceAccount "component" "migrations")) }}
+{{- with (include "ragnerock.serviceAccountName" (dict "context" . "config" .Values.migrations.serviceAccount "component" "migrations")) }}
       serviceAccountName: {{ . }}
-      {{- end }}
-      {{- with .Values.global.imagePullSecrets }}
+{{- end }}
+{{- with .Values.global.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.migrations.tolerations | default .Values.global.tolerations }}
+{{- end }}
+{{- with .Values.migrations.tolerations | default .Values.global.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
-      {{- end }}
+{{- end }}
       restartPolicy: Never
       containers:
         - name: migrations
@@ -37,7 +37,7 @@ spec:
                 name: {{ include "ragnerock.fullname" . }}-db
             - secretRef:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "db" "existingSecret" .Values.database.existingSecret) }}
-          {{- with .Values.migrations.resources }}
+{{- with .Values.migrations.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
-          {{- end }}
+{{- end }}

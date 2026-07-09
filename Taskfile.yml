@@ -24,3 +24,10 @@ tasks:
     silent: true
     vars:
       LOG_LEVEL: '{{ .LOG_LEVEL | default "INFO" }}'
+  format:
+    desc: Format Helm chart
+    cmds:
+      - LOG_LEVEL="{{ .LOG_LEVEL }}" ./scripts/ci/format.sh
+    silent: true
+    vars:
+      LOG_LEVEL: '{{ .LOG_LEVEL | default "INFO" }}'
