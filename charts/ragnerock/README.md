@@ -1,6 +1,6 @@
 # ragnerock
 
-![Version: 1.0.1](https://img.shields.io/badge/Version-1.0.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 2026.06.18](https://img.shields.io/badge/AppVersion-2026.06.18-informational?style=flat-square)
+![Version: 1.1.0](https://img.shields.io/badge/Version-1.1.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v2026.07.09](https://img.shields.io/badge/AppVersion-v2026.07.09-informational?style=flat-square)
 
 Ragnerock research intelligence platform
 
@@ -132,7 +132,8 @@ Ragnerock research intelligence platform
 | frontend.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
 | frontend.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
 | fullnameOverride | string | `nil` |  |
-| global.image | object | `{"pullPolicy":"IfNotPresent","registry":"us-central1-docker.pkg.dev/ragnerock-prod/ragnerock","tag":"latest"}` | Global container image configuration |
+| global.image | object | `{"pullPolicy":"IfNotPresent","registry":"us-central1-docker.pkg.dev/ragnerock-prod/ragnerock","tag":""}` | Global container image configuration |
+| global.image.tag | string | `""` | Default image tag for all services. When empty, falls back to the chart's appVersion. |
 | global.imagePullSecrets | list | `[]` | Secrets use to authenticate with the container registry, list of `- name: <name of the secret>` values |
 | global.revisionHistoryLimit | int | `10` | Number of replicaset revisions to keep around for deployments |
 | global.tolerations | list | `[]` | Default pod tolerations applied to all workloads. Can be overridden per-service with `<service>.tolerations`. See https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/ |
