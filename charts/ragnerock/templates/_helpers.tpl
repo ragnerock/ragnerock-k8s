@@ -48,10 +48,11 @@ app.kubernetes.io/component: {{ .component }}
 
 {{/*
 Render an image reference.
-Usage: {{ include "ragnerock.image" (dict "global" .Values.global "image" .Values.api.image) }}
+Usage: {{ include "ragnerock.image" (dict "global" .Values.global "image" .Values.api.image "chart" .Chart) }}
+Tag resolution order: per-service image.tag, then global.image.tag, then the chart's appVersion.
 */}}
 {{- define "ragnerock.image" -}}
-{{- $tag := .image.tag | default .global.image.tag -}}
+{{- $tag := .image.tag | default .global.image.tag | default .chart.AppVersion -}}
 {{- printf "%s/%s:%s" .global.image.registry .image.name $tag -}}
 {{- end }}
 

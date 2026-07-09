@@ -32,7 +32,7 @@ spec:
       {{- end }}
       containers:
         - name: api
-          image: {{ include "ragnerock.image" (dict "global" .Values.global "image" .Values.api.image) }}
+          image: {{ include "ragnerock.image" (dict "global" .Values.global "image" .Values.api.image "chart" .Chart) }}
           imagePullPolicy: {{ .Values.global.image.pullPolicy }}
           ports:
             - name: http

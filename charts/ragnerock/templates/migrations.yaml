@@ -30,7 +30,7 @@ spec:
       restartPolicy: Never
       containers:
         - name: migrations
-          image: {{ include "ragnerock.image" (dict "global" .Values.global "image" .Values.migrations.image) }}
+          image: {{ include "ragnerock.image" (dict "global" .Values.global "image" .Values.migrations.image "chart" .Chart) }}
           imagePullPolicy: {{ .Values.global.image.pullPolicy }}
           envFrom:
             - configMapRef:

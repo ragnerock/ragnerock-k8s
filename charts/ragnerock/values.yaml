@@ -4,9 +4,10 @@ fullnameOverride: ~
 global:
   # -- Global container image configuration
   image:
-    registry: us-central1-docker.pkg.dev/ragnerock-prod/ragnerock 
+    registry: us-central1-docker.pkg.dev/ragnerock-prod/ragnerock
     pullPolicy: IfNotPresent
-    tag: "latest"
+    # -- Default image tag for all services. When empty, falls back to the chart's appVersion.
+    tag: ""
   # -- Secrets use to authenticate with the container registry, list of `- name: <name of the secret>` values
   imagePullSecrets: []
   # -- Default pod tolerations applied to all workloads. Can be overridden per-service with `<service>.tolerations`. See https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/

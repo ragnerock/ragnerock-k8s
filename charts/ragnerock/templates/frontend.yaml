@@ -34,7 +34,7 @@ spec:
       {{- end }}
       containers:
         - name: frontend
-          image: {{ include "ragnerock.image" (dict "global" .Values.global "image" .Values.frontend.image) }}
+          image: {{ include "ragnerock.image" (dict "global" .Values.global "image" .Values.frontend.image "chart" .Chart) }}
           imagePullPolicy: {{ .Values.global.image.pullPolicy }}
           ports:
             - name: http
