@@ -1,6 +1,6 @@
 # ragnerock
 
-![Version: 1.1.1](https://img.shields.io/badge/Version-1.1.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v2026.07.09-2](https://img.shields.io/badge/AppVersion-v2026.07.09--2-informational?style=flat-square)
+![Version: 1.1.3](https://img.shields.io/badge/Version-1.1.3-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v2026.07.13](https://img.shields.io/badge/AppVersion-v2026.07.13-informational?style=flat-square)
 
 Ragnerock research intelligence platform
 
@@ -36,7 +36,6 @@ Ragnerock research intelligence platform
 | api.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
 | api.autoscaling.targetCPUUtilizationPercentage | int | `80` | Target average CPU utilization (% of requests). Set to null to disable. |
 | api.autoscaling.targetMemoryUtilizationPercentage | int | `80` | Target average memory utilization (% of requests). Set to null to disable. |
-| api.fqdn | string | `""` |  |
 | api.image.name | string | `"api"` |  |
 | api.image.tag | string | `""` |  |
 | api.replicaCount | int | `1` |  |
@@ -47,6 +46,7 @@ Ragnerock research intelligence platform
 | api.serviceAccount.create | bool | `false` | Create a service account for this deployment's pods |
 | api.serviceAccount.name | string | `""` | Service account name to use; if empty and `create` is true a name is generated |
 | api.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
+| api.url | string | `""` |  |
 | api.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
 | api.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
 | auth.accessCodeExpireMinutes | int | `10080` |  |
@@ -124,7 +124,6 @@ Ragnerock research intelligence platform
 | frontend.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
 | frontend.autoscaling.targetCPUUtilizationPercentage | int | `80` | Target average CPU utilization (% of requests). Set to null to disable. |
 | frontend.autoscaling.targetMemoryUtilizationPercentage | int | `80` | Target average memory utilization (% of requests). Set to null to disable. |
-| frontend.fqdn | string | `""` |  |
 | frontend.image.name | string | `"frontend"` |  |
 | frontend.image.tag | string | `""` |  |
 | frontend.replicaCount | int | `1` |  |
@@ -135,6 +134,7 @@ Ragnerock research intelligence platform
 | frontend.serviceAccount.create | bool | `false` | Create a service account for this deployment's pods |
 | frontend.serviceAccount.name | string | `""` | Service account name to use; if empty and `create` is true a name is generated |
 | frontend.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
+| frontend.url | string | `""` |  |
 | frontend.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
 | frontend.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
 | fullnameOverride | string | `nil` |  |

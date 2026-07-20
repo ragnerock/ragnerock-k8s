@@ -155,7 +155,7 @@ api:
   tolerations: []
   # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
   annotations: {}
-  fqdn: ""
+  url: ""
   # -- Optional horizontal pod autoscaler. Requires CPU/memory requests to be
   # set under `resources` for the targeted metrics to work. When enabled,
   # `replicaCount` is ignored (the HPA manages the replica count).
@@ -335,7 +335,7 @@ frontend:
   service:
     type: ClusterIP
     port: 3000
-  fqdn: ""
+  url: ""
   # -- Deployment resoruce contraints (i.e. requests/limits)
   resources: {}
   # -- Optional horizontal pod autoscaler. Requires CPU/memory requests to be
