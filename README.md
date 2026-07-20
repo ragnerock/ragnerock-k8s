@@ -62,9 +62,11 @@ If you wish to configure OTEL for monitoring your deployment, set the following 
 You'll also have to confiugre your API and frontend services to ensure they can properly talk to each other
 
 - `api.service.type` -- the k8s service type to deploy for the API, most likely `LoadBalancer` or `NodePort`
-- `api.fqdn` -- the externally accessible URL the API will live behind, e.g. `api-dev.ragnerock.com`
+- `api.url` -- the externally accessible URL the API will live behind, e.g. `https://api-dev.ragnerock.com`
 - `frontend.service.type` -- the k8s service type to deploy for the frontend, most likely `LoadBalancer` or `NodePort`
-- `frontend.fqdn` -- the externally accessible URL the frontend will live behind, e.g. `app-dev.ragnerock.com`
+- `frontend.url` -- the externally accessible URL the frontend will live behind, e.g. `https://app-dev.ragnerock.com`
+
+>> NOTE: If you are using http to access the ragnerock services then set api.protocol and frontend.protocl to `http`
 
 Add your LLM API keys
 

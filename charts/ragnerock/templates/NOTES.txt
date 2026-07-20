@@ -12,5 +12,5 @@ Services:
 
 The frontend and API are externally accessible at
 
-  - API:      {{ .Values.api.fqdn }}
-  - Frontend: {{ .Values.frontend.fqdn }}
+  - API:      {{ .Values.api.url }}
+  - Frontend: {{ .Values.frontend.url }}

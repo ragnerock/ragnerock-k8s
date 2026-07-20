@@ -145,8 +145,8 @@ metadata:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
   NODE_ENV: production
-  NEXT_PUBLIC_API_URL: {{ .Values.api.fqdn }}
-  FRONTEND_ORIGIN: {{ .Values.frontend.fqdn }}
+  NEXT_PUBLIC_API_URL: {{ .Values.api.url }}
+  FRONTEND_ORIGIN: {{ .Values.frontend.url }}
 ---
 apiVersion: v1
 kind: ConfigMap
