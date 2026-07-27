@@ -68,6 +68,8 @@ data:
   RATE_LIMIT_QUERY_ASSIST: "{{ .Values.rateLimits.queryAssistPerMinute }}"
   RATE_LIMIT_QUERY_EXECUTE: "{{ .Values.rateLimits.queryExecutePerMinute }}"
   RATE_LIMIT_QUERY_VALIDATE: "{{ .Values.rateLimits.queryValidatePerMinute }}"
+  RATE_LIMIT_AUDIT_PAYLOAD_PER_MINUTE: "{{ .Values.rateLimits.auditPayloadPerMinute }}"
+  RATE_LIMIT_OPERATOR_TEST_PER_MINUTE: "{{ .Values.rateLimits.operatorTestPerMinute }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -132,7 +134,7 @@ metadata:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
   DB_HTTP_TIMEOUT_CONNECT: "{{ .Values.db.timeout.connect }}"
-  DB_HTTP_TIMEOUT_POOL: "{{ .Values.db.timout.pool }}"
+  DB_HTTP_TIMEOUT_POOL: "{{ .Values.db.timeout.pool }}"
   DB_HTTP_TIMEOUT_QUERY_READ: "{{ .Values.db.timeout.queryRead }}"
   DB_HTTP_TIMEOUT_READ: "{{ .Values.db.timeout.read }}"
   DB_HTTP_TIMEOUT_WRITE: "{{ .Values.db.timeout.write }}"
@@ -178,8 +180,14 @@ metadata:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
   PDF_PARSER_BACKEND: "{{ .Values.llm.pdfParserBackend }}"
+  PDF_EXTRACT_IMAGES: "{{ .Values.llm.pdfExtractImages }}"
 {{- if eq .Values.llm.pdfParserBackend "azure" }}
   AZURE_DOC_INTEL_ENDPOINT: "{{ .Values.llm.azure.endpoint }}"
+{{- end }}
+{{- if eq .Values.llm.pdfParserBackend "textract" }}
+  AWS_TEXTRACT_REGION: "{{ .Values.llm.textract.region }}"
+  AWS_ACCESS_KEY_ID: "{{ .Values.llm.textract.accessKeyId }}"
+  TEXTRACT_MAX_CONCURRENCY: "{{ .Values.llm.textract.maxConcurrency }}"
 {{- end }}
 ---
 apiVersion: v1
@@ -216,12 +224,33 @@ data:
   AUDIT_FLUSH_INTERVAL_SECONDS: "{{ .Values.audit.flushIntervalSeconds }}"
   AUDIT_INGEST_URL: http://{{ include "ragnerock.fullname" . }}-audit-service:{{ .Values.auditService.service.port }}/audit/ingest
   AUDIT_KWARGS_SUMMARY_MAX_KEYS: "{{ .Values.audit.kwargsSummaryMaxKeys }}"
-  AUDIT_LIST_LIMIT_CAP: "{{ .Values.audit.listLimitCap }}"
   AUDIT_PAYLOAD_FIELD_MAX_BYTES: "{{ .Values.audit.payloadFieldMaxBytes }}"
-  AUDIT_PROMPT_PREVIEW_MAX_CHARS: "{{ .Values.audit.promptPreviewMaxChars }}"
   AUDIT_QUEUE_MAX_BYTES: "{{ .Values.audit.queueMaxBytes }}"
   AUDIT_QUEUE_MAX_EVENTS: "{{ .Values.audit.queueMaxEvents }}"
+---
+# Audit knobs read only in the API process: the event-list cap belongs to the
+# audit read side (api.routers.audit / core.audit.query) and the re-snapshot
+# cadence to the agent Runner, which only the API constructs.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-audit-api
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  AUDIT_LIST_LIMIT_CAP: "{{ .Values.audit.listLimitCap }}"
   AUDIT_RESNAPSHOT_TURNS: "{{ .Values.audit.resnapshotTurns }}"
+---
+# IAM permissions-cache TTL (core.iam.constants). Only the API and the two
+# workers reach the IAM permission cache.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-iam
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  IAM_PERMISSIONS_CACHE_TTL: "{{ .Values.iam.permissionsCacheTTL }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -288,6 +317,9 @@ data:
   DEFAULT_ROW_BATCH_SIZE: "{{ .Values.limits.batches.defaultRow }}"
   SUBTASK_MAX_ATTEMPTS: "{{ .Values.limits.subtask.maxAttempts }}"
   SUBTASK_FAILURE_THRESHOLD: "{{ .Values.limits.subtask.failureThreshold }}"
+  SUBTASK_STALE_THRESHOLD_MINUTES: "{{ .Values.limits.subtask.staleThresholdMinutes }}"
+  JOB_WATCHDOG_SLACK_MINUTES: "{{ .Values.limits.job.watchdogSlackMinutes }}"
+  CODE_OPERATOR_TIMEOUT_SECONDS: "{{ .Values.limits.codeOperator.timeoutSeconds }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -365,3 +397,50 @@ data:
   PYTHON_SERVICE_MAX_ATTEMPTS: "{{ .Values.python.maxAttempts }}"
   PYTHON_SERVICE_MAX_REQUEST_BYTES: "{{ .Values.python.maxRequestBytes }}"
   PYTHON_SERVICE_URL: "http://{{ include "ragnerock.fullname" . }}-python-service:{{ .Values.pythonService.service.port }}"
+---
+# python-service's own sandbox configuration (packages/python-service
+# settings.py). Distinct from the `-python` ConfigMap above, which holds the
+# *client* knobs its callers use.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-python-service
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  MAX_TIMEOUT: "{{ .Values.pythonService.sandbox.maxTimeout }}"
+  MAX_OUTPUT_BYTES: "{{ .Values.pythonService.sandbox.maxOutputBytes }}"
+  MAX_RESULT_BYTES: "{{ .Values.pythonService.sandbox.maxResultBytes }}"
+  MAX_REQUEST_BYTES: "{{ .Values.pythonService.sandbox.maxRequestBytes }}"
+  BATCH_STARTUP_GRACE_SECONDS: "{{ .Values.pythonService.sandbox.batchStartupGraceSeconds }}"
+  RLIMIT_CPU_SECONDS: "{{ .Values.pythonService.sandbox.rlimitCPUSeconds }}"
+  RLIMIT_NPROC: "{{ .Values.pythonService.sandbox.rlimitNProc }}"
+  RLIMIT_FSIZE_BYTES: "{{ .Values.pythonService.sandbox.rlimitFSizeBytes }}"
+  RLIMIT_NOFILE: "{{ .Values.pythonService.sandbox.rlimitNoFile }}"
+  RECYCLE_AFTER_N_EXECUTIONS: "{{ .Values.pythonService.sandbox.recycleAfterNExecutions }}"
+  SANDBOX_ENFORCEMENT: "{{ .Values.pythonService.sandbox.enforcement }}"
+---
+# audit-service configuration: ingest-time derivation caps, the partition
+# lifecycle, and the blob-export scan that self-dispatches /audit/export-run
+# tasks. LOG_LEVEL / ENVIRONMENT_IDENTIFIER come from the shared `-config` map.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-audit-service
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  AUDIT_PROMPT_PREVIEW_MAX_CHARS: "{{ .Values.audit.promptPreviewMaxChars }}"
+  AUDIT_ERROR_MESSAGE_MAX_CHARS: "{{ .Values.audit.errorMessageMaxChars }}"
+  AUDIT_PARTITION_PRECREATE_MONTHS: "{{ .Values.auditService.partitionPrecreateMonths }}"
+  AUDIT_EXPORT_RUN_URL: http://{{ include "ragnerock.fullname" . }}-audit-service:{{ .Values.auditService.service.port }}/audit/export-run
+  AUDIT_EXPORT_RUN_AUDIENCE: http://{{ include "ragnerock.fullname" . }}-audit-service:{{ .Values.auditService.service.port }}
+  AUDIT_EXPORT_WATERMARK_MINUTES: "{{ .Values.auditService.export.watermarkMinutes }}"
+  AUDIT_EXPORT_SCAN_LOOKBACK_HOURS: "{{ .Values.auditService.export.scanLookbackHours }}"
+  AUDIT_EXPORT_LAG_ALERT_MINUTES: "{{ .Values.auditService.export.lagAlertMinutes }}"
+  CLOUD_TASKS_AUDIT_EXPORT_QUEUE_NAME: "{{ .Values.queue.auditExportQueueName }}"
+  CLOUD_TASKS_ENABLED: "true"
+  CLOUD_TASKS_PROJECT_ID: local
+  CLOUD_TASKS_ENDPOINT: {{ include "ragnerock.fullname" . }}-queue:{{ .Values.queue.port }}
+  CLOUD_TASKS_MAX_DISPATCHES_PER_SECOND: "{{ .Values.queue.maxDispatchesPerSecond }}"
+  CLOUD_TASKS_MAX_CONCURRENT_DISPATCHES: "{{ .Values.queue.maxConcurrentDispatches }}"

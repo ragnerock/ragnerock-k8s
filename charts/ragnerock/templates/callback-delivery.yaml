@@ -55,13 +55,9 @@ spec:
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-endpoints
             - configMapRef:
-                name: {{ include "ragnerock.fullname" . }}-model-service
+                name: {{ include "ragnerock.fullname" . }}-db-service
             - configMapRef:
-                name: {{ include "ragnerock.fullname" . }}-worker
-            - configMapRef:
-                name: {{ include "ragnerock.fullname" . }}-data-ingestor
-            - configMapRef:
-                name: {{ include "ragnerock.fullname" . }}-api
+                name: {{ include "ragnerock.fullname" . }}-db-conn
             - secretRef:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "otel" "existingSecret" .Values.otel.existingSecret) }}
             - secretRef:
@@ -70,8 +66,6 @@ spec:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "encryption" "existingSecret" .Values.encryption.existingSecret) }}
             - secretRef:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "endpoints" "existingSecret" .Values.endpoints.existingSecret) }}
-            - secretRef:
-                name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "license" "existingSecret" .Values.licenseExistingSecret) }}
           env:
             - name: OTEL_RESOURCE_ATTRIBUTES
               value: service.name=callback-delivery,deployment.environment={{ .Values.config.environmentIdentifier }}
@@ -97,7 +91,7 @@ spec:
           resources:
             {{- toYaml . | nindent 12 }}
 {{- end }}
-{{- with .Values.modelService.volumes }}
+{{- with .Values.callbackDelivery.volumes }}
       volumes:
         {{- toYaml . | nindent 8 }}
 {{- end }}

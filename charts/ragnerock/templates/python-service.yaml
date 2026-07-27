@@ -43,6 +43,14 @@ spec:
               containerPort: 8080
               protocol: TCP
           envFrom:
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-config
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-python-service
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-otel
+            - secretRef:
+                name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "otel" "existingSecret" .Values.otel.existingSecret) }}
           env:
             - name: OTEL_RESOURCE_ATTRIBUTES
               value: service.name=python-service,deployment.environment={{ .Values.config.environmentIdentifier }}

@@ -43,6 +43,20 @@ spec:
               containerPort: 8080
               protocol: TCP
           envFrom:
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-config
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-audit-service
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-db
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-otel
+            - secretRef:
+                name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "db" "existingSecret" .Values.database.existingSecret) }}
+            - secretRef:
+                name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "encryption" "existingSecret" .Values.encryption.existingSecret) }}
+            - secretRef:
+                name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "otel" "existingSecret" .Values.otel.existingSecret) }}
           env:
             - name: OTEL_RESOURCE_ATTRIBUTES
               value: service.name=audit-service,deployment.environment={{ .Values.config.environmentIdentifier }}

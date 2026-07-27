@@ -82,6 +82,10 @@ spec:
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-audit
             - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-audit-api
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-iam
+            - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-tools
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-python
