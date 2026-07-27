@@ -48,6 +48,10 @@ spec:
               port: grpc
             initialDelaySeconds: 5
             periodSeconds: 5
+{{- with .Values.queue.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+{{- end }}
 ---
 apiVersion: v1
 kind: Service
