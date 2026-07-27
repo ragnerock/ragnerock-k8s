@@ -65,6 +65,8 @@ spec:
                 name: {{ include "ragnerock.fullname" . }}-audience
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-callback-delivery
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-parsing
             - secretRef:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "db" "existingSecret" .Values.database.existingSecret) }}
             - secretRef:

@@ -74,14 +74,24 @@ queue:
   jobQueueName: "ragnerock-document-jobs"
   subtaskQueueName: "ragnerock-subtask-jobs"
   callbackQueueName: "ragnerock-callbacks"
+  auditQueueName: "ragnerock-audit"
   maxDispatchesPerSecond: 500
   maxConcurrentDispatches: 500
   queuePoolSize: 100
   port: 8123
-  # -- Pod tolerations for the queue deployment (overrides `global.tolerations`)
-  tolerations: []
-  # -- Annotations added to the queue deployment's metadata (merged with `global.annotations`; per-service keys take precedence)
-  annotations: {}
+  # -- Deployment resoruce contraints (i.e. requests/limits)
+  resources: {}
+  # -- Optional horizontal pod autoscaler. Requires CPU/memory requests to be
+  # set under `resources` for the targeted metrics to work. When enabled,
+  # `replicaCount` is ignored (the HPA manages the replica count).
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 5
+    # -- Target average CPU utilization (% of requests). Set to null to disable.
+    targetCPUUtilizationPercentage: 80
+    # -- Target average memory utilization (% of requests). Set to null to disable.
+    targetMemoryUtilizationPercentage: 80
   serviceAccount:
     # -- Create a service account for this deployment's pods
     create: false
@@ -89,6 +99,14 @@ queue:
     name: ""
     # -- Annotations to add to the created service account (e.g. for workload identity)
     annotations: {}
+  # -- Pod tolerations for the queue deployment (overrides `global.tolerations`)
+  tolerations: []
+  # -- Annotations added to the queue deployment's metadata (merged with `global.annotations`; per-service keys take precedence)
+  annotations: {}
+  # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
+  volumes: []
+  # -- Container volume mounts (list of Kubernetes volumeMount specs)
+  volumeMounts: []
 
 auth:
   # -- Generate with `openssl rand -hex 22`
@@ -549,3 +567,33 @@ analysis:
     dimx: 12.0
     dimy: 16.0
   plotTimeoutSeconds: 60
+
+agent:
+  maxIterations: 10
+
+tools:
+  codeToolTimeoutSeconds: 30
+
+audit:
+  batchMaxBytes: 819200 # 800 * 1024
+  batchMaxEvents: 50
+  drainTimeoutSeconds: 8.0
+  emitEnabled: true
+  errorMessageMaxChars: 2000
+  eventMaxBytes: 512000 # 500 * 1024
+  flushIntervalSeconds: 2.0
+  kwargsSummaryMaxKeys: 50
+  listLimitCap: 200
+  payloadFieldMaxBytes: 204800 # 200 * 1024
+  promptReviewMaxChars: 500
+  queueMaxBytes: 134217728 # 128 * 1024 * 1024
+  queueMaxEvents: 10000
+  resnapshotTurns: 10
+  
+db:
+  timeout:
+    connect: 10.0
+    pool: 10.0
+    queryRead: 120.0
+    read: 60.0
+    write: 10.0
