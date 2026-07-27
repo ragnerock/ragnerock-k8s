@@ -55,6 +55,8 @@ spec:
                 name: {{ include "ragnerock.fullname" . }}-callback-delivery
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-queue
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-db-conn
             - secretRef:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "cloudflare" "existingSecret" .Values.cloudflare.existingSecret) }}
             - secretRef:

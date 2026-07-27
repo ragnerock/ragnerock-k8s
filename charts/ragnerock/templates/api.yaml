@@ -85,6 +85,8 @@ spec:
                 name: {{ include "ragnerock.fullname" . }}-tools
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-python
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-db-conn
             - secretRef:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "db" "existingSecret" .Values.database.existingSecret) }}
             - secretRef:

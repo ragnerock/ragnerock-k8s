@@ -123,6 +123,14 @@ data:
   DB_PORT: "{{ .Values.database.port }}"
   DB_NAME: {{ .Values.database.name }}
   DB_USER: {{ .Values.database.user }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-db-conn
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
   DB_HTTP_TIMEOUT_CONNECT: "{{ .Values.db.timeout.connect }}"
   DB_HTTP_TIMEOUT_POOL: "{{ .Values.db.timout.pool }}"
   DB_HTTP_TIMEOUT_QUERY_READ: "{{ .Values.db.timeout.queryRead }}"

@@ -54,7 +54,9 @@ spec:
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-queue
             - configMapRef:
-                name: {{ include "ragnerock.fullname" . }}-db
+                name: {{ include "ragnerock.fullname" . }}-db-conn
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-audit
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-callback-delivery
             - secretRef:
