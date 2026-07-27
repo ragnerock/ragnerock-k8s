@@ -47,6 +47,27 @@ app.kubernetes.io/component: {{ .component }}
 {{- end }}
 
 {{/*
+Render a number as plain decimal.
+Usage: {{ include "ragnerock.number" .Values.audit.queueMaxBytes }}
+
+Helm parses YAML numbers into float64, and Go renders large float64 values in
+scientific notation ("1.34217728e+08"), which downstream services reject when
+parsing the value as an integer. Whole numbers are emitted as integers here;
+fractional values and strings pass through unchanged.
+*/}}
+{{- define "ragnerock.number" -}}
+  {{- if kindIs "float64" . -}}
+    {{- if eq . (floor .) -}}
+      {{- printf "%d" (int64 .) -}}
+    {{- else -}}
+      {{- printf "%v" . -}}
+    {{- end -}}
+  {{- else -}}
+    {{- printf "%v" . -}}
+  {{- end -}}
+{{- end }}
+
+{{/*
 Render an image reference.
 Usage: {{ include "ragnerock.image" (dict "global" .Values.global "image" .Values.api.image "chart" .Chart) }}
 Tag resolution order: per-service image.tag, then global.image.tag, then the chart's appVersion.

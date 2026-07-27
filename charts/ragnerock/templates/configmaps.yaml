@@ -8,7 +8,7 @@ data:
   ENVIRONMENT_IDENTIFIER: {{ .Values.config.environmentIdentifier }}
   LOG_LEVEL: {{ .Values.config.logLevel }}
   RAGNEROCK_SAFETY_ENABLED: "{{ .Values.ragnerock.safetyEnabled }}"
-  MODEL_HTTP_TIMEOUT_SECONDS: "{{ .Values.model.httpTimeoutSeconds }}"
+  MODEL_HTTP_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.model.httpTimeoutSeconds }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -17,9 +17,9 @@ metadata:
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
-  ACCESS_TOKEN_EXPIRE_MINUTES: "{{ .Values.auth.accessTokenExpireMinutes }}"
-  ACCESS_CODE_EXPIRE_MINUTES: "{{ .Values.auth.accessCodeExpireMinutes }}"
-  AUTH_LOCKOUT_MAX_ATTEMPTS: "{{ .Values.auth.lockoutMaxAttempts }}"
+  ACCESS_TOKEN_EXPIRE_MINUTES: "{{ include "ragnerock.number" .Values.auth.accessTokenExpireMinutes }}"
+  ACCESS_CODE_EXPIRE_MINUTES: "{{ include "ragnerock.number" .Values.auth.accessCodeExpireMinutes }}"
+  AUTH_LOCKOUT_MAX_ATTEMPTS: "{{ include "ragnerock.number" .Values.auth.lockoutMaxAttempts }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -29,9 +29,9 @@ metadata:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
   API_SELF_URL: "http://{{ include "ragnerock.fullname" . }}-api:8080"
-  DB_POOL_SIZE: "{{ .Values.database.poolSize }}"
-  DB_MAX_OVERFLOW: "{{ .Values.database.maxOverflow }}"
-  DB_POOL_TIMEOUT: "{{ .Values.database.poolTimeout }}"
+  DB_POOL_SIZE: "{{ include "ragnerock.number" .Values.database.poolSize }}"
+  DB_MAX_OVERFLOW: "{{ include "ragnerock.number" .Values.database.maxOverflow }}"
+  DB_POOL_TIMEOUT: "{{ include "ragnerock.number" .Values.database.poolTimeout }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -40,36 +40,36 @@ metadata:
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
-  RATE_LIMIT_WINDOW_MINUTES: "{{ .Values.rateLimits.windowMinutes }}"
-  RATE_LIMIT_REQUESTS_PER_MINUTE: "{{ .Values.rateLimits.requestsPerMinute }}"
-  RATE_LIMIT_CHAT_CREATE_PER_MINUTE: "{{ .Values.rateLimits.chatCreatePerMinute }}"
-  RATE_LIMIT_DOCUMENT_CHUNK_CREATE_PER_MINUTE: "{{ .Values.rateLimits.documentChunkCreatePerMinute }}"
-  RATE_LIMIT_FRONTEND_EVENTS_PER_MINUTE: "{{ .Values.rateLimits.frontendEventsPerMinute }}"
-  RATE_LIMIT_AUTH_LOGIN_PER_MINUTE: "{{ .Values.rateLimits.authLoginPerMinute }}"
-  RATE_LIMIT_AUTH_REGISTER_PER_MINUTE: "{{ .Values.rateLimits.authRegisterPerMinute }}"
-  RATE_LIMIT_AUTH_GOOGLE_PER_MINUTE: "{{ .Values.rateLimits.authGooglePerMinute }}"
-  RATE_LIMIT_AUTH_REQUEST_CODE_PER_MINUTE: "{{ .Values.rateLimits.authRequestCodePerMinute }}"
-  RATE_LIMIT_AUTH_VALIDATE_CODE_PER_MINUTE: "{{ .Values.rateLimits.authValidateCodePerMinute }}"
-  RATE_LIMIT_AUTH_CHANGE_PASSWORD_PER_MINUTE: "{{ .Values.rateLimits.authChangePasswordPerMinute }}"
-  RATE_LIMIT_AGENT_PER_MINUTE: "{{ .Values.rateLimits.agentPerMinute }}"
-  RATE_LIMIT_NOTEBOOK_CODE_FEEDBACK_PER_MINUTE: "{{ .Values.rateLimits.notebookCodeFeedbackPerMinute }}"
-  RATE_LIMIT_DOCUMENT_UPLOAD_PER_MINUTE: "{{ .Values.rateLimits.documentUploadPerMinute }}"
-  RATE_LIMIT_SEARCH_PER_MINUTE: "{{ .Values.rateLimits.searchPerMinute }}"
-  RATE_LIMIT_INGEST_TRIGGER_PER_MINUTE: "{{ .Values.rateLimits.ingestTriggerPerMinute }}"
-  RATE_LIMIT_TOOLS_PER_MINUTE: "{{ .Values.rateLimits.toolsPerMinute }}"
-  RATE_LIMIT_ANNOTATION_PER_MINUTE: "{{ .Values.rateLimits.annotationPerMinute }}"
-  RATE_LIMIT_DEBUG_PER_MINUTE: "{{ .Values.rateLimits.debugPerMinute }}"
-  RATE_LIMIT_WORKFLOW_TEST_CONDITION_PER_MINUTE: "{{ .Values.rateLimits.workflowTestConditionPerMinute }}"
-  RATE_LIMIT_CONFIG_VALIDATE_PER_MINUTE: "{{ .Values.rateLimits.configValidatePerMinute }}"
-  RATE_LIMIT_ADMIN_MUTATION_PER_MINUTE: "{{ .Values.rateLimits.adminMutationPerMinute }}"
-  RATE_LIMIT_IAM_MUTATION_PER_MINUTE: "{{ .Values.rateLimits.iamMutationPerMinute }}"
-  RATE_LIMIT_API_TOKEN_PER_MINUTE: "{{ .Values.rateLimits.apiTokenPerMinute }}"
-  RATE_LIMIT_NOTIFICATION_STREAM_PER_MINUTE: "{{ .Values.rateLimits.notificationStreamPerMinute }}"
-  RATE_LIMIT_QUERY_ASSIST: "{{ .Values.rateLimits.queryAssistPerMinute }}"
-  RATE_LIMIT_QUERY_EXECUTE: "{{ .Values.rateLimits.queryExecutePerMinute }}"
-  RATE_LIMIT_QUERY_VALIDATE: "{{ .Values.rateLimits.queryValidatePerMinute }}"
-  RATE_LIMIT_AUDIT_PAYLOAD_PER_MINUTE: "{{ .Values.rateLimits.auditPayloadPerMinute }}"
-  RATE_LIMIT_OPERATOR_TEST_PER_MINUTE: "{{ .Values.rateLimits.operatorTestPerMinute }}"
+  RATE_LIMIT_WINDOW_MINUTES: "{{ include "ragnerock.number" .Values.rateLimits.windowMinutes }}"
+  RATE_LIMIT_REQUESTS_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.requestsPerMinute }}"
+  RATE_LIMIT_CHAT_CREATE_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.chatCreatePerMinute }}"
+  RATE_LIMIT_DOCUMENT_CHUNK_CREATE_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.documentChunkCreatePerMinute }}"
+  RATE_LIMIT_FRONTEND_EVENTS_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.frontendEventsPerMinute }}"
+  RATE_LIMIT_AUTH_LOGIN_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.authLoginPerMinute }}"
+  RATE_LIMIT_AUTH_REGISTER_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.authRegisterPerMinute }}"
+  RATE_LIMIT_AUTH_GOOGLE_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.authGooglePerMinute }}"
+  RATE_LIMIT_AUTH_REQUEST_CODE_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.authRequestCodePerMinute }}"
+  RATE_LIMIT_AUTH_VALIDATE_CODE_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.authValidateCodePerMinute }}"
+  RATE_LIMIT_AUTH_CHANGE_PASSWORD_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.authChangePasswordPerMinute }}"
+  RATE_LIMIT_AGENT_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.agentPerMinute }}"
+  RATE_LIMIT_NOTEBOOK_CODE_FEEDBACK_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.notebookCodeFeedbackPerMinute }}"
+  RATE_LIMIT_DOCUMENT_UPLOAD_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.documentUploadPerMinute }}"
+  RATE_LIMIT_SEARCH_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.searchPerMinute }}"
+  RATE_LIMIT_INGEST_TRIGGER_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.ingestTriggerPerMinute }}"
+  RATE_LIMIT_TOOLS_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.toolsPerMinute }}"
+  RATE_LIMIT_ANNOTATION_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.annotationPerMinute }}"
+  RATE_LIMIT_DEBUG_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.debugPerMinute }}"
+  RATE_LIMIT_WORKFLOW_TEST_CONDITION_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.workflowTestConditionPerMinute }}"
+  RATE_LIMIT_CONFIG_VALIDATE_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.configValidatePerMinute }}"
+  RATE_LIMIT_ADMIN_MUTATION_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.adminMutationPerMinute }}"
+  RATE_LIMIT_IAM_MUTATION_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.iamMutationPerMinute }}"
+  RATE_LIMIT_API_TOKEN_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.apiTokenPerMinute }}"
+  RATE_LIMIT_NOTIFICATION_STREAM_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.notificationStreamPerMinute }}"
+  RATE_LIMIT_QUERY_ASSIST: "{{ include "ragnerock.number" .Values.rateLimits.queryAssistPerMinute }}"
+  RATE_LIMIT_QUERY_EXECUTE: "{{ include "ragnerock.number" .Values.rateLimits.queryExecutePerMinute }}"
+  RATE_LIMIT_QUERY_VALIDATE: "{{ include "ragnerock.number" .Values.rateLimits.queryValidatePerMinute }}"
+  RATE_LIMIT_AUDIT_PAYLOAD_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.auditPayloadPerMinute }}"
+  RATE_LIMIT_OPERATOR_TEST_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.operatorTestPerMinute }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -78,7 +78,7 @@ metadata:
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
-  ANALYSIS_TOOLKIT_URL: http://{{ include "ragnerock.fullname" . }}-analysis-toolkit:{{ .Values.analysisToolkit.service.port }}
+  ANALYSIS_TOOLKIT_URL: http://{{ include "ragnerock.fullname" . }}-analysis-toolkit:{{ include "ragnerock.number" .Values.analysisToolkit.service.port }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -87,7 +87,7 @@ metadata:
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
-  DATA_INGESTOR_URL: http://{{ include "ragnerock.fullname" . }}-data-ingestor:{{ .Values.dataIngestor.service.port }}
+  DATA_INGESTOR_URL: http://{{ include "ragnerock.fullname" . }}-data-ingestor:{{ include "ragnerock.number" .Values.dataIngestor.service.port }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -96,7 +96,7 @@ metadata:
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
-  DB_SERVICE_URL: http://{{ include "ragnerock.fullname" . }}-db-service:{{ .Values.dbService.service.port }}
+  DB_SERVICE_URL: http://{{ include "ragnerock.fullname" . }}-db-service:{{ include "ragnerock.number" .Values.dbService.service.port }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -105,10 +105,10 @@ metadata:
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
-  BATCH_LIMIT: "{{ .Values.dbService.batchLimit }}"
-  RATE_LIMIT_MAX_TOKENS: "{{ .Values.dbService.rateLimitMaxTokens }}"
-  RATE_LIMIT_REFILL_RATE: "{{ .Values.dbService.rateLimitRefillRate }}"
-  CONNECTION_FAILURE_THRESHOLD: "{{ .Values.dbService.connectionFailureThreshold }}"
+  BATCH_LIMIT: "{{ include "ragnerock.number" .Values.dbService.batchLimit }}"
+  RATE_LIMIT_MAX_TOKENS: "{{ include "ragnerock.number" .Values.dbService.rateLimitMaxTokens }}"
+  RATE_LIMIT_REFILL_RATE: "{{ include "ragnerock.number" .Values.dbService.rateLimitRefillRate }}"
+  CONNECTION_FAILURE_THRESHOLD: "{{ include "ragnerock.number" .Values.dbService.connectionFailureThreshold }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -122,7 +122,7 @@ metadata:
     helm.sh/hook-delete-policy: before-hook-creation
 data:
   DB_HOST: {{ .Values.database.host }}
-  DB_PORT: "{{ .Values.database.port }}"
+  DB_PORT: "{{ include "ragnerock.number" .Values.database.port }}"
   DB_NAME: {{ .Values.database.name }}
   DB_USER: {{ .Values.database.user }}
 ---
@@ -133,11 +133,11 @@ metadata:
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
-  DB_HTTP_TIMEOUT_CONNECT: "{{ .Values.db.timeout.connect }}"
-  DB_HTTP_TIMEOUT_POOL: "{{ .Values.db.timeout.pool }}"
-  DB_HTTP_TIMEOUT_QUERY_READ: "{{ .Values.db.timeout.queryRead }}"
-  DB_HTTP_TIMEOUT_READ: "{{ .Values.db.timeout.read }}"
-  DB_HTTP_TIMEOUT_WRITE: "{{ .Values.db.timeout.write }}"
+  DB_HTTP_TIMEOUT_CONNECT: "{{ include "ragnerock.number" .Values.db.timeout.connect }}"
+  DB_HTTP_TIMEOUT_POOL: "{{ include "ragnerock.number" .Values.db.timeout.pool }}"
+  DB_HTTP_TIMEOUT_QUERY_READ: "{{ include "ragnerock.number" .Values.db.timeout.queryRead }}"
+  DB_HTTP_TIMEOUT_READ: "{{ include "ragnerock.number" .Values.db.timeout.read }}"
+  DB_HTTP_TIMEOUT_WRITE: "{{ include "ragnerock.number" .Values.db.timeout.write }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -170,7 +170,7 @@ metadata:
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
-  WORKER_URL: http://{{ include "ragnerock.fullname" . }}-worker:{{ .Values.worker.service.port }}
+  WORKER_URL: http://{{ include "ragnerock.fullname" . }}-worker:{{ include "ragnerock.number" .Values.worker.service.port }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -187,7 +187,7 @@ data:
 {{- if eq .Values.llm.pdfParserBackend "textract" }}
   AWS_TEXTRACT_REGION: "{{ .Values.llm.textract.region }}"
   AWS_ACCESS_KEY_ID: "{{ .Values.llm.textract.accessKeyId }}"
-  TEXTRACT_MAX_CONCURRENCY: "{{ .Values.llm.textract.maxConcurrency }}"
+  TEXTRACT_MAX_CONCURRENCY: "{{ include "ragnerock.number" .Values.llm.textract.maxConcurrency }}"
 {{- end }}
 ---
 apiVersion: v1
@@ -197,7 +197,7 @@ metadata:
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
-  AGENT_MAX_ITERATIONS: "{{ .Values.agent.maxIterations }}"
+  AGENT_MAX_ITERATIONS: "{{ include "ragnerock.number" .Values.agent.maxIterations }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -206,7 +206,7 @@ metadata:
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
-  CODE_TOOL_TIMEOUT_SECONDS: "{{ .Values.tools.codeToolTimeoutSeconds }}"
+  CODE_TOOL_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.tools.codeToolTimeoutSeconds }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -215,18 +215,18 @@ metadata:
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
-  AUDIT_BATCH_MAX_BYTES: "{{ .Values.audit.batchMaxBytes }}"
-  AUDIT_BATCH_MAX_EVENTS: "{{ .Values.audit.batchMaxEvents }}"
-  AUDIT_DRAIN_TIMEOUT_SECONDS: "{{ .Values.audit.drainTimeoutSeconds }}"
+  AUDIT_BATCH_MAX_BYTES: "{{ include "ragnerock.number" .Values.audit.batchMaxBytes }}"
+  AUDIT_BATCH_MAX_EVENTS: "{{ include "ragnerock.number" .Values.audit.batchMaxEvents }}"
+  AUDIT_DRAIN_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.audit.drainTimeoutSeconds }}"
   AUDIT_EMIT_ENABLED: "{{ .Values.audit.emitEnabled }}"
-  AUDIT_ERROR_MESSAGE_MAX_CHARS: "{{ .Values.audit.errorMessageMaxChars }}"
-  AUDIT_EVENT_MAX_BYTES: "{{ .Values.audit.eventMaxBytes }}"
-  AUDIT_FLUSH_INTERVAL_SECONDS: "{{ .Values.audit.flushIntervalSeconds }}"
-  AUDIT_INGEST_URL: http://{{ include "ragnerock.fullname" . }}-audit-service:{{ .Values.auditService.service.port }}/audit/ingest
-  AUDIT_KWARGS_SUMMARY_MAX_KEYS: "{{ .Values.audit.kwargsSummaryMaxKeys }}"
-  AUDIT_PAYLOAD_FIELD_MAX_BYTES: "{{ .Values.audit.payloadFieldMaxBytes }}"
-  AUDIT_QUEUE_MAX_BYTES: "{{ .Values.audit.queueMaxBytes }}"
-  AUDIT_QUEUE_MAX_EVENTS: "{{ .Values.audit.queueMaxEvents }}"
+  AUDIT_ERROR_MESSAGE_MAX_CHARS: "{{ include "ragnerock.number" .Values.audit.errorMessageMaxChars }}"
+  AUDIT_EVENT_MAX_BYTES: "{{ include "ragnerock.number" .Values.audit.eventMaxBytes }}"
+  AUDIT_FLUSH_INTERVAL_SECONDS: "{{ include "ragnerock.number" .Values.audit.flushIntervalSeconds }}"
+  AUDIT_INGEST_URL: http://{{ include "ragnerock.fullname" . }}-audit-service:{{ include "ragnerock.number" .Values.auditService.service.port }}/audit/ingest
+  AUDIT_KWARGS_SUMMARY_MAX_KEYS: "{{ include "ragnerock.number" .Values.audit.kwargsSummaryMaxKeys }}"
+  AUDIT_PAYLOAD_FIELD_MAX_BYTES: "{{ include "ragnerock.number" .Values.audit.payloadFieldMaxBytes }}"
+  AUDIT_QUEUE_MAX_BYTES: "{{ include "ragnerock.number" .Values.audit.queueMaxBytes }}"
+  AUDIT_QUEUE_MAX_EVENTS: "{{ include "ragnerock.number" .Values.audit.queueMaxEvents }}"
 ---
 # Audit knobs read only in the API process: the event-list cap belongs to the
 # audit read side (api.routers.audit / core.audit.query) and the re-snapshot
@@ -238,8 +238,8 @@ metadata:
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
-  AUDIT_LIST_LIMIT_CAP: "{{ .Values.audit.listLimitCap }}"
-  AUDIT_RESNAPSHOT_TURNS: "{{ .Values.audit.resnapshotTurns }}"
+  AUDIT_LIST_LIMIT_CAP: "{{ include "ragnerock.number" .Values.audit.listLimitCap }}"
+  AUDIT_RESNAPSHOT_TURNS: "{{ include "ragnerock.number" .Values.audit.resnapshotTurns }}"
 ---
 # IAM permissions-cache TTL (core.iam.constants). Only the API and the two
 # workers reach the IAM permission cache.
@@ -250,7 +250,7 @@ metadata:
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
-  IAM_PERMISSIONS_CACHE_TTL: "{{ .Values.iam.permissionsCacheTTL }}"
+  IAM_PERMISSIONS_CACHE_TTL: "{{ include "ragnerock.number" .Values.iam.permissionsCacheTTL }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -259,7 +259,7 @@ metadata:
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
-  SUBTASK_WORKER_URL: http://{{ include "ragnerock.fullname" . }}-subtask-worker:{{ .Values.subtaskWorker.service.port }}
+  SUBTASK_WORKER_URL: http://{{ include "ragnerock.fullname" . }}-subtask-worker:{{ include "ragnerock.number" .Values.subtaskWorker.service.port }}
   PDF_PARSER_BACKEND: "{{ .Values.llm.pdfParserBackend }}"
 {{- if eq .Values.llm.pdfParserBackend "azure" }}
   AZURE_DOC_INTEL_ENDPOINT: "{{ .Values.llm.azure.endpoint }}"
@@ -272,7 +272,7 @@ metadata:
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
-  MODEL_URL: http://{{ include "ragnerock.fullname" . }}-model-service:{{ .Values.modelService.service.port }}
+  MODEL_URL: http://{{ include "ragnerock.fullname" . }}-model-service:{{ include "ragnerock.number" .Values.modelService.service.port }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -294,10 +294,10 @@ data:
   CLOUD_TASKS_JOB_QUEUE_NAME: "{{ .Values.queue.jobQueueName }}"
   CLOUD_TASKS_SUBTASK_QUEUE_NAME: "{{ .Values.queue.subtaskQueueName }}"
   CLOUD_TASKS_CALLBACK_QUEUE: "{{ .Values.queue.callbackQueueName }}"
-  CLOUD_TASKS_MAX_DISPATCHES_PER_SECOND: "{{ .Values.queue.maxDispatchesPerSecond }}"
-  CLOUD_TASKS_MAX_CONCURRENT_DISPATCHES: "{{ .Values.queue.maxConcurrentDispatches }}"
-  QUEUE_POOL_SIZE: "{{ .Values.queue.queuePoolSize }}"
-  CLOUD_TASKS_ENDPOINT: {{ include "ragnerock.fullname" . }}-queue:{{ .Values.queue.port }}
+  CLOUD_TASKS_MAX_DISPATCHES_PER_SECOND: "{{ include "ragnerock.number" .Values.queue.maxDispatchesPerSecond }}"
+  CLOUD_TASKS_MAX_CONCURRENT_DISPATCHES: "{{ include "ragnerock.number" .Values.queue.maxConcurrentDispatches }}"
+  QUEUE_POOL_SIZE: "{{ include "ragnerock.number" .Values.queue.queuePoolSize }}"
+  CLOUD_TASKS_ENDPOINT: {{ include "ragnerock.fullname" . }}-queue:{{ include "ragnerock.number" .Values.queue.port }}
   CLOUD_TASKS_PROJECT_ID: local
   CLOUD_TASKS_AUDIT_QUEUE: "{{ .Values.queue.auditQueueName }}"
 ---
@@ -308,18 +308,18 @@ metadata:
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
-  MAX_CONCURRENT_SUBTASKS: "{{ .Values.limits.concurrency.maxConcurrentSubtasks }}"
-  MAX_CONCURRENT_ANNOTATIONS: "{{ .Values.limits.concurrency.maxConcurrentAnnotations }}"
-  MAX_CONCURRENT_JOBS: "{{ .Values.limits.concurrency.maxConcurrentJobs }}"
-  EMBEDDING_BATCH_SIZE: "{{ .Values.limits.batches.embedding }}"
-  ANNOTATION_BATCH_SIZE: "{{ .Values.limits.batches.annotation }}"
-  TABULAR_ANNOTATION_BATCH_SIZE: "{{ .Values.limits.batches.tabularAnnotation }}"
-  DEFAULT_ROW_BATCH_SIZE: "{{ .Values.limits.batches.defaultRow }}"
-  SUBTASK_MAX_ATTEMPTS: "{{ .Values.limits.subtask.maxAttempts }}"
-  SUBTASK_FAILURE_THRESHOLD: "{{ .Values.limits.subtask.failureThreshold }}"
-  SUBTASK_STALE_THRESHOLD_MINUTES: "{{ .Values.limits.subtask.staleThresholdMinutes }}"
-  JOB_WATCHDOG_SLACK_MINUTES: "{{ .Values.limits.job.watchdogSlackMinutes }}"
-  CODE_OPERATOR_TIMEOUT_SECONDS: "{{ .Values.limits.codeOperator.timeoutSeconds }}"
+  MAX_CONCURRENT_SUBTASKS: "{{ include "ragnerock.number" .Values.limits.concurrency.maxConcurrentSubtasks }}"
+  MAX_CONCURRENT_ANNOTATIONS: "{{ include "ragnerock.number" .Values.limits.concurrency.maxConcurrentAnnotations }}"
+  MAX_CONCURRENT_JOBS: "{{ include "ragnerock.number" .Values.limits.concurrency.maxConcurrentJobs }}"
+  EMBEDDING_BATCH_SIZE: "{{ include "ragnerock.number" .Values.limits.batches.embedding }}"
+  ANNOTATION_BATCH_SIZE: "{{ include "ragnerock.number" .Values.limits.batches.annotation }}"
+  TABULAR_ANNOTATION_BATCH_SIZE: "{{ include "ragnerock.number" .Values.limits.batches.tabularAnnotation }}"
+  DEFAULT_ROW_BATCH_SIZE: "{{ include "ragnerock.number" .Values.limits.batches.defaultRow }}"
+  SUBTASK_MAX_ATTEMPTS: "{{ include "ragnerock.number" .Values.limits.subtask.maxAttempts }}"
+  SUBTASK_FAILURE_THRESHOLD: "{{ include "ragnerock.number" .Values.limits.subtask.failureThreshold }}"
+  SUBTASK_STALE_THRESHOLD_MINUTES: "{{ include "ragnerock.number" .Values.limits.subtask.staleThresholdMinutes }}"
+  JOB_WATCHDOG_SLACK_MINUTES: "{{ include "ragnerock.number" .Values.limits.job.watchdogSlackMinutes }}"
+  CODE_OPERATOR_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.limits.codeOperator.timeoutSeconds }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -328,16 +328,16 @@ metadata:
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
-  ANALYSIS_TOOLKIT_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-analysis-toolkit:{{ .Values.analysisToolkit.service.port }}"
-  API_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-api:{{ .Values.api.service.port }}"
-  DATA_INGESTOR_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-data-ingestor:{{ .Values.dataIngestor.service.port }}"
-  DB_SERVICE_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-db-service:{{ .Values.dbService.service.port }}"
-  MODEL_SERVICE_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-model-service:{{ .Values.modelService.service.port }}"
-  SCHEDULER_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-data-ingestor:{{ .Values.dataIngestor.service.port }}"
-  SUBTASK_WORKER_SERVICE_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-subtask-worker:{{ .Values.subtaskWorker.service.port }}"
-  WORKER_SERVICE_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-worker:{{ .Values.worker.service.port }}"
-  AUDIT_SERVICE_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-audit-service:{{ .Values.auditService.service.port }}"
-  PYTHON_SERVICE_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-python-service:{{ .Values.pythonService.service.port }}"
+  ANALYSIS_TOOLKIT_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-analysis-toolkit:{{ include "ragnerock.number" .Values.analysisToolkit.service.port }}"
+  API_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-api:{{ include "ragnerock.number" .Values.api.service.port }}"
+  DATA_INGESTOR_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-data-ingestor:{{ include "ragnerock.number" .Values.dataIngestor.service.port }}"
+  DB_SERVICE_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-db-service:{{ include "ragnerock.number" .Values.dbService.service.port }}"
+  MODEL_SERVICE_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-model-service:{{ include "ragnerock.number" .Values.modelService.service.port }}"
+  SCHEDULER_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-data-ingestor:{{ include "ragnerock.number" .Values.dataIngestor.service.port }}"
+  SUBTASK_WORKER_SERVICE_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-subtask-worker:{{ include "ragnerock.number" .Values.subtaskWorker.service.port }}"
+  WORKER_SERVICE_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-worker:{{ include "ragnerock.number" .Values.worker.service.port }}"
+  AUDIT_SERVICE_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-audit-service:{{ include "ragnerock.number" .Values.auditService.service.port }}"
+  PYTHON_SERVICE_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-python-service:{{ include "ragnerock.number" .Values.pythonService.service.port }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -347,8 +347,8 @@ metadata:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
   ENDPOINTS_ALLOW_PRIVATE_CALLBACKS: "{{ .Values.endpoints.allowPrivateCallbacks }}"
-  ENDPOINTS_EPHEMERAL_TTL_HOURS: "{{ .Values.endpoints.ephemeralTTLHours }}"
-  ENDPOINTS_MAX_FILE_SIZE_MB: "{{ .Values.endpoints.maxFileSizeMB }}"
+  ENDPOINTS_EPHEMERAL_TTL_HOURS: "{{ include "ragnerock.number" .Values.endpoints.ephemeralTTLHours }}"
+  ENDPOINTS_MAX_FILE_SIZE_MB: "{{ include "ragnerock.number" .Values.endpoints.maxFileSizeMB }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -357,7 +357,7 @@ metadata:
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
-  INGEST_RUN_STALE_TIMEOUT_SECONDS: "{{ .Values.ingest.staleTimeoutSeconds }}"
+  INGEST_RUN_STALE_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.ingest.staleTimeoutSeconds }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -366,7 +366,7 @@ metadata:
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
-  CALLBACK_DELIVERY_URL: http://{{ include "ragnerock.fullname" . }}-callback-delivery:{{ .Values.callbackDelivery.service.port }}
+  CALLBACK_DELIVERY_URL: http://{{ include "ragnerock.fullname" . }}-callback-delivery:{{ include "ragnerock.number" .Values.callbackDelivery.service.port }}
   CALLBACK_ALLOWED_HOSTS: "ragnerock-api:8080"
   CALLBACK_HTTP_ALLOWED: "true"
 ---
@@ -377,13 +377,13 @@ metadata:
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
-  DATAFRAME_OP_TIMEOUT: "{{ .Values.analysis.dataframeOpTimeout }}"
-  MAX_COLUMNS: "{{ .Values.analysis.maxColumns }}"
-  MAX_ROWS: "{{ .Values.analysis.maxRows }}"
-  MODEL_FIT_TIMEOUT: "{{ .Values.analysis.modelFitTimeoutSeconds }}"
-  PLOT_DPI: "{{ .Values.analysis.plotDPI }}"
-  PLOT_MAX_FIGSIZE: "[{{ .Values.analysis.plotMaxFigsize.dimx }},{{ .Values.analysis.plotMaxFigsize.dimy }}]"
-  PLOT_TIMEOUT: "{{ .Values.analysis.plotTimeoutSeconds }}"
+  DATAFRAME_OP_TIMEOUT: "{{ include "ragnerock.number" .Values.analysis.dataframeOpTimeout }}"
+  MAX_COLUMNS: "{{ include "ragnerock.number" .Values.analysis.maxColumns }}"
+  MAX_ROWS: "{{ include "ragnerock.number" .Values.analysis.maxRows }}"
+  MODEL_FIT_TIMEOUT: "{{ include "ragnerock.number" .Values.analysis.modelFitTimeoutSeconds }}"
+  PLOT_DPI: "{{ include "ragnerock.number" .Values.analysis.plotDPI }}"
+  PLOT_MAX_FIGSIZE: "[{{ include "ragnerock.number" .Values.analysis.plotMaxFigsize.dimx }},{{ include "ragnerock.number" .Values.analysis.plotMaxFigsize.dimy }}]"
+  PLOT_TIMEOUT: "{{ include "ragnerock.number" .Values.analysis.plotTimeoutSeconds }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -392,11 +392,11 @@ metadata:
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
-  PYTHON_SERVICE_BATCH_CHUNK_ITEMS: "{{ .Values.python.batchChunkItems }}"
-  PYTHON_SERVICE_HTTP_TIMEOUT_MARGIN_SECONDS: "{{ .Values.python.timeoutMarginSeconds }}"
-  PYTHON_SERVICE_MAX_ATTEMPTS: "{{ .Values.python.maxAttempts }}"
-  PYTHON_SERVICE_MAX_REQUEST_BYTES: "{{ .Values.python.maxRequestBytes }}"
-  PYTHON_SERVICE_URL: "http://{{ include "ragnerock.fullname" . }}-python-service:{{ .Values.pythonService.service.port }}"
+  PYTHON_SERVICE_BATCH_CHUNK_ITEMS: "{{ include "ragnerock.number" .Values.python.batchChunkItems }}"
+  PYTHON_SERVICE_HTTP_TIMEOUT_MARGIN_SECONDS: "{{ include "ragnerock.number" .Values.python.timeoutMarginSeconds }}"
+  PYTHON_SERVICE_MAX_ATTEMPTS: "{{ include "ragnerock.number" .Values.python.maxAttempts }}"
+  PYTHON_SERVICE_MAX_REQUEST_BYTES: "{{ include "ragnerock.number" .Values.python.maxRequestBytes }}"
+  PYTHON_SERVICE_URL: "http://{{ include "ragnerock.fullname" . }}-python-service:{{ include "ragnerock.number" .Values.pythonService.service.port }}"
 ---
 # python-service's own sandbox configuration (packages/python-service
 # settings.py). Distinct from the `-python` ConfigMap above, which holds the
@@ -408,16 +408,16 @@ metadata:
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
-  MAX_TIMEOUT: "{{ .Values.pythonService.sandbox.maxTimeout }}"
-  MAX_OUTPUT_BYTES: "{{ .Values.pythonService.sandbox.maxOutputBytes }}"
-  MAX_RESULT_BYTES: "{{ .Values.pythonService.sandbox.maxResultBytes }}"
-  MAX_REQUEST_BYTES: "{{ .Values.pythonService.sandbox.maxRequestBytes }}"
-  BATCH_STARTUP_GRACE_SECONDS: "{{ .Values.pythonService.sandbox.batchStartupGraceSeconds }}"
-  RLIMIT_CPU_SECONDS: "{{ .Values.pythonService.sandbox.rlimitCPUSeconds }}"
-  RLIMIT_NPROC: "{{ .Values.pythonService.sandbox.rlimitNProc }}"
-  RLIMIT_FSIZE_BYTES: "{{ .Values.pythonService.sandbox.rlimitFSizeBytes }}"
-  RLIMIT_NOFILE: "{{ .Values.pythonService.sandbox.rlimitNoFile }}"
-  RECYCLE_AFTER_N_EXECUTIONS: "{{ .Values.pythonService.sandbox.recycleAfterNExecutions }}"
+  MAX_TIMEOUT: "{{ include "ragnerock.number" .Values.pythonService.sandbox.maxTimeout }}"
+  MAX_OUTPUT_BYTES: "{{ include "ragnerock.number" .Values.pythonService.sandbox.maxOutputBytes }}"
+  MAX_RESULT_BYTES: "{{ include "ragnerock.number" .Values.pythonService.sandbox.maxResultBytes }}"
+  MAX_REQUEST_BYTES: "{{ include "ragnerock.number" .Values.pythonService.sandbox.maxRequestBytes }}"
+  BATCH_STARTUP_GRACE_SECONDS: "{{ include "ragnerock.number" .Values.pythonService.sandbox.batchStartupGraceSeconds }}"
+  RLIMIT_CPU_SECONDS: "{{ include "ragnerock.number" .Values.pythonService.sandbox.rlimitCPUSeconds }}"
+  RLIMIT_NPROC: "{{ include "ragnerock.number" .Values.pythonService.sandbox.rlimitNProc }}"
+  RLIMIT_FSIZE_BYTES: "{{ include "ragnerock.number" .Values.pythonService.sandbox.rlimitFSizeBytes }}"
+  RLIMIT_NOFILE: "{{ include "ragnerock.number" .Values.pythonService.sandbox.rlimitNoFile }}"
+  RECYCLE_AFTER_N_EXECUTIONS: "{{ include "ragnerock.number" .Values.pythonService.sandbox.recycleAfterNExecutions }}"
   SANDBOX_ENFORCEMENT: "{{ .Values.pythonService.sandbox.enforcement }}"
 ---
 # audit-service configuration: ingest-time derivation caps, the partition
@@ -430,17 +430,17 @@ metadata:
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
-  AUDIT_PROMPT_PREVIEW_MAX_CHARS: "{{ .Values.audit.promptPreviewMaxChars }}"
-  AUDIT_ERROR_MESSAGE_MAX_CHARS: "{{ .Values.audit.errorMessageMaxChars }}"
-  AUDIT_PARTITION_PRECREATE_MONTHS: "{{ .Values.auditService.partitionPrecreateMonths }}"
-  AUDIT_EXPORT_RUN_URL: http://{{ include "ragnerock.fullname" . }}-audit-service:{{ .Values.auditService.service.port }}/audit/export-run
-  AUDIT_EXPORT_RUN_AUDIENCE: http://{{ include "ragnerock.fullname" . }}-audit-service:{{ .Values.auditService.service.port }}
-  AUDIT_EXPORT_WATERMARK_MINUTES: "{{ .Values.auditService.export.watermarkMinutes }}"
-  AUDIT_EXPORT_SCAN_LOOKBACK_HOURS: "{{ .Values.auditService.export.scanLookbackHours }}"
-  AUDIT_EXPORT_LAG_ALERT_MINUTES: "{{ .Values.auditService.export.lagAlertMinutes }}"
+  AUDIT_PROMPT_PREVIEW_MAX_CHARS: "{{ include "ragnerock.number" .Values.audit.promptPreviewMaxChars }}"
+  AUDIT_ERROR_MESSAGE_MAX_CHARS: "{{ include "ragnerock.number" .Values.audit.errorMessageMaxChars }}"
+  AUDIT_PARTITION_PRECREATE_MONTHS: "{{ include "ragnerock.number" .Values.auditService.partitionPrecreateMonths }}"
+  AUDIT_EXPORT_RUN_URL: http://{{ include "ragnerock.fullname" . }}-audit-service:{{ include "ragnerock.number" .Values.auditService.service.port }}/audit/export-run
+  AUDIT_EXPORT_RUN_AUDIENCE: http://{{ include "ragnerock.fullname" . }}-audit-service:{{ include "ragnerock.number" .Values.auditService.service.port }}
+  AUDIT_EXPORT_WATERMARK_MINUTES: "{{ include "ragnerock.number" .Values.auditService.export.watermarkMinutes }}"
+  AUDIT_EXPORT_SCAN_LOOKBACK_HOURS: "{{ include "ragnerock.number" .Values.auditService.export.scanLookbackHours }}"
+  AUDIT_EXPORT_LAG_ALERT_MINUTES: "{{ include "ragnerock.number" .Values.auditService.export.lagAlertMinutes }}"
   CLOUD_TASKS_AUDIT_EXPORT_QUEUE_NAME: "{{ .Values.queue.auditExportQueueName }}"
   CLOUD_TASKS_ENABLED: "true"
   CLOUD_TASKS_PROJECT_ID: local
-  CLOUD_TASKS_ENDPOINT: {{ include "ragnerock.fullname" . }}-queue:{{ .Values.queue.port }}
-  CLOUD_TASKS_MAX_DISPATCHES_PER_SECOND: "{{ .Values.queue.maxDispatchesPerSecond }}"
-  CLOUD_TASKS_MAX_CONCURRENT_DISPATCHES: "{{ .Values.queue.maxConcurrentDispatches }}"
+  CLOUD_TASKS_ENDPOINT: {{ include "ragnerock.fullname" . }}-queue:{{ include "ragnerock.number" .Values.queue.port }}
+  CLOUD_TASKS_MAX_DISPATCHES_PER_SECOND: "{{ include "ragnerock.number" .Values.queue.maxDispatchesPerSecond }}"
+  CLOUD_TASKS_MAX_CONCURRENT_DISPATCHES: "{{ include "ragnerock.number" .Values.queue.maxConcurrentDispatches }}"
