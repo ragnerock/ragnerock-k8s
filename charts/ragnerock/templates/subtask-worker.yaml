@@ -67,6 +67,8 @@ spec:
                 name: {{ include "ragnerock.fullname" . }}-callback-delivery
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-parsing
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-python
             - secretRef:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "db" "existingSecret" .Values.database.existingSecret) }}
             - secretRef:

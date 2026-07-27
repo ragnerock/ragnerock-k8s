@@ -297,6 +297,7 @@ data:
   SUBTASK_WORKER_SERVICE_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-subtask-worker:{{ .Values.subtaskWorker.service.port }}"
   WORKER_SERVICE_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-worker:{{ .Values.worker.service.port }}"
   AUDIT_SERVICE_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-audit-service:{{ .Values.auditService.service.port }}"
+  PYTHON_SERVICE_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-python-service:{{ .Values.pythonService.service.port }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -343,3 +344,16 @@ data:
   PLOT_DPI: "{{ .Values.analysis.plotDPI }}"
   PLOT_MAX_FIGSIZE: "[{{ .Values.analysis.plotMaxFigsize.dimx }},{{ .Values.analysis.plotMaxFigsize.dimy }}]"
   PLOT_TIMEOUT: "{{ .Values.analysis.plotTimeoutSeconds }}"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-python
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  PYTHON_SERVICE_BATCH_CHUNK_ITEMS: "{{ .Values.python.batchChunkItems }}"
+  PYTHON_SERVICE_HTTP_TIMEOUT_MARGIN_SECONDS: "{{ .Values.python.timeoutMarginSeconds }}"
+  PYTHON_SERVICE_MAX_ATTEMPTS: "{{ .Values.python.maxAttempts }}"
+  PYTHON_SERVICE_MAX_REQUEST_BYTES: "{{ .Values.python.maxRequestBytes }}"
+  PYTHON_SERVICE_URL: "http://{{ include "ragnerock.fullname" . }}-python-service:{{ .Values.pythonService.service.port }}"

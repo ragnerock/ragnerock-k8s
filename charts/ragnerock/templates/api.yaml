@@ -83,6 +83,8 @@ spec:
                 name: {{ include "ragnerock.fullname" . }}-audit
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-tools
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-python
             - secretRef:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "db" "existingSecret" .Values.database.existingSecret) }}
             - secretRef:

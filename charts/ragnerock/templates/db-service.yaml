@@ -51,6 +51,12 @@ spec:
                 name: {{ include "ragnerock.fullname" . }}-audience
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-db-service-config
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-audit
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-queue
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-db
             - secretRef:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "otel" "existingSecret" .Values.otel.existingSecret) }}
             - secretRef:
