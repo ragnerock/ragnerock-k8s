@@ -68,6 +68,8 @@ Usage: {{ include "ragnerock.secretName" (dict "context" . "suffix" "db" "existi
     {{- printf "%s-%s" (include "ragnerock.fullname" .context) .suffix -}}
   {{- end -}}
 {{- end -}}
+
+{{/*
 Render a HorizontalPodAutoscaler for a component.
 Usage: {{ include "ragnerock.hpa" (dict "context" $ "component" "api" "values" .Values.api) }}
 The component's values must contain an `autoscaling` block. Caller is
@@ -109,6 +111,48 @@ spec:
           averageUtilization: {{ . }}
   {{- end }}
 {{- end }}
+
+{{/*
+Render a PodDisruptionBudget for a component.
+Usage: {{ include "ragnerock.pdb" (dict "context" $ "component" "worker" "values" .Values.worker) }}
+The component's values must contain a `podDisruptionBudget` block with exactly
+one of `minAvailable`/`maxUnavailable` set. Caller is responsible for checking
+`podDisruptionBudget.enabled`.
+*/}}
+{{- define "ragnerock.pdb" -}}
+  {{- $ctx := .context -}}
+  {{- $component := .component -}}
+  {{- $pdb := .values.podDisruptionBudget -}}
+  {{- $min := $pdb.minAvailable -}}
+  {{- $max := $pdb.maxUnavailable -}}
+  {{- $hasMin := not (kindIs "invalid" $min) -}}
+  {{- $hasMax := not (kindIs "invalid" $max) -}}
+  {{- if and $hasMin $hasMax -}}
+    {{- fail (printf "%s.podDisruptionBudget: set only one of minAvailable or maxUnavailable" $component) -}}
+  {{- end -}}
+  {{- if not (or $hasMin $hasMax) -}}
+    {{- fail (printf "%s.podDisruptionBudget: one of minAvailable or maxUnavailable must be set when enabled" $component) -}}
+  {{- end -}}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "ragnerock.fullname" $ctx }}-{{ $component }}
+  labels:
+    {{- include "ragnerock.labels" $ctx | nindent 4 }}
+    {{- include "ragnerock.selectorLabels" (dict "context" $ctx "component" $component) | nindent 4 }}
+spec:
+  {{- if $hasMin }}
+  minAvailable: {{ $min }}
+  {{- end }}
+  {{- if $hasMax }}
+  maxUnavailable: {{ $max }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "ragnerock.selectorLabels" (dict "context" $ctx "component" $component) | nindent 6 }}
+{{- end }}
+
+{{/*
 Resolve the ServiceAccount name to use for a component's pods.
 Returns the explicitly configured name, or a generated name when `create` is
 true, or an empty string to fall back to the namespace default ServiceAccount.
