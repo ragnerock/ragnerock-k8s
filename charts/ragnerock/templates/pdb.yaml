@@ -1,0 +1,14 @@
+{{- /*
+Optional PodDisruptionBudgets for the worker deployments.
+Each component is rendered only when its `podDisruptionBudget.enabled` is true.
+*/ -}}
+{{- $components := dict
+"worker" .Values.worker
+"subtask-worker" .Values.subtaskWorker
+}}
+{{- range $component, $values := $components }}
+  {{- if and $values.podDisruptionBudget $values.podDisruptionBudget.enabled }}
+---
+{{ include "ragnerock.pdb" (dict "context" $ "component" $component "values" $values) }}
+  {{- end }}
+{{- end }}

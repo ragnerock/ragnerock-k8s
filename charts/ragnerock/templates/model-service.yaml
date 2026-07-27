@@ -54,6 +54,10 @@ spec:
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-queue
             - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-db-conn
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-audit
+            - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-callback-delivery
             - secretRef:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "llm" "existingSecret" .Values.llm.existingSecret) }}
