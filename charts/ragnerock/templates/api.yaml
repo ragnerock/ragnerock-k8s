@@ -81,7 +81,7 @@ spec:
                 name: {{ include "ragnerock.fullname" . }}-agent
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-audit
-             - configMapRef:
+            - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-tools
             - secretRef:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "db" "existingSecret" .Values.database.existingSecret) }}
