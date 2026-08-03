@@ -78,12 +78,22 @@ spec:
               port: http
             initialDelaySeconds: 15
             periodSeconds: 20
+            timeoutSeconds: 10
+            failureThreshold: 6
           readinessProbe:
             httpGet:
               path: /health/ready
               port: http
             initialDelaySeconds: 5
             periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            periodSeconds: 5
+            failureThreshold: 30
 {{- with .Values.dataIngestor.resources }}
           resources:
             {{- toYaml . | nindent 12 }}

@@ -83,46 +83,7 @@ otel:
   # -- Use a pre-existing secret (must provide key `OTEL_EXPORTER_OTLP_HEADERS`) instead of generating one. When set, `authHeader` is ignored.
   existingSecret: ""
 
-# -- Cloudtask configuration for use with in-cluster emulator
-queue:
-  jobQueueName: "ragnerock-document-jobs"
-  subtaskQueueName: "ragnerock-subtask-jobs"
-  callbackQueueName: "ragnerock-callbacks"
-  auditQueueName: "ragnerock-audit"
-  # -- Queue the audit-service enqueues its own /audit/export-run tasks onto
-  auditExportQueueName: "audit-export-runs"
-  maxDispatchesPerSecond: 500
-  maxConcurrentDispatches: 500
-  queuePoolSize: 100
-  port: 8123
-  # -- Deployment resoruce contraints (i.e. requests/limits)
-  resources: {}
-  # -- Optional horizontal pod autoscaler. Requires CPU/memory requests to be
-  # set under `resources` for the targeted metrics to work. When enabled,
-  # `replicaCount` is ignored (the HPA manages the replica count).
-  autoscaling:
-    enabled: false
-    minReplicas: 1
-    maxReplicas: 5
-    # -- Target average CPU utilization (% of requests). Set to null to disable.
-    targetCPUUtilizationPercentage: 80
-    # -- Target average memory utilization (% of requests). Set to null to disable.
-    targetMemoryUtilizationPercentage: 80
-  serviceAccount:
-    # -- Create a service account for this deployment's pods
-    create: false
-    # -- Service account name to use; if empty and `create` is true a name is generated
-    name: ""
-    # -- Annotations to add to the created service account (e.g. for workload identity)
-    annotations: {}
-  # -- Pod tolerations for the queue deployment (overrides `global.tolerations`)
-  tolerations: []
-  # -- Annotations added to the queue deployment's metadata (merged with `global.annotations`; per-service keys take precedence)
-  annotations: {}
-  # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
-  volumes: []
-  # -- Container volume mounts (list of Kubernetes volumeMount specs)
-  volumeMounts: []
+
 
 auth:
   # -- Generate with `openssl rand -hex 22`
@@ -182,8 +143,56 @@ model:
   geminiModelName: "gemini-3-flash-preview"
   httpTimeoutSeconds: 180
 
+analysisToolkit:
+  replicaCount: 1
+  image:
+    name: analysis-toolkit
+    # -- Overwrites global value if set
+    tag: ""
+  service:
+    type: ClusterIP
+    port: 8080
+  # -- Deployment resoruce contraints (i.e. requests/limits)
+  resources: {}
+  # -- Optional horizontal pod autoscaler. Requires CPU/memory requests to be
+  # set under `resources` for the targeted metrics to work. When enabled,
+  # `replicaCount` is ignored (the HPA manages the replica count).
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 5
+    # -- Target average CPU utilization (% of requests). Set to null to disable.
+    targetCPUUtilizationPercentage: 80
+    # -- Target average memory utilization (% of requests). Set to null to disable.
+    targetMemoryUtilizationPercentage: 80
+  serviceAccount:
+    # -- Create a service account for this deployment's pods
+    create: false
+    # -- Service account name to use; if empty and `create` is true a name is generated
+    name: ""
+    # -- Annotations to add to the created service account (e.g. for workload identity)
+    annotations: {}
+  # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
+  volumes: []
+  # -- Container volume mounts (list of Kubernetes volumeMount specs)
+  volumeMounts: []
+  # -- Pod tolerations (overrides `global.tolerations`)
+  tolerations: []
+  # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
+  annotations: {}
+
 api:
   replicaCount: 1
+  # -- Port for the isolated health server, which answers probes from its own
+  # thread and event loop so a saturated main loop cannot cause a silent
+  # restart. Must match HEALTH_PORT and differ from the container's app port.
+  healthPort: 8081
+  # -- Seconds to sleep in the preStop hook so the pod leaves Service endpoints
+  # before uvicorn begins draining.
+  preStopSleepSeconds: 5
+  # -- Pod termination grace. Must exceed preStopSleepSeconds plus uvicorn's
+  # --timeout-graceful-shutdown (30s) or in-flight work is SIGKILLed.
+  terminationGracePeriodSeconds: 60
   image:
     name: api
     tag: ""
@@ -219,6 +228,53 @@ api:
   volumes: []
   # -- Container volume mounts (list of Kubernetes volumeMount specs)
   volumeMounts: []
+
+auditService:
+  replicaCount: 1
+  image:
+    name: audit-service
+    # -- Overwrites global value if set
+    tag: ""
+  service:
+    type: ClusterIP
+    port: 8080
+  # -- Months of partitions `/audit/maintain` keeps ahead of ingest on each daily run
+  partitionPrecreateMonths: 3
+  export:
+    # -- Ingest-lag settle time before an export window is declared complete
+    watermarkMinutes: 15
+    # -- Bounded catch-up horizon the export scan considers for missing windows
+    scanLookbackHours: 26
+    # -- Oldest-incomplete-window age past which the scan logs a lag alert
+    lagAlertMinutes: 120
+  # -- Deployment resoruce contraints (i.e. requests/limits)
+  resources: {}
+  # -- Optional horizontal pod autoscaler. Requires CPU/memory requests to be
+  # set under `resources` for the targeted metrics to work. When enabled,
+  # `replicaCount` is ignored (the HPA manages the replica count).
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 5
+    # -- Target average CPU utilization (% of requests). Set to null to disable.
+    targetCPUUtilizationPercentage: 80
+    # -- Target average memory utilization (% of requests). Set to null to disable.
+    targetMemoryUtilizationPercentage: 80
+  serviceAccount:
+    # -- Create a service account for this deployment's pods
+    create: false
+    # -- Service account name to use; if empty and `create` is true a name is generated
+    name: ""
+    # -- Annotations to add to the created service account (e.g. for workload identity)
+    annotations: {}
+  # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
+  volumes: []
+  # -- Container volume mounts (list of Kubernetes volumeMount specs)
+  volumeMounts: []
+  # -- Pod tolerations (overrides `global.tolerations`)
+  tolerations: []
+  # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
+  annotations: {}
 
 callbackDelivery:
   replicaCount: 1
@@ -257,10 +313,10 @@ callbackDelivery:
   # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
   annotations: {}
 
-worker:
+dataIngestor:
   replicaCount: 1
   image:
-    name: worker
+    name: data-ingestor
     tag: ""
   service:
     type: ClusterIP
@@ -278,14 +334,6 @@ worker:
     targetCPUUtilizationPercentage: 80
     # -- Target average memory utilization (% of requests). Set to null to disable.
     targetMemoryUtilizationPercentage: 80
-  # -- Optional pod disruption budget, keeping capacity available during
-  # voluntary disruptions (node drains, cluster upgrades). Set exactly one of
-  # `minAvailable`/`maxUnavailable`; the other must be null. Both accept an
-  # integer or a percentage string (e.g. `"50%"`).
-  podDisruptionBudget:
-    enabled: false
-    minAvailable: 1
-    maxUnavailable: null
   serviceAccount:
     # -- Create a service account for this deployment's pods
     create: false
@@ -302,59 +350,32 @@ worker:
   # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
   annotations: {}
 
-subtaskWorker:
+dbService:
   replicaCount: 1
   image:
-    name: worker
+    name: db-service
+    # -- Overwrites global value if set
     tag: ""
   service:
     type: ClusterIP
     port: 8080
-  # -- Deployment resoruce contraints (i.e. requests/limits)
-  resources: {}
-  # -- Optional horizontal pod autoscaler. Requires CPU/memory requests to be
-  # set under `resources` for the targeted metrics to work. When enabled,
-  # `replicaCount` is ignored (the HPA manages the replica count).
-  autoscaling:
-    enabled: false
-    minReplicas: 1
-    maxReplicas: 5
-    # -- Target average CPU utilization (% of requests). Set to null to disable.
-    targetCPUUtilizationPercentage: 80
-    # -- Target average memory utilization (% of requests). Set to null to disable.
-    targetMemoryUtilizationPercentage: 80
-  # -- Optional pod disruption budget, keeping capacity available during
-  # voluntary disruptions (node drains, cluster upgrades). Set exactly one of
-  # `minAvailable`/`maxUnavailable`; the other must be null. Both accept an
-  # integer or a percentage string (e.g. `"50%"`).
-  podDisruptionBudget:
-    enabled: false
-    minAvailable: 1
-    maxUnavailable: null
-  serviceAccount:
-    # -- Create a service account for this deployment's pods
-    create: false
-    # -- Service account name to use; if empty and `create` is true a name is generated
-    name: ""
-    # -- Annotations to add to the created service account (e.g. for workload identity)
-    annotations: {}
-  # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
-  volumes: []
-  # -- Container volume mounts (list of Kubernetes volumeMount specs)
-  volumeMounts: []
-  # -- Pod tolerations (overrides `global.tolerations`)
-  tolerations: []
-  # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
-  annotations: {}
-
-modelService:
-  replicaCount: 1
-  image:
-    name: model-service
-    tag: ""
-  service:
-    type: ClusterIP
-    port: 8080
+  # -- Connection pool for the DEFAULT data DB engine (per pod). When null,
+  # the service's built-in defaults apply (20 + 20 overflow). The default
+  # data DB typically lives on the same Postgres server as the app DB, so
+  # this counts against the server's max_connections alongside the API and
+  # worker pools — size it as part of that shared budget. Customer (BYODB)
+  # engines are unaffected.
+  dataDbPool:
+    size: null
+    maxOverflow: null
+    # -- Maximum number of rows accepted in a single batch write
+  batchLimit: 10000
+  # -- Per-customer-DB rate limit: token bucket capacity (the default data DB is exempt)
+  rateLimitMaxTokens: 100
+  # -- Per-customer-DB rate limit: token refill rate (tokens per second)
+  rateLimitRefillRate: 20.0
+  # -- Consecutive connection failures before a config is flagged for deactivation
+  connectionFailureThreshold: 5
   # -- Deployment resoruce contraints (i.e. requests/limits)
   resources: {}
   # -- Optional horizontal pod autoscaler. Requires CPU/memory requests to be
@@ -422,127 +443,6 @@ frontend:
   # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
   annotations: {}
 
-analysisToolkit:
-  replicaCount: 1
-  image:
-    name: analysis-toolkit
-    # -- Overwrites global value if set
-    tag: ""
-  service:
-    type: ClusterIP
-    port: 8080
-  # -- Deployment resoruce contraints (i.e. requests/limits)
-  resources: {}
-  # -- Optional horizontal pod autoscaler. Requires CPU/memory requests to be
-  # set under `resources` for the targeted metrics to work. When enabled,
-  # `replicaCount` is ignored (the HPA manages the replica count).
-  autoscaling:
-    enabled: false
-    minReplicas: 1
-    maxReplicas: 5
-    # -- Target average CPU utilization (% of requests). Set to null to disable.
-    targetCPUUtilizationPercentage: 80
-    # -- Target average memory utilization (% of requests). Set to null to disable.
-    targetMemoryUtilizationPercentage: 80
-  serviceAccount:
-    # -- Create a service account for this deployment's pods
-    create: false
-    # -- Service account name to use; if empty and `create` is true a name is generated
-    name: ""
-    # -- Annotations to add to the created service account (e.g. for workload identity)
-    annotations: {}
-  # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
-  volumes: []
-  # -- Container volume mounts (list of Kubernetes volumeMount specs)
-  volumeMounts: []
-  # -- Pod tolerations (overrides `global.tolerations`)
-  tolerations: []
-  # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
-  annotations: {}
-
-dbService:
-  replicaCount: 1
-  image:
-    name: db-service
-    # -- Overwrites global value if set
-    tag: ""
-  service:
-    type: ClusterIP
-    port: 8080
-    # -- Maximum number of rows accepted in a single batch write
-  batchLimit: 10000
-  # -- Per-customer-DB rate limit: token bucket capacity (the default data DB is exempt)
-  rateLimitMaxTokens: 100
-  # -- Per-customer-DB rate limit: token refill rate (tokens per second)
-  rateLimitRefillRate: 20.0
-  # -- Consecutive connection failures before a config is flagged for deactivation
-  connectionFailureThreshold: 5
-  # -- Deployment resoruce contraints (i.e. requests/limits)
-  resources: {}
-  # -- Optional horizontal pod autoscaler. Requires CPU/memory requests to be
-  # set under `resources` for the targeted metrics to work. When enabled,
-  # `replicaCount` is ignored (the HPA manages the replica count).
-  autoscaling:
-    enabled: false
-    minReplicas: 1
-    maxReplicas: 5
-    # -- Target average CPU utilization (% of requests). Set to null to disable.
-    targetCPUUtilizationPercentage: 80
-    # -- Target average memory utilization (% of requests). Set to null to disable.
-    targetMemoryUtilizationPercentage: 80
-  serviceAccount:
-    # -- Create a service account for this deployment's pods
-    create: false
-    # -- Service account name to use; if empty and `create` is true a name is generated
-    name: ""
-    # -- Annotations to add to the created service account (e.g. for workload identity)
-    annotations: {}
-  # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
-  volumes: []
-  # -- Container volume mounts (list of Kubernetes volumeMount specs)
-  volumeMounts: []
-  # -- Pod tolerations (overrides `global.tolerations`)
-  tolerations: []
-  # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
-  annotations: {}
-
-dataIngestor:
-  replicaCount: 1
-  image:
-    name: data-ingestor
-    tag: ""
-  service:
-    type: ClusterIP
-    port: 8080
-  # -- Deployment resoruce contraints (i.e. requests/limits)
-  resources: {}
-  # -- Optional horizontal pod autoscaler. Requires CPU/memory requests to be
-  # set under `resources` for the targeted metrics to work. When enabled,
-  # `replicaCount` is ignored (the HPA manages the replica count).
-  autoscaling:
-    enabled: false
-    minReplicas: 1
-    maxReplicas: 5
-    # -- Target average CPU utilization (% of requests). Set to null to disable.
-    targetCPUUtilizationPercentage: 80
-    # -- Target average memory utilization (% of requests). Set to null to disable.
-    targetMemoryUtilizationPercentage: 80
-  serviceAccount:
-    # -- Create a service account for this deployment's pods
-    create: false
-    # -- Service account name to use; if empty and `create` is true a name is generated
-    name: ""
-    # -- Annotations to add to the created service account (e.g. for workload identity)
-    annotations: {}
-  # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
-  volumes: []
-  # -- Container volume mounts (list of Kubernetes volumeMount specs)
-  volumeMounts: []
-  # -- Pod tolerations (overrides `global.tolerations`)
-  tolerations: []
-  # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
-  annotations: {}
-
 migrations:
   image:
     name: migrations
@@ -561,120 +461,14 @@ migrations:
   # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
   annotations: {}
 
-limits:
-  concurrency:
-    maxConcurrentSubtasks: 50
-    maxConcurrentAnnotations: 10
-    maxConcurrentJobs: 10
-  usage:
-    maxInputTokens: "1000000"
-    maxOutputTokens: "1000000"
-    maxPages: "2000"
-    maxComputeSeconds: "86400"
-  batches:
-    embedding: 100
-    annotation: 50
-    tabularAnnotation: 200
-    defaultRow: 50
-  subtask:
-    maxAttempts: 3
-    failureThreshold: 0.05
-    # -- Minutes without a heartbeat before an in-flight subtask may be re-claimed
-    staleThresholdMinutes: 35
-  job:
-    # -- Extra delay past the subtask stale threshold before the job watchdog reconciles
-    watchdogSlackMinutes: 5
-  codeOperator:
-    # -- Wall-clock ceiling for a code operator's execution, in seconds
-    timeoutSeconds: 30
-
-# -- Ragnerock provided license key
-license: ""
-# -- Use a pre-existing secret (must provide key `RAGNEROCK_LICENSE`) instead of generating one. When set, `license` is ignored.
-licenseExistingSecret: ""
-
-endpoints:
-  HMACMasterKey: ""
-  # -- Use a pre-existing secret (must provide key `ENDPOINTS_HMAC_MASTER_KEY`) instead of generating one. When set, `HMACMasterKey` is ignored.
-  existingSecret: ""
-  allowPrivateCallbacks: true
-  ephemeralTTLHours: 24
-  maxFileSizeMB: 50
-
-ingest:
-  staleTimeoutSeconds: 3600
-
-analysis:
-  dataframeOpTimeout: 60
-  maxColumns: 500
-  maxRows: 50000
-  modelFitTimeoutSeconds: 120
-  plotDPI: 150
-  plotMaxFigsize: 
-    dimx: 12.0
-    dimy: 16.0
-  plotTimeoutSeconds: 60
-
-agent:
-  maxIterations: 10
-
-tools:
-  codeToolTimeoutSeconds: 30
-
-audit:
-  batchMaxBytes: 819200 # 800 * 1024
-  batchMaxEvents: 50
-  drainTimeoutSeconds: 8.0
-  emitEnabled: true
-  errorMessageMaxChars: 2000
-  eventMaxBytes: 512000 # 500 * 1024
-  flushIntervalSeconds: 2.0
-  kwargsSummaryMaxKeys: 50
-  listLimitCap: 200
-  payloadFieldMaxBytes: 204800 # 200 * 1024
-  promptPreviewMaxChars: 500
-  queueMaxBytes: 134217728 # 128 * 1024 * 1024
-  queueMaxEvents: 10000
-  resnapshotTurns: 10
-  
-db:
-  timeout:
-    connect: 10.0
-    pool: 10.0
-    queryRead: 120.0
-    read: 60.0
-    write: 10.0
-
-# -- Client-side knobs used by callers of python-service (API and workers).
-# The sandbox's own configuration lives under `pythonService.sandbox`.
-python:
-  # -- Items per chunk when a batch execution is split across requests
-  batchChunkItems: 16
-  # -- Seconds added to the execution budget to form the HTTP read timeout
-  timeoutMarginSeconds: 60.0
-  # -- Attempts per execution request before giving up
-  maxAttempts: 4
-  # -- Request payload ceiling enforced before send, in bytes
-  maxRequestBytes: 48000000
-
-auditService:
+modelService:
   replicaCount: 1
   image:
-    name: audit-service
-    # -- Overwrites global value if set
+    name: model-service
     tag: ""
   service:
     type: ClusterIP
     port: 8080
-  # -- Months of partitions `/audit/maintain` keeps ahead of ingest on each daily run
-  partitionPrecreateMonths: 3
-  export:
-    # -- Ingest-lag settle time before an export window is declared complete
-    watermarkMinutes: 15
-    # -- Bounded catch-up horizon the export scan considers for missing windows
-    scanLookbackHours: 26
-    # -- Oldest-incomplete-window age past which the scan logs a lag alert
-    lagAlertMinutes: 120
   # -- Deployment resoruce contraints (i.e. requests/limits)
   resources: {}
   # -- Optional horizontal pod autoscaler. Requires CPU/memory requests to be
@@ -765,3 +559,288 @@ pythonService:
   tolerations: []
   # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
   annotations: {}
+
+# -- Cloudtask configuration for use with in-cluster emulator
+queue:
+  jobQueueName: "ragnerock-document-jobs"
+  subtaskQueueName: "ragnerock-subtask-jobs"
+  callbackQueueName: "ragnerock-callbacks"
+  auditQueueName: "ragnerock-audit"
+  # -- Queue the audit-service enqueues its own /audit/export-run tasks onto
+  auditExportQueueName: "audit-export-runs"
+  maxDispatchesPerSecond: 500
+  maxConcurrentDispatches: 500
+  queuePoolSize: 100
+  port: 8123
+  # -- Deployment resoruce contraints (i.e. requests/limits)
+  resources: {}
+  # -- Optional horizontal pod autoscaler. Requires CPU/memory requests to be
+  # set under `resources` for the targeted metrics to work. When enabled,
+  # `replicaCount` is ignored (the HPA manages the replica count).
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 5
+    # -- Target average CPU utilization (% of requests). Set to null to disable.
+    targetCPUUtilizationPercentage: 80
+    # -- Target average memory utilization (% of requests). Set to null to disable.
+    targetMemoryUtilizationPercentage: 80
+  serviceAccount:
+    # -- Create a service account for this deployment's pods
+    create: false
+    # -- Service account name to use; if empty and `create` is true a name is generated
+    name: ""
+    # -- Annotations to add to the created service account (e.g. for workload identity)
+    annotations: {}
+  # -- Pod tolerations for the queue deployment (overrides `global.tolerations`)
+  tolerations: []
+  # -- Annotations added to the queue deployment's metadata (merged with `global.annotations`; per-service keys take precedence)
+  annotations: {}
+  # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
+  volumes: []
+  # -- Container volume mounts (list of Kubernetes volumeMount specs)
+  volumeMounts: []
+
+subtaskWorker:
+  replicaCount: 1
+  # -- Explicit Postgres pool geometry for this deployment. When null, the
+  # process derives its pool from the concurrency limits (subtasks + jobs +
+  # advances + headroom) — an overcount here, because the shared limits
+  # configmap includes the job limits this deployment never serves. Set
+  # explicitly (roughly maxConcurrentSubtasks + 5) to keep the cluster-wide
+  # connection total under the database server's max_connections.
+  dbPool:
+    size: null
+    maxOverflow: null
+  # -- Port for the isolated health server, which answers probes from its own
+  # thread and event loop so a saturated main loop cannot cause a silent
+  # restart. Must match HEALTH_PORT and differ from the container's app port.
+  healthPort: 8081
+  # -- Seconds to sleep in the preStop hook so the pod leaves Service endpoints
+  # before uvicorn begins draining.
+  preStopSleepSeconds: 5
+  # -- Pod termination grace. Must exceed preStopSleepSeconds plus uvicorn's
+  # --timeout-graceful-shutdown (90s) or in-flight work is SIGKILLed.
+  terminationGracePeriodSeconds: 120
+  image:
+    name: worker
+    tag: ""
+  service:
+    type: ClusterIP
+    port: 8080
+  # -- Deployment resoruce contraints (i.e. requests/limits)
+  resources: {}
+  # -- Optional horizontal pod autoscaler. Requires CPU/memory requests to be
+  # set under `resources` for the targeted metrics to work. When enabled,
+  # `replicaCount` is ignored (the HPA manages the replica count).
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 5
+    # -- Target average CPU utilization (% of requests). Set to null to disable.
+    targetCPUUtilizationPercentage: 80
+    # -- Target average memory utilization (% of requests). Set to null to disable.
+    targetMemoryUtilizationPercentage: 80
+  # -- Optional pod disruption budget, keeping capacity available during
+  # voluntary disruptions (node drains, cluster upgrades). Set exactly one of
+  # `minAvailable`/`maxUnavailable`; the other must be null. Both accept an
+  # integer or a percentage string (e.g. `"50%"`).
+  podDisruptionBudget:
+    enabled: false
+    minAvailable: 1
+    maxUnavailable: null
+  serviceAccount:
+    # -- Create a service account for this deployment's pods
+    create: false
+    # -- Service account name to use; if empty and `create` is true a name is generated
+    name: ""
+    # -- Annotations to add to the created service account (e.g. for workload identity)
+    annotations: {}
+  # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
+  volumes: []
+  # -- Container volume mounts (list of Kubernetes volumeMount specs)
+  volumeMounts: []
+  # -- Pod tolerations (overrides `global.tolerations`)
+  tolerations: []
+  # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
+  annotations: {}
+
+worker:
+  replicaCount: 1
+  # -- Explicit Postgres pool geometry for this deployment. When null, the
+  # process derives its pool from the concurrency limits (subtasks + jobs +
+  # advances + headroom) — an overcount here, because the shared limits
+  # configmap includes the subtask limits this deployment never serves. Set
+  # explicitly (roughly maxConcurrentJobs + maxConcurrentJobAdvances + 5) to
+  # keep the cluster-wide connection total under the database server's
+  # max_connections.
+  dbPool:
+    size: null
+    maxOverflow: null
+  # -- Port for the isolated health server, which answers probes from its own
+  # thread and event loop so a saturated main loop cannot cause a silent
+  # restart. Must match HEALTH_PORT and differ from the container's app port.
+  healthPort: 8081
+  # -- Seconds to sleep in the preStop hook so the pod leaves Service endpoints
+  # before uvicorn begins draining.
+  preStopSleepSeconds: 5
+  # -- Pod termination grace. Must exceed preStopSleepSeconds plus uvicorn's
+  # --timeout-graceful-shutdown (90s) or in-flight work is SIGKILLed.
+  terminationGracePeriodSeconds: 120
+  image:
+    name: worker
+    tag: ""
+  service:
+    type: ClusterIP
+    port: 8080
+  # -- Deployment resoruce contraints (i.e. requests/limits)
+  resources: {}
+  # -- Optional horizontal pod autoscaler. Requires CPU/memory requests to be
+  # set under `resources` for the targeted metrics to work. When enabled,
+  # `replicaCount` is ignored (the HPA manages the replica count).
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 5
+    # -- Target average CPU utilization (% of requests). Set to null to disable.
+    targetCPUUtilizationPercentage: 80
+    # -- Target average memory utilization (% of requests). Set to null to disable.
+    targetMemoryUtilizationPercentage: 80
+  # -- Optional pod disruption budget, keeping capacity available during
+  # voluntary disruptions (node drains, cluster upgrades). Set exactly one of
+  # `minAvailable`/`maxUnavailable`; the other must be null. Both accept an
+  # integer or a percentage string (e.g. `"50%"`).
+  podDisruptionBudget:
+    enabled: false
+    minAvailable: 1
+    maxUnavailable: null
+  serviceAccount:
+    # -- Create a service account for this deployment's pods
+    create: false
+    # -- Service account name to use; if empty and `create` is true a name is generated
+    name: ""
+    # -- Annotations to add to the created service account (e.g. for workload identity)
+    annotations: {}
+  # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
+  volumes: []
+  # -- Container volume mounts (list of Kubernetes volumeMount specs)
+  volumeMounts: []
+  # -- Pod tolerations (overrides `global.tolerations`)
+  tolerations: []
+  # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
+  annotations: {}
+
+limits:
+  # -- All concurrency limits are PER POD; cluster-wide capacity is the value
+  # times the deployment's replica count. The limits configmap is shared by
+  # the worker and subtask-worker deployments.
+  concurrency:
+    maxConcurrentSubtasks: 50
+    maxConcurrentAnnotations: 10
+    maxConcurrentJobs: 10
+    # -- Concurrent /task/advance handlers (job phase-advance deliveries).
+    # Separate pool from maxConcurrentJobs so a burst of start-job deliveries
+    # cannot starve in-flight jobs' phase advances.
+    maxConcurrentJobAdvances: 10
+  # -- DB-driven backstop that re-enqueues jobs whose queue delivery was
+  # dropped after retry exhaustion (NOT_STARTED past notStartedAfterSeconds,
+  # stale IN_PROGRESS past inProgressAfterSeconds). Runs on the worker
+  # deployment only; the subtask-worker deployment force-disables it.
+  jobReconcile:
+    enabled: true
+    intervalSeconds: 300
+    notStartedAfterSeconds: 900
+    # -- Keep above subtask.staleThresholdMinutes + job.watchdogSlackMinutes
+    # (in seconds) so the in-band watchdog stays the first line of defence.
+    inProgressAfterSeconds: 2700
+    batchSize: 100
+  usage:
+    maxInputTokens: "1000000"
+    maxOutputTokens: "1000000"
+    maxPages: "2000"
+    maxComputeSeconds: "86400"
+  batches:
+    embedding: 100
+    annotation: 50
+    tabularAnnotation: 200
+    defaultRow: 50
+  subtask:
+    maxAttempts: 3
+    failureThreshold: 0.05
+    # -- Minutes without a heartbeat before an in-flight subtask may be re-claimed
+    staleThresholdMinutes: 35
+  job:
+    # -- Extra delay past the subtask stale threshold before the job watchdog reconciles
+    watchdogSlackMinutes: 5
+  codeOperator:
+    # -- Wall-clock ceiling for a code operator's execution, in seconds
+    timeoutSeconds: 30
+
+# -- Ragnerock provided license key
+license: ""
+# -- Use a pre-existing secret (must provide key `RAGNEROCK_LICENSE`) instead of generating one. When set, `license` is ignored.
+licenseExistingSecret: ""
+
+endpoints:
+  HMACMasterKey: ""
+  # -- Use a pre-existing secret (must provide key `ENDPOINTS_HMAC_MASTER_KEY`) instead of generating one. When set, `HMACMasterKey` is ignored.
+  existingSecret: ""
+  allowPrivateCallbacks: true
+  ephemeralTTLHours: 24
+  maxFileSizeMB: 50
+
+ingest:
+  staleTimeoutSeconds: 3600
+
+analysis:
+  dataframeOpTimeout: 60
+  maxColumns: 500
+  maxRows: 50000
+  modelFitTimeoutSeconds: 120
+  plotDPI: 150
+  plotMaxFigsize: 
+    dimx: 12.0
+    dimy: 16.0
+  plotTimeoutSeconds: 60
+
+agent:
+  maxIterations: 10
+
+tools:
+  codeToolTimeoutSeconds: 30
+
+audit:
+  batchMaxBytes: 819200 # 800 * 1024
+  batchMaxEvents: 50
+  drainTimeoutSeconds: 8.0
+  emitEnabled: true
+  errorMessageMaxChars: 2000
+  eventMaxBytes: 512000 # 500 * 1024
+  flushIntervalSeconds: 2.0
+  kwargsSummaryMaxKeys: 50
+  listLimitCap: 200
+  payloadFieldMaxBytes: 204800 # 200 * 1024
+  promptPreviewMaxChars: 500
+  queueMaxBytes: 134217728 # 128 * 1024 * 1024
+  queueMaxEvents: 10000
+  resnapshotTurns: 10
+  
+db:
+  timeout:
+    connect: 10.0
+    pool: 10.0
+    queryRead: 120.0
+    read: 60.0
+    write: 10.0
+
+# -- Client-side knobs used by callers of python-service (API and workers).
+# The sandbox's own configuration lives under `pythonService.sandbox`.
+python:
+  # -- Items per chunk when a batch execution is split across requests
+  batchChunkItems: 16
+  # -- Seconds added to the execution budget to form the HTTP read timeout
+  timeoutMarginSeconds: 60.0
+  # -- Attempts per execution request before giving up
+  maxAttempts: 4
+  # -- Request payload ceiling enforced before send, in bytes
+  maxRequestBytes: 48000000

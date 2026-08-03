@@ -34,6 +34,10 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
 {{- end }}
+      # Document jobs run for minutes. Must exceed preStopSleepSeconds +
+      # uvicorn's --timeout-graceful-shutdown (90s), or in-flight jobs are
+      # SIGKILLed mid-flight on every rollout.
+      terminationGracePeriodSeconds: {{ .Values.worker.terminationGracePeriodSeconds | default 120 }}
       containers:
         - name: worker
           image: {{ include "ragnerock.image" (dict "global" .Values.global "image" .Values.worker.image "chart" .Chart) }}
@@ -41,6 +45,12 @@ spec:
           ports:
             - name: http
               containerPort: 8080
+              protocol: TCP
+            # Served by a dedicated thread with its own event loop, so probes
+            # are answerable even when the main loop is saturated.
+            # See docs/design-docs/event-loop-offload.md in the ragnerock repo.
+            - name: health
+              containerPort: {{ .Values.worker.healthPort | default 8081 }}
               protocol: TCP
           envFrom:
             - configMapRef:
@@ -94,22 +104,54 @@ spec:
               value: service.name=worker,deployment.environment={{ .Values.config.environmentIdentifier }}
             - name: OTEL_SERVICE_NAME
               value: worker
+            # Explicit pool geometry (overrides the derived size, which
+            # overcounts on this deployment — the shared limits configmap
+            # includes subtask limits this deployment never serves).
+{{- with .Values.worker.dbPool.size }}
+            - name: DB_POOL_SIZE
+              value: {{ include "ragnerock.number" . | quote }}
+{{- end }}
+{{- with .Values.worker.dbPool.maxOverflow }}
+            - name: DB_MAX_OVERFLOW
+              value: {{ include "ragnerock.number" . | quote }}
+{{- end }}
 {{- with .Values.worker.volumeMounts }}
           volumeMounts:
             {{- toYaml . | nindent 12 }}
 {{- end }}
+          # Probes target the isolated `health` port, not `http`: on the main
+          # port a busy event loop could not answer within the timeout, and the
+          # kubelet killed containers that were busy rather than broken — with
+          # no application log line, since a kubelet kill is not an app error.
           livenessProbe:
             httpGet:
               path: /health/live
-              port: http
-            initialDelaySeconds: 15
+              port: health
             periodSeconds: 20
+            timeoutSeconds: 10
+            failureThreshold: 6
           readinessProbe:
             httpGet:
               path: /health/ready
-              port: http
-            initialDelaySeconds: 5
+              port: health
             periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          # Replaces initialDelaySeconds: a slow start (license check, first DB
+          # connect) gets up to 150s without making liveness lenient forever.
+          startupProbe:
+            httpGet:
+              path: /health/live
+              port: health
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 30
+          # Leave Service endpoints before uvicorn starts draining, so in-flight
+          # traffic is not routed to a shutting-down pod.
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep {{ .Values.worker.preStopSleepSeconds | default 5 }}"]
 {{- with .Values.worker.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
@@ -133,5 +175,9 @@ spec:
       targetPort: http
       protocol: TCP
       name: http
+    - port: {{ .Values.api.healthPort }}
+      targetPort: health
+      protocol: TCP
+      name: health
   selector:
     {{- include "ragnerock.selectorLabels" (dict "context" . "component" "worker") | nindent 4 }}
