@@ -31,6 +31,10 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
 {{- end }}
+{{- with .Values.callbackDelivery.affinity | default .Values.global.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+{{- end }}
       containers:
         - name: callback-delivery
           image: {{ include "ragnerock.image" (dict "global" .Values.global "image" .Values.callbackDelivery.image "chart" .Chart) }}
