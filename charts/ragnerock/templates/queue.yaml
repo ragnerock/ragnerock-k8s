@@ -27,6 +27,10 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
 {{- end }}
+{{- with .Values.queue.affinity | default .Values.global.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+{{- end }}
       containers:
         - name: queue
           image: ghcr.io/aertje/cloud-tasks-emulator:latest

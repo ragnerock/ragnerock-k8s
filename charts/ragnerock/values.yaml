@@ -12,6 +12,8 @@ global:
   imagePullSecrets: []
   # -- Default pod tolerations applied to all workloads. Can be overridden per-service with `<service>.tolerations`. See https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
   tolerations: []
+  # -- Default pod affinity rules applied to all workloads. Can be overridden per-service with `<service>.affinity`. See https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity
+  affinity: {}
   # -- Default annotations applied to the metadata of all workloads (Deployments/Job). Merged with per-service `<service>.annotations`, where per-service keys take precedence.
   annotations: {}
   # -- Number of replicaset revisions to keep around for deployments
@@ -117,6 +119,8 @@ queue:
     annotations: {}
   # -- Pod tolerations for the queue deployment (overrides `global.tolerations`)
   tolerations: []
+  # -- Pod affinity rules for the queue deployment (overrides `global.affinity`)
+  affinity: {}
   # -- Annotations added to the queue deployment's metadata (merged with `global.annotations`; per-service keys take precedence)
   annotations: {}
   # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
@@ -194,6 +198,8 @@ api:
   resources: {}
   # -- Pod tolerations (overrides `global.tolerations`)
   tolerations: []
+  # -- Pod affinity rules (overrides `global.affinity`)
+  affinity: {}
   # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
   annotations: {}
   url: ""
@@ -254,6 +260,8 @@ callbackDelivery:
   volumeMounts: []
   # -- Pod tolerations (overrides `global.tolerations`)
   tolerations: []
+  # -- Pod affinity rules (overrides `global.affinity`)
+  affinity: {}
   # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
   annotations: {}
 
@@ -299,6 +307,8 @@ worker:
   volumeMounts: []
   # -- Pod tolerations (overrides `global.tolerations`)
   tolerations: []
+  # -- Pod affinity rules (overrides `global.affinity`)
+  affinity: {}
   # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
   annotations: {}
 
@@ -344,6 +354,8 @@ subtaskWorker:
   volumeMounts: []
   # -- Pod tolerations (overrides `global.tolerations`)
   tolerations: []
+  # -- Pod affinity rules (overrides `global.affinity`)
+  affinity: {}
   # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
   annotations: {}
 
@@ -381,6 +393,8 @@ modelService:
   volumeMounts: []
   # -- Pod tolerations (overrides `global.tolerations`)
   tolerations: []
+  # -- Pod affinity rules (overrides `global.affinity`)
+  affinity: {}
   # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
   annotations: {}
 
@@ -419,6 +433,8 @@ frontend:
   volumeMounts: []
   # -- Pod tolerations (overrides `global.tolerations`)
   tolerations: []
+  # -- Pod affinity rules (overrides `global.affinity`)
+  affinity: {}
   # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
   annotations: {}
 
@@ -457,6 +473,8 @@ analysisToolkit:
   volumeMounts: []
   # -- Pod tolerations (overrides `global.tolerations`)
   tolerations: []
+  # -- Pod affinity rules (overrides `global.affinity`)
+  affinity: {}
   # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
   annotations: {}
 
@@ -503,6 +521,8 @@ dbService:
   volumeMounts: []
   # -- Pod tolerations (overrides `global.tolerations`)
   tolerations: []
+  # -- Pod affinity rules (overrides `global.affinity`)
+  affinity: {}
   # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
   annotations: {}
 
@@ -540,6 +560,8 @@ dataIngestor:
   volumeMounts: []
   # -- Pod tolerations (overrides `global.tolerations`)
   tolerations: []
+  # -- Pod affinity rules (overrides `global.affinity`)
+  affinity: {}
   # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
   annotations: {}
 
@@ -558,6 +580,8 @@ migrations:
     annotations: {}
   # -- Pod tolerations (overrides `global.tolerations`)
   tolerations: []
+  # -- Pod affinity rules (overrides `global.affinity`)
+  affinity: {}
   # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
   annotations: {}
 
@@ -701,6 +725,8 @@ auditService:
   volumeMounts: []
   # -- Pod tolerations (overrides `global.tolerations`)
   tolerations: []
+  # -- Pod affinity rules (overrides `global.affinity`)
+  affinity: {}
   # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
   annotations: {}
 
@@ -763,5 +789,7 @@ pythonService:
   volumeMounts: []
   # -- Pod tolerations (overrides `global.tolerations`)
   tolerations: []
+  # -- Pod affinity rules (overrides `global.affinity`)
+  affinity: {}
   # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
   annotations: {}

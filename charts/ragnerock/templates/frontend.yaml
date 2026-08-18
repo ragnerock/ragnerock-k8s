@@ -36,6 +36,10 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
 {{- end }}
+{{- with .Values.frontend.affinity | default .Values.global.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+{{- end }}
       containers:
         - name: frontend
           image: {{ include "ragnerock.image" (dict "global" .Values.global "image" .Values.frontend.image "chart" .Chart) }}
