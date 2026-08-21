@@ -1,0 +1,51 @@
+apiVersion: vendir.k14s.io/v1alpha1
+kind: Config
+minimumRequiredVersion: 0.40.0
+# Every git.ref below is rewritten to refs/tags/<release> by
+# scripts/ci/sync-helm.sh for the duration of a release sync, and restored
+# afterwards; origin/main is the ref a hand-run sync follows. They must all name
+# the same ref -- the script refuses to sync a vendir.yml that mixes them, since
+# a single source commit is what gets recorded in the mirror.
+directories:
+  - path: charts
+    contents:
+      - path: .
+        git:
+          url: https://github.com/ragnerock/ragnerock
+          ref: origin/main
+        includePaths:
+          - helm/charts/**/*
+        newRootPath: helm/charts
+  - path: scripts
+    contents:
+      - path: .
+        git:
+          url: https://github.com/ragnerock/ragnerock
+          ref: origin/main
+        includePaths:
+          - helm/scripts/**/*
+        newRootPath: helm/scripts
+  - path: .github/workflows
+    contents:
+      - path: .
+        git:
+          url: https://github.com/ragnerock/ragnerock
+          ref: origin/main
+        includePaths:
+          - helm/workflows/**/*
+        newRootPath: helm/workflows
+  # vendir manages directories, never individual files, so the files that
+  # belong at the repository root are staged here and moved into place by
+  # scripts/ci/sync-helm.sh. The path is a contract with that script.
+  - path: .vendir-staging/root
+    contents:
+      - path: .
+        git:
+          url: https://github.com/ragnerock/ragnerock
+          ref: origin/main
+        includePaths:
+          - helm/LICENSE
+          - helm/README.md
+          - helm/Taskfile.yml
+          - helm/.gitignore
+        newRootPath: helm
