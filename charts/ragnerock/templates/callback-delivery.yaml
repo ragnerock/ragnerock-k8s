@@ -47,6 +47,8 @@ spec:
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-config
             - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-core
+            - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-otel
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-callback-delivery
@@ -62,14 +64,6 @@ spec:
                 name: {{ include "ragnerock.fullname" . }}-db-service
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-db-conn
-            - configMapRef:
-                name: {{ include "ragnerock.fullname" . }}-worker
-            - configMapRef:
-                name: {{ include "ragnerock.fullname" . }}-model-service
-            - configMapRef:
-                name: {{ include "ragnerock.fullname" . }}-api
-            - configMapRef:
-                name: {{ include "ragnerock.fullname" . }}-data-ingestor
             - secretRef:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "otel" "existingSecret" .Values.otel.existingSecret) }}
             - secretRef:
@@ -78,8 +72,6 @@ spec:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "encryption" "existingSecret" .Values.encryption.existingSecret) }}
             - secretRef:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "endpoints" "existingSecret" .Values.endpoints.existingSecret) }}
-            - secretRef:
-                name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "license" "existingSecret" .Values.licenseExistingSecret) }}
           env:
             - name: OTEL_RESOURCE_ATTRIBUTES
               value: service.name=callback-delivery,deployment.environment={{ .Values.config.environmentIdentifier }}

@@ -8,6 +8,7 @@ Ragnerock research intelligence platform
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
+| agent.annotationToolMaxIterations | int | `25` | Tool-call iterations an annotation operator's agent may take before it is cut off |
 | agent.maxIterations | int | `10` |  |
 | analysis.dataframeOpTimeout | int | `60` |  |
 | analysis.maxColumns | int | `500` |  |
@@ -39,8 +40,11 @@ Ragnerock research intelligence platform
 | api.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
 | api.autoscaling.targetCPUUtilizationPercentage | int | `80` | Target average CPU utilization (% of requests). Set to null to disable. |
 | api.autoscaling.targetMemoryUtilizationPercentage | int | `80` | Target average memory utilization (% of requests). Set to null to disable. |
+| api.capacityWaitSeconds | float | `5` | Seconds a request waits for capacity before it is rejected |
+| api.dbThreadpoolSize | int | `64` | Threads serving blocking DB work off the event loop |
 | api.image.name | string | `"api"` |  |
 | api.image.tag | string | `""` |  |
+| api.maxConcurrentRequests | int | `128` | In-flight requests one API pod accepts before it starts shedding |
 | api.replicaCount | int | `1` |  |
 | api.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
 | api.service.port | int | `8080` |  |
@@ -145,11 +149,14 @@ Ragnerock research intelligence platform
 | dbService.autoscaling.targetMemoryUtilizationPercentage | int | `80` | Target average memory utilization (% of requests). Set to null to disable. |
 | dbService.batchLimit | int | `10000` |  |
 | dbService.connectionFailureThreshold | int | `5` | Consecutive connection failures before a config is flagged for deactivation |
+| dbService.defaultDBMaxOverflow | int | `20` | Overflow above the pool size for a customer database that does not specify one |
+| dbService.defaultDBPoolSize | int | `20` | Connection pool size for a customer database that does not specify one |
 | dbService.image.name | string | `"db-service"` |  |
 | dbService.image.tag | string | `""` | Overwrites global value if set |
 | dbService.rateLimitMaxTokens | int | `100` | Per-customer-DB rate limit: token bucket capacity (the default data DB is exempt) |
 | dbService.rateLimitRefillRate | float | `20` | Per-customer-DB rate limit: token refill rate (tokens per second) |
 | dbService.replicaCount | int | `1` |  |
+| dbService.requestThreadpoolSize | int | `80` | Threads serving blocking driver work off the event loop |
 | dbService.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
 | dbService.service.port | int | `8080` |  |
 | dbService.service.type | string | `"ClusterIP"` |  |
@@ -163,9 +170,20 @@ Ragnerock research intelligence platform
 | encryption.kek | string | `""` | Key Encryption Key (KEK), generate with python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())' |
 | endpoints.HMACMasterKey | string | `""` |  |
 | endpoints.allowPrivateCallbacks | bool | `true` |  |
+| endpoints.compatMaxBodyBytes | int | `10485760` | Request body ceiling for the OpenAI/Anthropic/Gemini-compatible endpoints, in bytes |
+| endpoints.compatTimeoutSeconds | int | `300` | Wall-clock ceiling for one compatibility-endpoint call, in seconds |
 | endpoints.ephemeralTTLHours | int | `24` |  |
+| endpoints.executionPruneBatchSize | int | `5000` | Execution records deleted per prune statement |
+| endpoints.executionPruneMaxBatches | int | `100` | Prune statements issued in one pass before the job yields |
+| endpoints.executionRetentionDays | int | `90` | Days an endpoint execution record is kept before it is pruned |
 | endpoints.existingSecret | string | `""` | Use a pre-existing secret (must provide key `ENDPOINTS_HMAC_MASTER_KEY`) instead of generating one. When set, `HMACMasterKey` is ignored. |
 | endpoints.maxFileSizeMB | int | `50` |  |
+| fallback | object | `{"agentChainBudgetSeconds":120,"chainBudgetSeconds":420,"maxChainCiphertextBytes":30720,"maxDepth":3,"perProviderAttempts":2}` | BYOAI fallback chains: how far a chain may reach and how long the model-service will spend working through one. |
+| fallback.agentChainBudgetSeconds | int | `120` | Wall-clock budget for one agent chain, in seconds |
+| fallback.chainBudgetSeconds | int | `420` | Wall-clock budget for one annotation chain, in seconds |
+| fallback.maxChainCiphertextBytes | int | `30720` | Ceiling on the summed ciphertext of a chain's fallback leaves, in bytes |
+| fallback.maxDepth | int | `3` | Fallback hops allowed after the primary provider |
+| fallback.perProviderAttempts | int | `2` | Attempts against each provider in a chain before moving to the next |
 | frontend.affinity | object | `{}` | Pod affinity rules (overrides `global.affinity`) |
 | frontend.annotations | object | `{}` | Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence) |
 | frontend.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
@@ -222,6 +240,12 @@ Ragnerock research intelligence platform
 | llm.textract.maxConcurrency | int | `4` | Maximum concurrent Textract page requests per worker |
 | llm.textract.region | string | `""` | AWS region the Textract API is called in. Required when `pdfParserBackend` is `textract`. |
 | llm.textract.secretAccessKey | string | `""` | AWS secret access key. Required when `pdfParserBackend` is `textract`. |
+| memory | object | `{"schemaHardCap":100,"schemaSoftCap":25,"toolsEnabled":true,"writeBudgetAnnotation":12,"writeBudgetNotebook":8}` | Agentic memory: the ops kill switch, schema-proliferation caps, and the per-run write budgets that bound a single agent's memory writes. |
+| memory.schemaHardCap | int | `100` | Schemas per project past which creating another is refused |
+| memory.schemaSoftCap | int | `25` | Schemas per project past which creating another is discouraged |
+| memory.toolsEnabled | bool | `true` | Expose the memory tools to agents. Set to false to switch memory off entirely. |
+| memory.writeBudgetAnnotation | int | `12` | Memory writes allowed in a single annotation run |
+| memory.writeBudgetNotebook | int | `8` | Memory writes allowed in a single notebook turn |
 | migrations.affinity | object | `{}` | Pod affinity rules (overrides `global.affinity`) |
 | migrations.annotations | object | `{}` | Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence) |
 | migrations.image.name | string | `"migrations"` |  |
@@ -231,8 +255,15 @@ Ragnerock research intelligence platform
 | migrations.serviceAccount.create | bool | `false` | Create a service account for the migrations job's pods |
 | migrations.serviceAccount.name | string | `""` | Service account name to use; if empty and `create` is true a name is generated |
 | migrations.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
+| model.agentNoChainMaxAttempts | int | `4` | Agent attempts when no fallback chain is configured |
+| model.annotatorNoChainMaxAttempts | int | `8` | Annotator attempts when no fallback chain is configured |
+| model.annotatorRetryBudgetSeconds | int | `420` | Wall-clock budget for annotator retries, in seconds |
+| model.geminiMaxOutputTokens | int | `16384` | Output-token ceiling for the default Gemini provider |
 | model.geminiModelName | string | `"gemini-3-flash-preview"` |  |
+| model.geminiThinkingLevel | string | `"LOW"` | Gemini thinking budget: `LOW`, `MEDIUM`, or `HIGH` |
+| model.geminiTruncationRetries | int | `1` | Retries when a Gemini response comes back truncated |
 | model.httpTimeoutSeconds | int | `180` |  |
+| model.maxConcurrentProviderCalls | int | `50` | Provider calls the model-service will have in flight at once |
 | modelService.affinity | object | `{}` | Pod affinity rules (overrides `global.affinity`) |
 | modelService.annotations | object | `{}` | Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence) |
 | modelService.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
@@ -313,6 +344,7 @@ Ragnerock research intelligence platform
 | rateLimits.authRegisterPerMinute | int | `15` |  |
 | rateLimits.authRequestCodePerMinute | int | `5` |  |
 | rateLimits.authValidateCodePerMinute | int | `15` |  |
+| rateLimits.backfillRunPerMinute | int | `30` |  |
 | rateLimits.chatCreatePerMinute | int | `600` |  |
 | rateLimits.configValidatePerMinute | int | `20` |  |
 | rateLimits.debugPerMinute | int | `20` |  |
@@ -350,6 +382,11 @@ Ragnerock research intelligence platform
 | subtaskWorker.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | subtaskWorker.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
 | subtaskWorker.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
+| tabular | object | `{"listPageSize":20,"promptMaxColumns":20,"promptMaxSources":10,"readRowsPerPage":50}` | Tabular documents: page sizes for reads and the shape of the table summaries rendered into prompts. |
+| tabular.listPageSize | int | `20` | Rows returned per page when an agent lists a tabular document |
+| tabular.promptMaxColumns | int | `20` | Columns of a table described in a prompt |
+| tabular.promptMaxSources | int | `10` | Tables described in a single prompt |
+| tabular.readRowsPerPage | int | `50` | Rows returned per page when an agent reads a tabular document |
 | tools.codeToolTimeoutSeconds | int | `30` |  |
 | worker.affinity | object | `{}` | Pod affinity rules (overrides `global.affinity`) |
 | worker.annotations | object | `{}` | Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence) |
@@ -369,6 +406,28 @@ Ragnerock research intelligence platform
 | worker.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | worker.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
 | worker.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
+| workers | object | `{"capacityWaitSeconds":5,"database":{"lockTimeoutSeconds":30,"maxOverflow":null,"poolHeadroom":5,"poolSize":null,"poolTimeout":10},"dbThreadpoolSize":80,"maxChunkChars":6000,"maxConcurrentJobAdvances":10,"reconcile":{"batchSize":100,"enabled":true,"inProgressAfterSeconds":2700,"intervalSeconds":300,"notStartedAfterSeconds":900}}` | Settings shared by the worker and subtask-worker deployments. Both run the same job-processing code, so they are tuned together. |
+| workers.capacityWaitSeconds | float | `5` | Seconds a task waits for local capacity before it is deferred |
+| workers.database.lockTimeoutSeconds | int | `30` | Seconds a statement waits on a row lock before erroring |
+| workers.database.maxOverflow | string | `nil` | Explicit overflow above the pool size. Falls back to `poolHeadroom` when null. |
+| workers.database.poolHeadroom | int | `5` | Connections kept spare on top of the derived pool size, for non-request work |
+| workers.database.poolSize | string | `nil` | Explicit connection pool size. Derived from the concurrency limits plus `poolHeadroom` when null, mirroring the worker's own in-process derivation. |
+| workers.database.poolTimeout | int | `10` | Seconds a checkout waits for a free pooled connection |
+| workers.dbThreadpoolSize | int | `80` | Threads serving blocking DB work off the event loop |
+| workers.maxChunkChars | int | `6000` | Characters per chunk when a document is split for embedding |
+| workers.maxConcurrentJobAdvances | int | `10` | Concurrent job phase-advances a worker process may run |
+| workers.reconcile | object | `{"batchSize":100,"enabled":true,"inProgressAfterSeconds":2700,"intervalSeconds":300,"notStartedAfterSeconds":900}` | Periodic DB sweep that re-enqueues jobs whose queue deliveries were dropped after exhausting their retry budget. |
+| workers.reconcile.batchSize | int | `100` | Jobs examined per sweep |
+| workers.reconcile.enabled | bool | `true` | Run the reconciliation sweep |
+| workers.reconcile.inProgressAfterSeconds | int | `2700` | Seconds a job may sit in progress before the sweep re-enqueues it |
+| workers.reconcile.intervalSeconds | int | `300` | Seconds between sweeps |
+| workers.reconcile.notStartedAfterSeconds | int | `900` | Seconds a job may sit unstarted before the sweep re-enqueues it |
+| workflowResources | object | `{"codeMaxBytes":20000000,"codeMaxRows":100000,"codeTotalMaxBytes":40000000,"contextMaxChars":200000,"valueMaxBytes":262144}` | Workflow resources bound into operator runs and rendered into prompts. |
+| workflowResources.codeMaxBytes | int | `20000000` | Ceiling on a single code operator's returned resource, in bytes |
+| workflowResources.codeMaxRows | int | `100000` | Ceiling on the rows a single code operator may return |
+| workflowResources.codeTotalMaxBytes | int | `40000000` | Ceiling on all code operator resources for one run, in bytes |
+| workflowResources.contextMaxChars | int | `200000` | Ceiling on the resource context rendered into one prompt, in characters |
+| workflowResources.valueMaxBytes | int | `262144` | Ceiling on a value resource's serialized inline value, in bytes |
 
 ----------------------------------------------
 Autogenerated from chart metadata using [helm-docs v1.14.2](https://github.com/norwoodj/helm-docs/releases/v1.14.2)

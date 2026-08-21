@@ -10,6 +10,31 @@ data:
   RAGNEROCK_SAFETY_ENABLED: "{{ .Values.ragnerock.safetyEnabled }}"
   MODEL_HTTP_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.model.httpTimeoutSeconds }}"
 ---
+# Settings read from core.settings by core code, and so needed by every service
+# that runs core in-process. The two sandboxed services — analysis-toolkit and
+# python-service — do not, which is why this is separate from the `-config` map
+# they share with everything else.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-core
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  ANNOTATION_TOOL_MAX_ITERATIONS: "{{ include "ragnerock.number" .Values.agent.annotationToolMaxIterations }}"
+  MAX_FALLBACK_DEPTH: "{{ include "ragnerock.number" .Values.fallback.maxDepth }}"
+  MAX_FALLBACK_CHAIN_CIPHERTEXT_BYTES: "{{ include "ragnerock.number" .Values.fallback.maxChainCiphertextBytes }}"
+  MEMORY_TOOLS_ENABLED: "{{ .Values.memory.toolsEnabled }}"
+  MEMORY_SCHEMA_SOFT_CAP: "{{ include "ragnerock.number" .Values.memory.schemaSoftCap }}"
+  MEMORY_SCHEMA_HARD_CAP: "{{ include "ragnerock.number" .Values.memory.schemaHardCap }}"
+  MEMORY_WRITE_BUDGET_ANNOTATION: "{{ include "ragnerock.number" .Values.memory.writeBudgetAnnotation }}"
+  MEMORY_WRITE_BUDGET_NOTEBOOK: "{{ include "ragnerock.number" .Values.memory.writeBudgetNotebook }}"
+  RESOURCE_VALUE_MAX_BYTES: "{{ include "ragnerock.number" .Values.workflowResources.valueMaxBytes }}"
+  TABULAR_LIST_PAGE_SIZE: "{{ include "ragnerock.number" .Values.tabular.listPageSize }}"
+  TABULAR_PROMPT_MAX_COLUMNS: "{{ include "ragnerock.number" .Values.tabular.promptMaxColumns }}"
+  TABULAR_PROMPT_MAX_SOURCES: "{{ include "ragnerock.number" .Values.tabular.promptMaxSources }}"
+  TABULAR_READ_ROWS_PER_PAGE: "{{ include "ragnerock.number" .Values.tabular.readRowsPerPage }}"
+---
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -32,6 +57,20 @@ data:
   DB_POOL_SIZE: "{{ include "ragnerock.number" .Values.database.poolSize }}"
   DB_MAX_OVERFLOW: "{{ include "ragnerock.number" .Values.database.maxOverflow }}"
   DB_POOL_TIMEOUT: "{{ include "ragnerock.number" .Values.database.poolTimeout }}"
+  # Per-pod request-capacity shedding and the event-loop offload threadpool.
+  MAX_CONCURRENT_REQUESTS: "{{ include "ragnerock.number" .Values.api.maxConcurrentRequests }}"
+  CAPACITY_WAIT_SECONDS: "{{ include "ragnerock.number" .Values.api.capacityWaitSeconds }}"
+  DB_THREADPOOL_SIZE: "{{ include "ragnerock.number" .Values.api.dbThreadpoolSize }}"
+  # Fixed geometry rather than a tunable: the isolated health server has to sit
+  # on a port other than the main app port (8080).
+  HEALTH_PORT: "8081"
+  # Compatibility endpoints and the retention sweep over their execution
+  # records, both of which only the API runs.
+  ENDPOINTS_COMPAT_MAX_BODY_BYTES: "{{ include "ragnerock.number" .Values.endpoints.compatMaxBodyBytes }}"
+  ENDPOINTS_COMPAT_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.endpoints.compatTimeoutSeconds }}"
+  ENDPOINT_EXECUTION_RETENTION_DAYS: "{{ include "ragnerock.number" .Values.endpoints.executionRetentionDays }}"
+  ENDPOINT_EXECUTION_PRUNE_BATCH_SIZE: "{{ include "ragnerock.number" .Values.endpoints.executionPruneBatchSize }}"
+  ENDPOINT_EXECUTION_PRUNE_MAX_BATCHES: "{{ include "ragnerock.number" .Values.endpoints.executionPruneMaxBatches }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -70,6 +109,7 @@ data:
   RATE_LIMIT_QUERY_VALIDATE: "{{ include "ragnerock.number" .Values.rateLimits.queryValidatePerMinute }}"
   RATE_LIMIT_AUDIT_PAYLOAD_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.auditPayloadPerMinute }}"
   RATE_LIMIT_OPERATOR_TEST_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.operatorTestPerMinute }}"
+  RATE_LIMIT_BACKFILL_RUN_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.backfillRunPerMinute }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -109,6 +149,9 @@ data:
   RATE_LIMIT_MAX_TOKENS: "{{ include "ragnerock.number" .Values.dbService.rateLimitMaxTokens }}"
   RATE_LIMIT_REFILL_RATE: "{{ include "ragnerock.number" .Values.dbService.rateLimitRefillRate }}"
   CONNECTION_FAILURE_THRESHOLD: "{{ include "ragnerock.number" .Values.dbService.connectionFailureThreshold }}"
+  DEFAULT_DB_POOL_SIZE: "{{ include "ragnerock.number" .Values.dbService.defaultDBPoolSize }}"
+  DEFAULT_DB_MAX_OVERFLOW: "{{ include "ragnerock.number" .Values.dbService.defaultDBMaxOverflow }}"
+  REQUEST_THREADPOOL_SIZE: "{{ include "ragnerock.number" .Values.dbService.requestThreadpoolSize }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -282,6 +325,18 @@ metadata:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
   GEMINI_MODEL_NAME: {{ .Values.model.geminiModelName | quote }}
+  GEMINI_MAX_OUTPUT_TOKENS: "{{ include "ragnerock.number" .Values.model.geminiMaxOutputTokens }}"
+  GEMINI_THINKING_LEVEL: {{ .Values.model.geminiThinkingLevel | quote }}
+  GEMINI_TRUNCATION_RETRIES: "{{ include "ragnerock.number" .Values.model.geminiTruncationRetries }}"
+  MAX_CONCURRENT_PROVIDER_CALLS: "{{ include "ragnerock.number" .Values.model.maxConcurrentProviderCalls }}"
+  # Retry shaping for a provider with no fallback chain behind it, and the
+  # budgets the model-service spends working through one that has.
+  AGENT_NO_CHAIN_MAX_ATTEMPTS: "{{ include "ragnerock.number" .Values.model.agentNoChainMaxAttempts }}"
+  ANNOTATOR_NO_CHAIN_MAX_ATTEMPTS: "{{ include "ragnerock.number" .Values.model.annotatorNoChainMaxAttempts }}"
+  ANNOTATOR_RETRY_BUDGET_SECONDS: "{{ include "ragnerock.number" .Values.model.annotatorRetryBudgetSeconds }}"
+  FALLBACK_CHAIN_BUDGET_SECONDS: "{{ include "ragnerock.number" .Values.fallback.chainBudgetSeconds }}"
+  FALLBACK_AGENT_CHAIN_BUDGET_SECONDS: "{{ include "ragnerock.number" .Values.fallback.agentChainBudgetSeconds }}"
+  FALLBACK_PER_PROVIDER_ATTEMPTS: "{{ include "ragnerock.number" .Values.fallback.perProviderAttempts }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -320,6 +375,43 @@ data:
   SUBTASK_STALE_THRESHOLD_MINUTES: "{{ include "ragnerock.number" .Values.limits.subtask.staleThresholdMinutes }}"
   JOB_WATCHDOG_SLACK_MINUTES: "{{ include "ragnerock.number" .Values.limits.job.watchdogSlackMinutes }}"
   CODE_OPERATOR_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.limits.codeOperator.timeoutSeconds }}"
+---
+# Runtime geometry shared by the worker and subtask-worker: delivery-capacity
+# shedding, phase-advance concurrency, DB pool/threadpool sizing, the
+# job-reconciliation sweep, and the code-operator resource caps. Both run the
+# same job-processing code, so they are tuned as a pair.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-worker-runtime
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  CAPACITY_WAIT_SECONDS: "{{ include "ragnerock.number" .Values.workers.capacityWaitSeconds }}"
+  MAX_CONCURRENT_JOB_ADVANCES: "{{ include "ragnerock.number" .Values.workers.maxConcurrentJobAdvances }}"
+  MAX_CHUNK_CHARS: "{{ include "ragnerock.number" .Values.workers.maxChunkChars }}"
+  # Pool sizing mirrors the worker's own in-process derivation (one connection
+  # per possible in-flight handler, plus headroom for non-request work), so an
+  # unset poolSize/maxOverflow lands on the same geometry the service would
+  # have picked for itself.
+  DB_POOL_SIZE: "{{ include "ragnerock.number" (.Values.workers.database.poolSize | default (add .Values.limits.concurrency.maxConcurrentSubtasks .Values.limits.concurrency.maxConcurrentJobs .Values.workers.maxConcurrentJobAdvances .Values.workers.database.poolHeadroom)) }}"
+  DB_MAX_OVERFLOW: "{{ include "ragnerock.number" (.Values.workers.database.maxOverflow | default .Values.workers.database.poolHeadroom) }}"
+  DB_POOL_TIMEOUT: "{{ include "ragnerock.number" .Values.workers.database.poolTimeout }}"
+  DB_POOL_HEADROOM: "{{ include "ragnerock.number" .Values.workers.database.poolHeadroom }}"
+  DB_THREADPOOL_SIZE: "{{ include "ragnerock.number" .Values.workers.dbThreadpoolSize }}"
+  DB_LOCK_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.workers.database.lockTimeoutSeconds }}"
+  # Fixed geometry rather than a tunable: the isolated health server has to sit
+  # on a port other than the main app port (8080).
+  HEALTH_PORT: "8081"
+  JOB_RECONCILE_ENABLED: "{{ .Values.workers.reconcile.enabled }}"
+  JOB_RECONCILE_INTERVAL_SECONDS: "{{ include "ragnerock.number" .Values.workers.reconcile.intervalSeconds }}"
+  JOB_RECONCILE_BATCH_SIZE: "{{ include "ragnerock.number" .Values.workers.reconcile.batchSize }}"
+  JOB_RECONCILE_NOT_STARTED_AFTER_SECONDS: "{{ include "ragnerock.number" .Values.workers.reconcile.notStartedAfterSeconds }}"
+  JOB_RECONCILE_IN_PROGRESS_AFTER_SECONDS: "{{ include "ragnerock.number" .Values.workers.reconcile.inProgressAfterSeconds }}"
+  RESOURCE_CONTEXT_MAX_CHARS: "{{ include "ragnerock.number" .Values.workflowResources.contextMaxChars }}"
+  CODE_RESOURCE_MAX_BYTES: "{{ include "ragnerock.number" .Values.workflowResources.codeMaxBytes }}"
+  CODE_RESOURCE_MAX_ROWS: "{{ include "ragnerock.number" .Values.workflowResources.codeMaxRows }}"
+  CODE_RESOURCE_TOTAL_MAX_BYTES: "{{ include "ragnerock.number" .Values.workflowResources.codeTotalMaxBytes }}"
 ---
 apiVersion: v1
 kind: ConfigMap

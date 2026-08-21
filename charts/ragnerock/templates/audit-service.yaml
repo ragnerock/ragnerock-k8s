@@ -50,6 +50,8 @@ spec:
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-config
             - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-core
+            - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-audit-service
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-db

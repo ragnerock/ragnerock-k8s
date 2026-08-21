@@ -50,6 +50,8 @@ spec:
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-config
             - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-core
+            - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-db
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-db-service
@@ -65,6 +67,8 @@ spec:
                 name: {{ include "ragnerock.fullname" . }}-queue
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-limits
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-worker-runtime
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-audit
             - configMapRef:

@@ -10,18 +10,19 @@ from pathlib import Path
 SERVICES = [
     "analysis-toolkit",
     "api",
+    "audit-service",
+    "callback-delivery",
     "data-ingestor",
+    "db-service",
     "frontend",
     "model-service",
+    "python-service",
     "subtask-worker",
     "worker",
 ]
 
 TEMPLATES_DIR = (
-    Path(__file__).resolve().parent.parent.parent
-    / "charts"
-    / "ragnerock"
-    / "templates"
+    Path(__file__).resolve().parent.parent.parent / "charts" / "ragnerock" / "templates"
 )
 
 
@@ -105,9 +106,7 @@ def check_service(
         referenced = parse_refs(service_path, ref_kind)
         missing = sorted(referenced - defined)
         for name in missing:
-            errors.append(
-                f"{service}: {ref_kind} -> {label} '{name}' is not defined"
-            )
+            errors.append(f"{service}: {ref_kind} -> {label} '{name}' is not defined")
 
     return errors
 
@@ -128,9 +127,7 @@ def main() -> int:
 
     all_errors: list[str] = []
     for service in SERVICES:
-        all_errors.extend(
-            check_service(service, defined_configmaps, defined_secrets)
-        )
+        all_errors.extend(check_service(service, defined_configmaps, defined_secrets))
 
     if all_errors:
         print("Found unresolved references:")

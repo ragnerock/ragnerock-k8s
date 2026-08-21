@@ -1,0 +1,35 @@
+apiVersion: vendir.k14s.io/v1alpha1
+directories:
+- contents:
+  - git:
+      commitTitle: 'ENH: Repo syncs and multi-cloud secrets'
+      sha: bab04acae9caf3bc5e9e4f7d4383043a48a145cc
+      tags:
+      - v2026.08.18-12-gbab04aca
+    path: .
+  path: charts
+- contents:
+  - git:
+      commitTitle: 'ENH: Repo syncs and multi-cloud secrets'
+      sha: bab04acae9caf3bc5e9e4f7d4383043a48a145cc
+      tags:
+      - v2026.08.18-12-gbab04aca
+    path: .
+  path: scripts
+- contents:
+  - git:
+      commitTitle: 'ENH: Repo syncs and multi-cloud secrets'
+      sha: bab04acae9caf3bc5e9e4f7d4383043a48a145cc
+      tags:
+      - v2026.08.18-12-gbab04aca
+    path: .
+  path: .github/workflows
+- contents:
+  - git:
+      commitTitle: 'ENH: Repo syncs and multi-cloud secrets'
+      sha: bab04acae9caf3bc5e9e4f7d4383043a48a145cc
+      tags:
+      - v2026.08.18-12-gbab04aca
+    path: .
+  path: .vendir-staging/root
+kind: LockConfig
