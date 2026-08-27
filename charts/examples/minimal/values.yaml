@@ -1,7 +1,9 @@
 global:
   # -- Global container image configuration
   image:
-    registry: us-central1-docker.pkg.dev/ragnerock-prod/ragnerock 
+    registry: us-central1-docker.pkg.dev/ragnerock-testing/ragnerock
+    tag: latest
+    pullPolicy: IfNotPresent
   imagePullSecrets:
     - name: ragnerock-image-pull-secret
 
