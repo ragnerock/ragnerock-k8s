@@ -53,6 +53,8 @@ spec:
                 name: {{ include "ragnerock.fullname" . }}-python-service
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-otel
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-live-logs
             - secretRef:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "otel" "existingSecret" .Values.otel.existingSecret) }}
           env:

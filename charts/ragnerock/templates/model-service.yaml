@@ -65,6 +65,8 @@ spec:
                 name: {{ include "ragnerock.fullname" . }}-audit
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-callback-delivery
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-live-logs
             - secretRef:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "llm" "existingSecret" .Values.llm.existingSecret) }}
             - secretRef:

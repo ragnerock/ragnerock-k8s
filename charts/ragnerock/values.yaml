@@ -177,6 +177,10 @@ rateLimits:
   auditPayloadPerMinute: 30
   operatorTestPerMinute: 60
   backfillRunPerMinute: 30
+  # -- Per-user limit on opening the live-log tail
+  liveLogStreamPerMinute: 10
+  # -- Per-user limit on the browser log relay endpoint
+  liveLogClientPerMinute: 30
 
 # -- Identity and access management
 iam:
@@ -790,6 +794,34 @@ audit:
   queueMaxEvents: 10000
   resnapshotTurns: 10
   
+liveLogs:
+  enabled: false
+  allowUnscoped: false
+  queueMaxRecords: 10000
+  batchMaxRecords: 500
+  flushSeconds: 1
+  idlePollSchedule:
+    - afterIdleSeconds: 0
+      intervalSeconds: 3
+    - afterIdleSeconds: 120
+      intervalSeconds: 15
+    - afterIdleSeconds: 600
+      intervalSeconds: 30
+  maxExceptionBytes: 16384
+  requestTimeoutSeconds: 5
+  drainTimeoutSeconds: 3
+  backpressureLogSeconds: 60
+  maxRows: 100000
+  maxAgeSeconds: 900
+  trimIntervalSeconds: 10
+  tailCacheSeconds: 2
+  leaseSeconds: 60
+  streamPollSeconds: 1
+  streamHeartbeatSeconds: 20
+  snapshotLines: 500
+  streamPageSize: 500
+  clientMaxRecords: 100
+
 db:
   timeout:
     connect: 10.0

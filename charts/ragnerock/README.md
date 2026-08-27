@@ -1,6 +1,6 @@
 # ragnerock
 
-![Version: 1.3.3](https://img.shields.io/badge/Version-1.3.3-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v2026.07.27](https://img.shields.io/badge/AppVersion-v2026.07.27-informational?style=flat-square)
+![Version: 1.4.0](https://img.shields.io/badge/Version-1.4.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v2026.08.26](https://img.shields.io/badge/AppVersion-v2026.08.26-informational?style=flat-square)
 
 Ragnerock research intelligence platform
 
@@ -231,6 +231,31 @@ Ragnerock research intelligence platform
 | limits.usage.maxInputTokens | string | `"1000000"` |  |
 | limits.usage.maxOutputTokens | string | `"1000000"` |  |
 | limits.usage.maxPages | string | `"2000"` |  |
+| liveLogs.allowUnscoped | bool | `false` |  |
+| liveLogs.backpressureLogSeconds | int | `60` |  |
+| liveLogs.batchMaxRecords | int | `500` |  |
+| liveLogs.clientMaxRecords | int | `100` |  |
+| liveLogs.drainTimeoutSeconds | int | `3` |  |
+| liveLogs.enabled | bool | `false` |  |
+| liveLogs.flushSeconds | int | `1` |  |
+| liveLogs.idlePollSchedule[0].afterIdleSeconds | int | `0` |  |
+| liveLogs.idlePollSchedule[0].intervalSeconds | int | `3` |  |
+| liveLogs.idlePollSchedule[1].afterIdleSeconds | int | `120` |  |
+| liveLogs.idlePollSchedule[1].intervalSeconds | int | `15` |  |
+| liveLogs.idlePollSchedule[2].afterIdleSeconds | int | `600` |  |
+| liveLogs.idlePollSchedule[2].intervalSeconds | int | `30` |  |
+| liveLogs.leaseSeconds | int | `60` |  |
+| liveLogs.maxAgeSeconds | int | `900` |  |
+| liveLogs.maxExceptionBytes | int | `16384` |  |
+| liveLogs.maxRows | int | `100000` |  |
+| liveLogs.queueMaxRecords | int | `10000` |  |
+| liveLogs.requestTimeoutSeconds | int | `5` |  |
+| liveLogs.snapshotLines | int | `500` |  |
+| liveLogs.streamHeartbeatSeconds | int | `20` |  |
+| liveLogs.streamPageSize | int | `500` |  |
+| liveLogs.streamPollSeconds | int | `1` |  |
+| liveLogs.tailCacheSeconds | int | `2` |  |
+| liveLogs.trimIntervalSeconds | int | `10` |  |
 | llm | object | `{"azure":{"apiKey":"","endpoint":""},"existingSecret":"","gemini":{"apiKey":""},"mistral":{"apiKey":""},"pdfExtractImages":true,"pdfParserBackend":"mistral","textract":{"accessKeyId":"","existingSecret":"","maxConcurrency":4,"region":"","secretAccessKey":""}}` | LLM authentication configuration |
 | llm.existingSecret | string | `""` | Use a pre-existing secret (must provide keys `GEMINI_API_KEY` and `MISTRAL_API_KEY`) instead of generating one. When set, `geminiApiKey`/`mistralApiKey` are ignored. |
 | llm.pdfExtractImages | bool | `true` | Extract embedded images from PDFs during parsing (for multimodal summarization) |
@@ -353,6 +378,8 @@ Ragnerock research intelligence platform
 | rateLimits.frontendEventsPerMinute | int | `600` |  |
 | rateLimits.iamMutationPerMinute | int | `60` |  |
 | rateLimits.ingestTriggerPerMinute | int | `20` |  |
+| rateLimits.liveLogClientPerMinute | int | `30` | Per-user limit on the browser log relay endpoint |
+| rateLimits.liveLogStreamPerMinute | int | `10` | Per-user limit on opening the live-log tail |
 | rateLimits.notebookCodeFeedbackPerMinute | int | `40` |  |
 | rateLimits.notificationStreamPerMinute | int | `10` |  |
 | rateLimits.operatorTestPerMinute | int | `60` |  |
