@@ -30,6 +30,9 @@ data:
   MEMORY_WRITE_BUDGET_ANNOTATION: "{{ include "ragnerock.number" .Values.memory.writeBudgetAnnotation }}"
   MEMORY_WRITE_BUDGET_NOTEBOOK: "{{ include "ragnerock.number" .Values.memory.writeBudgetNotebook }}"
   RESOURCE_VALUE_MAX_BYTES: "{{ include "ragnerock.number" .Values.workflowResources.valueMaxBytes }}"
+  LIVE_LOG_MAX_ROWS: "{{ include "ragnerock.number" .Values.liveLogs.maxRows }}"
+  LIVE_LOG_MAX_AGE_SECONDS: "{{ include "ragnerock.number" .Values.liveLogs.maxAgeSeconds }}"
+  LIVE_LOG_TRIM_INTERVAL_SECONDS: "{{ include "ragnerock.number" .Values.liveLogs.trimIntervalSeconds }}"
   TABULAR_LIST_PAGE_SIZE: "{{ include "ragnerock.number" .Values.tabular.listPageSize }}"
   TABULAR_PROMPT_MAX_COLUMNS: "{{ include "ragnerock.number" .Values.tabular.promptMaxColumns }}"
   TABULAR_PROMPT_MAX_SOURCES: "{{ include "ragnerock.number" .Values.tabular.promptMaxSources }}"
@@ -110,6 +113,8 @@ data:
   RATE_LIMIT_AUDIT_PAYLOAD_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.auditPayloadPerMinute }}"
   RATE_LIMIT_OPERATOR_TEST_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.operatorTestPerMinute }}"
   RATE_LIMIT_BACKFILL_RUN_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.backfillRunPerMinute }}"
+  RATE_LIMIT_LIVE_LOG_STREAM_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.liveLogStreamPerMinute }}"
+  RATE_LIMIT_LIVE_LOG_CLIENT_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.liveLogClientPerMinute }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -512,6 +517,40 @@ data:
   RECYCLE_AFTER_N_EXECUTIONS: "{{ include "ragnerock.number" .Values.pythonService.sandbox.recycleAfterNExecutions }}"
   SANDBOX_ENFORCEMENT: "{{ .Values.pythonService.sandbox.enforcement }}"
 ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-live-logs
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  LIVE_LOG_ENABLED: "{{ .Values.liveLogs.enabled }}"
+  LIVE_LOG_INGEST_URL: http://{{ include "ragnerock.fullname" . }}-audit-service:{{ include "ragnerock.number" .Values.auditService.service.port }}/logs/ingest
+  LIVE_LOG_INGEST_AUDIENCE: http://{{ include "ragnerock.fullname" . }}-audit-service:{{ include "ragnerock.number" .Values.auditService.service.port }}
+  LIVE_LOG_INGEST_AUTH_ENABLED: "false"
+  LIVE_LOG_QUEUE_MAX_RECORDS: "{{ include "ragnerock.number" .Values.liveLogs.queueMaxRecords }}"
+  LIVE_LOG_BATCH_MAX_RECORDS: "{{ include "ragnerock.number" .Values.liveLogs.batchMaxRecords }}"
+  LIVE_LOG_FLUSH_SECONDS: "{{ include "ragnerock.number" .Values.liveLogs.flushSeconds }}"
+  LIVE_LOG_MAX_EXCEPTION_BYTES: "{{ include "ragnerock.number" .Values.liveLogs.maxExceptionBytes }}"
+  LIVE_LOG_REQUEST_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.liveLogs.requestTimeoutSeconds }}"
+  LIVE_LOG_DRAIN_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.liveLogs.drainTimeoutSeconds }}"
+  LIVE_LOG_BACKPRESSURE_LOG_SECONDS: "{{ include "ragnerock.number" .Values.liveLogs.backpressureLogSeconds }}"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-live-logs-api
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  LIVE_LOGS_ALLOW_UNSCOPED: "{{ .Values.liveLogs.allowUnscoped }}"
+  LIVE_LOG_LEASE_SECONDS: "{{ include "ragnerock.number" .Values.liveLogs.leaseSeconds }}"
+  LIVE_LOG_STREAM_POLL_SECONDS: "{{ include "ragnerock.number" .Values.liveLogs.streamPollSeconds }}"
+  LIVE_LOG_STREAM_HEARTBEAT_SECONDS: "{{ include "ragnerock.number" .Values.liveLogs.streamHeartbeatSeconds }}"
+  LIVE_LOG_SNAPSHOT_LINES: "{{ include "ragnerock.number" .Values.liveLogs.snapshotLines }}"
+  LIVE_LOG_STREAM_PAGE_SIZE: "{{ include "ragnerock.number" .Values.liveLogs.streamPageSize }}"
+  LIVE_LOG_CLIENT_MAX_RECORDS: "{{ include "ragnerock.number" .Values.liveLogs.clientMaxRecords }}"
+---
 # audit-service configuration: ingest-time derivation caps, the partition
 # lifecycle, and the blob-export scan that self-dispatches /audit/export-run
 # tasks. LOG_LEVEL / ENVIRONMENT_IDENTIFIER come from the shared `-config` map.
@@ -525,6 +564,7 @@ data:
   AUDIT_PROMPT_PREVIEW_MAX_CHARS: "{{ include "ragnerock.number" .Values.audit.promptPreviewMaxChars }}"
   AUDIT_ERROR_MESSAGE_MAX_CHARS: "{{ include "ragnerock.number" .Values.audit.errorMessageMaxChars }}"
   AUDIT_PARTITION_PRECREATE_MONTHS: "{{ include "ragnerock.number" .Values.auditService.partitionPrecreateMonths }}"
+  LIVE_LOG_TAIL_CACHE_SECONDS: "{{ include "ragnerock.number" .Values.liveLogs.tailCacheSeconds }}"
   AUDIT_EXPORT_RUN_URL: http://{{ include "ragnerock.fullname" . }}-audit-service:{{ include "ragnerock.number" .Values.auditService.service.port }}/audit/export-run
   AUDIT_EXPORT_RUN_AUDIENCE: http://{{ include "ragnerock.fullname" . }}-audit-service:{{ include "ragnerock.number" .Values.auditService.service.port }}
   AUDIT_EXPORT_WATERMARK_MINUTES: "{{ include "ragnerock.number" .Values.auditService.export.watermarkMinutes }}"

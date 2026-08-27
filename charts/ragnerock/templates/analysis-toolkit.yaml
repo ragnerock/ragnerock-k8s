@@ -59,6 +59,8 @@ spec:
                 name: {{ include "ragnerock.fullname" . }}-callback-delivery
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-queue
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-live-logs
             - secretRef:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "otel" "existingSecret" .Values.otel.existingSecret) }}
             - secretRef:

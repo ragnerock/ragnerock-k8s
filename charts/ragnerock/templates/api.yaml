@@ -97,6 +97,10 @@ spec:
                 name: {{ include "ragnerock.fullname" . }}-python
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-db-conn
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-live-logs
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-live-logs-api
             - secretRef:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "db" "existingSecret" .Values.database.existingSecret) }}
             - secretRef:

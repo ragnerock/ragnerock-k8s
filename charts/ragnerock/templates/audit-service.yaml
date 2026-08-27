@@ -57,6 +57,8 @@ spec:
                 name: {{ include "ragnerock.fullname" . }}-db
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-otel
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-live-logs
             - secretRef:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "db" "existingSecret" .Values.database.existingSecret) }}
             - secretRef:

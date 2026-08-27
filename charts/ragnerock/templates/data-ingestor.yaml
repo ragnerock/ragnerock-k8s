@@ -63,6 +63,8 @@ spec:
                 name: {{ include "ragnerock.fullname" . }}-queue
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-db-conn
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-live-logs
             - secretRef:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "cloudflare" "existingSecret" .Values.cloudflare.existingSecret) }}
             - secretRef:
