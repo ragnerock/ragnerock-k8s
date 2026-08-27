@@ -33,7 +33,7 @@ spec:
 {{- end }}
       containers:
         - name: queue
-          image: ghcr.io/aertje/cloud-tasks-emulator:latest
+          image: ghcr.io/aertje/cloud-tasks-emulator:1.2.0
           command: ["./emulator", "-host", "0.0.0.0", "-port", "{{ .Values.queue.port }}"]
           ports:
             - name: grpc
