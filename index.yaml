@@ -2,6 +2,16 @@ apiVersion: v1
 entries:
   ragnerock:
   - apiVersion: v2
+    appVersion: v2026.08.26
+    created: "2026-08-27T00:51:40.29153681Z"
+    description: Ragnerock research intelligence platform
+    digest: e126c11eab0011c8914f68690ad90545f6db46778604cc6c37710f5d89df266c
+    name: ragnerock
+    type: application
+    urls:
+    - https://github.com/ragnerock/ragnerock-k8s/releases/download/ragnerock-1.4.0/ragnerock-1.4.0.tgz
+    version: 1.4.0
+  - apiVersion: v2
     appVersion: v2026.07.27
     created: "2026-08-18T14:01:08.954841368Z"
     description: Ragnerock research intelligence platform
@@ -131,4 +141,4 @@ entries:
     urls:
     - https://github.com/ragnerock/ragnerock-k8s/releases/download/ragnerock-0.1.0/ragnerock-0.1.0.tgz
     version: 0.1.0
-generated: "2026-08-18T14:01:08.954911032Z"
+generated: "2026-08-27T00:51:40.291594208Z"
