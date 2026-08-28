@@ -100,15 +100,17 @@ spec:
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-db-conn
             - configMapRef:
-                name: {{ include "ragnerock.fullname" . }}-live-logs
+                name: {{ include "ragnerock.fullname" . }}-live-log
             - configMapRef:
-                name: {{ include "ragnerock.fullname" . }}-live-logs-api
+                name: {{ include "ragnerock.fullname" . }}-live-log-api
             - secretRef:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "db" "existingSecret" .Values.database.existingSecret) }}
             - secretRef:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "auth" "existingSecret" .Values.auth.existingSecret) }}
             - secretRef:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "encryption" "existingSecret" .Values.encryption.existingSecret) }}
+            - secretRef:
+                name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "gitops" "existingSecret" .Values.gitops.existingSecret) }}
             - secretRef:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "otel" "existingSecret" .Values.otel.existingSecret) }}
             - secretRef:
@@ -119,7 +121,7 @@ spec:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "auth" "existingSecret" .Values.auth.existingSecret) }}
           env:
             - name: OTEL_RESOURCE_ATTRIBUTES
-              value: service.name=api,deployment.environment={{ .Values.config.environmentIdentifier }}
+              value: service.namespace={{ .Values.otel.serviceNamespace }},service.name={{ .Values.otel.servicePrefix }}api,deployment.environment={{ .Values.config.environmentIdentifier }}
             - name: OTEL_SERVICE_NAME
               value: api
 {{- with .Values.api.volumeMounts }}

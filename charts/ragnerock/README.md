@@ -45,6 +45,8 @@ Ragnerock research intelligence platform
 | api.image.name | string | `"api"` |  |
 | api.image.tag | string | `""` |  |
 | api.maxConcurrentRequests | int | `128` | In-flight requests one API pod accepts before it starts shedding |
+| api.operatorSample.maxFileBytes | int | `20971520` | Max workbench attachment size accepted by the parse-sample endpoint. The file rides to the worker as base64 JSON (~4/3 the size), so keep it at or below 20 MiB |
+| api.operatorSample.parseTimeoutSeconds | int | `300` | API-side read timeout on the synchronous worker parse call, in seconds. Whole-document OCR of a large PDF via an external backend takes minutes |
 | api.replicaCount | int | `1` |  |
 | api.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
 | api.service.port | int | `8080` |  |
@@ -203,6 +205,10 @@ Ragnerock research intelligence platform
 | frontend.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
 | frontend.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
 | fullnameOverride | string | `nil` |  |
+| gitops.codeReviewBudgetSeconds | int | `60` | Wall-clock budget for the code security review that runs after a GitOps apply, in seconds. Agents not reached in time are reported unreviewed. |
+| gitops.existingSecret | string | `""` | Use a pre-existing secret (must provide key `GITOPS_SEALING_PRIVATE_KEY`) instead of generating one. When set, `sealingPrivateKey` is ignored. |
+| gitops.maxManifestBytes | int | `5242880` | Largest manifest `POST /api/gitops/apply` accepts, in bytes |
+| gitops.sealingPrivateKey | string | `""` | RSA private key (PEM) that opens GitOps secrets the GitHub action sealed for transport, generate with `task gitops-sealing-key`. Leave empty to run without transport sealing; the action then fails rather than uploading plaintext. |
 | global.affinity | object | `{}` | Default pod affinity rules applied to all workloads. Can be overridden per-service with `<service>.affinity`. See https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity |
 | global.annotations | object | `{}` | Default annotations applied to the metadata of all workloads (Deployments/Job). Merged with per-service `<service>.annotations`, where per-service keys take precedence. |
 | global.image | object | `{"pullPolicy":"IfNotPresent","registry":"us-central1-docker.pkg.dev/ragnerock-prod/ragnerock","tag":""}` | Global container image configuration |
@@ -222,6 +228,7 @@ Ragnerock research intelligence platform
 | limits.codeOperator.timeoutSeconds | int | `30` | Wall-clock ceiling for a code operator's execution, in seconds |
 | limits.concurrency.maxConcurrentAnnotations | int | `10` |  |
 | limits.concurrency.maxConcurrentJobs | int | `10` |  |
+| limits.concurrency.maxConcurrentSampleParses | int | `2` | Concurrent workbench attachment parses one worker pod accepts. These are synchronous API-originated calls sharing the pod with queue deliveries, so the pool is small; excess requests shed as 503 |
 | limits.concurrency.maxConcurrentSubtasks | int | `50` |  |
 | limits.job.watchdogSlackMinutes | int | `5` | Extra delay past the subtask stale threshold before the job watchdog reconciles |
 | limits.subtask.failureThreshold | float | `0.05` |  |
@@ -231,33 +238,36 @@ Ragnerock research intelligence platform
 | limits.usage.maxInputTokens | string | `"1000000"` |  |
 | limits.usage.maxOutputTokens | string | `"1000000"` |  |
 | limits.usage.maxPages | string | `"2000"` |  |
-| liveLogs.allowUnscoped | bool | `false` |  |
-| liveLogs.backpressureLogSeconds | int | `60` |  |
-| liveLogs.batchMaxRecords | int | `500` |  |
-| liveLogs.clientMaxRecords | int | `100` |  |
-| liveLogs.drainTimeoutSeconds | int | `3` |  |
-| liveLogs.enabled | bool | `false` |  |
-| liveLogs.flushSeconds | int | `1` |  |
-| liveLogs.idlePollSchedule[0].afterIdleSeconds | int | `0` |  |
-| liveLogs.idlePollSchedule[0].intervalSeconds | int | `3` |  |
-| liveLogs.idlePollSchedule[1].afterIdleSeconds | int | `120` |  |
-| liveLogs.idlePollSchedule[1].intervalSeconds | int | `15` |  |
-| liveLogs.idlePollSchedule[2].afterIdleSeconds | int | `600` |  |
-| liveLogs.idlePollSchedule[2].intervalSeconds | int | `30` |  |
-| liveLogs.leaseSeconds | int | `60` |  |
-| liveLogs.maxAgeSeconds | int | `900` |  |
-| liveLogs.maxExceptionBytes | int | `16384` |  |
-| liveLogs.maxRows | int | `100000` |  |
-| liveLogs.queueMaxRecords | int | `10000` |  |
-| liveLogs.requestTimeoutSeconds | int | `5` |  |
-| liveLogs.snapshotLines | int | `500` |  |
-| liveLogs.streamHeartbeatSeconds | int | `20` |  |
-| liveLogs.streamPageSize | int | `500` |  |
-| liveLogs.streamPollSeconds | int | `1` |  |
-| liveLogs.tailCacheSeconds | int | `2` |  |
-| liveLogs.trimIntervalSeconds | int | `10` |  |
-| llm | object | `{"azure":{"apiKey":"","endpoint":""},"existingSecret":"","gemini":{"apiKey":""},"mistral":{"apiKey":""},"pdfExtractImages":true,"pdfParserBackend":"mistral","textract":{"accessKeyId":"","existingSecret":"","maxConcurrency":4,"region":"","secretAccessKey":""}}` | LLM authentication configuration |
+| liveLog | object | `{"allowUnscoped":false,"buffer":{"maxAgeSeconds":900,"maxRows":100000,"tailCacheSeconds":2,"trimIntervalSeconds":10},"enabled":true,"shipper":{"backpressureLogSeconds":60,"batchMaxRecords":500,"drainTimeoutSeconds":3,"flushSeconds":1,"idlePollSchedule":[{"after_idle_seconds":0,"interval_seconds":3},{"after_idle_seconds":120,"interval_seconds":15},{"after_idle_seconds":600,"interval_seconds":30}],"maxExceptionBytes":16384,"queueMaxRecords":10000,"requestTimeoutSeconds":5},"tail":{"clientMaxRecords":100,"leaseSeconds":60,"snapshotLines":500,"streamHeartbeatSeconds":20,"streamPageSize":500,"streamPollSeconds":1}}` | Live log tail (docs/design-docs/live-logs.md). Services ship their log records to audit-service, which buffers them for the Live Logs admin view. |
+| liveLog.allowUnscoped | bool | `false` | Allow admins to tail every account's log lines, not just their own. Correct for a single-tenant install; must stay false anywhere several tenants share the deployment, where it would expose one tenant's logs to another. |
+| liveLog.buffer.maxAgeSeconds | int | `900` | Age cap on the buffer table, applied alongside the row cap. Dominates when the system is quiet. |
+| liveLog.buffer.maxRows | int | `100000` | Row cap on the buffer table. Sized to cover a client's reconnect gap, not to hold history; dominates under load. |
+| liveLog.buffer.tailCacheSeconds | float | `2` | Seconds audit-service caches the answer to "is a tail open?" before re-reading the lease table. Every ingest batch asks, so this bounds that read rate. |
+| liveLog.buffer.trimIntervalSeconds | float | `10` | Minimum gap between trims in one writer process. The bounds hold approximately; trimming per write has every writer deleting from the same hot range under its insert locks. |
+| liveLog.enabled | bool | `true` | Serve the live log tail. On by default: a self-hosted install is the case this feature is for. Shipping is demand-gated on top of this, so services send nothing until an operator opens the tail. Turn it off in a shared environment, where the tail is our operational surface and not the tenant's. |
+| liveLog.shipper | object | `{"backpressureLogSeconds":60,"batchMaxRecords":500,"drainTimeoutSeconds":3,"flushSeconds":1,"idlePollSchedule":[{"after_idle_seconds":0,"interval_seconds":3},{"after_idle_seconds":120,"interval_seconds":15},{"after_idle_seconds":600,"interval_seconds":30}],"maxExceptionBytes":16384,"queueMaxRecords":10000,"requestTimeoutSeconds":5}` | Pacing and bounds for the in-process shipper every service runs. It drops rather than blocks, so these govern how much it may hold and how long it may wait. |
+| liveLog.shipper.backpressureLogSeconds | float | `60` | Minimum gap between a shipper's reports of records it lost, so the loss can be alerted on rather than only counted in-process |
+| liveLog.shipper.batchMaxRecords | int | `500` | Records the shipper sends to audit-service in one batch |
+| liveLog.shipper.drainTimeoutSeconds | float | `3` | Shutdown drain budget for the shipper, in seconds |
+| liveLog.shipper.flushSeconds | float | `1` | Seconds a record waits in the queue before a batch is sent |
+| liveLog.shipper.idlePollSchedule | list | `[{"after_idle_seconds":0,"interval_seconds":3},{"after_idle_seconds":120,"interval_seconds":15},{"after_idle_seconds":600,"interval_seconds":30}]` | Decaying idle heartbeat: how often the shipper polls for tail demand, stepping to the last tier whose idle threshold has been reached. Tiers must be in ascending threshold order. |
+| liveLog.shipper.maxExceptionBytes | int | `16384` | Tracebacks longer than this are truncated, and flagged on the record |
+| liveLog.shipper.queueMaxRecords | int | `10000` | Count-only bound on each service's shipper queue; oldest records are evicted first, which is what a tail wants |
+| liveLog.shipper.requestTimeoutSeconds | float | `5` | Timeout on the shipper's call to audit-service. Kept short: a shipper that blocks is worse than one that drops. |
+| liveLog.tail | object | `{"clientMaxRecords":100,"leaseSeconds":60,"snapshotLines":500,"streamHeartbeatSeconds":20,"streamPageSize":500,"streamPollSeconds":1}` | The API's tail read path: lease renewal, opening snapshot, poll pacing, and the tighter caps on the untrusted browser relay. |
+| liveLog.tail.clientMaxRecords | int | `100` | Maximum records accepted per browser-forwarded log batch. Browser input is untrusted, so this is capped tighter than anything on the service side. |
+| liveLog.tail.leaseSeconds | int | `60` | Seconds a poll cycle of an open tail extends the shipping lease. Services ship only while an unexpired lease exists, so this also bounds how long shipping outlives a crashed API pod. |
+| liveLog.tail.snapshotLines | int | `500` | Lines sent when a tail opens. Sized for time-to-first-paint, not history. |
+| liveLog.tail.streamHeartbeatSeconds | float | `20` | Idle seconds after which the tail sends an SSE keepalive comment |
+| liveLog.tail.streamPageSize | int | `500` | Maximum lines a single tail poll returns |
+| liveLog.tail.streamPollSeconds | float | `1` | Seconds between an open tail's polls for new lines |
+| llm | object | `{"azure":{"apiKey":"","endpoint":""},"existingSecret":"","gemini":{"apiKey":""},"mistral":{"apiKey":"","retry":{"exponent":2,"initialIntervalMS":1000,"maxElapsedMS":600000,"maxIntervalMS":60000}},"pdfExtractImages":true,"pdfParserBackend":"mistral","textract":{"accessKeyId":"","existingSecret":"","maxConcurrency":4,"region":"","secretAccessKey":""}}` | LLM authentication configuration |
 | llm.existingSecret | string | `""` | Use a pre-existing secret (must provide keys `GEMINI_API_KEY` and `MISTRAL_API_KEY`) instead of generating one. When set, `geminiApiKey`/`mistralApiKey` are ignored. |
+| llm.mistral.retry | object | `{"exponent":2,"initialIntervalMS":1000,"maxElapsedMS":600000,"maxIntervalMS":60000}` | Retry policy for the Mistral OCR call. The SDK does not retry unless it is handed a config, so without these a single 429 or 5xx from the OCR endpoint fails the whole document job. Intervals are in milliseconds, the unit the SDK's backoff strategy takes. |
+| llm.mistral.retry.exponent | float | `2` | Growth factor applied to the backoff after each attempt |
+| llm.mistral.retry.initialIntervalMS | int | `1000` | First backoff interval before the OCR call is retried |
+| llm.mistral.retry.maxElapsedMS | int | `600000` | Total retry budget for one OCR call, matching the Document AI backend's 10-minute deadline |
+| llm.mistral.retry.maxIntervalMS | int | `60000` | Ceiling on the backoff interval. A `Retry-After` header on the response wins over the computed backoff. |
 | llm.pdfExtractImages | bool | `true` | Extract embedded images from PDFs during parsing (for multimodal summarization) |
 | llm.pdfParserBackend | string | `"mistral"` | PDF parsing backend: `mistral`, `azure`, or `textract` |
 | llm.textract.accessKeyId | string | `""` | AWS access key ID. Required when `pdfParserBackend` is `textract`. |
@@ -307,8 +317,10 @@ Ragnerock research intelligence platform
 | modelService.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
 | modelService.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
 | nameOverride | string | `nil` |  |
-| otel | object | `{"authHeader":"","enabled":false,"existingSecret":"","exporterEndpoint":"","exporterInsecure":false,"exporterProtocol":"http/protobuf"}` | Otel metrics/traces/logs export |
+| otel | object | `{"authHeader":"","enabled":false,"existingSecret":"","exporterEndpoint":"","exporterInsecure":false,"exporterProtocol":"http/protobuf","serviceNamespace":"ragnerock","servicePrefix":""}` | Otel metrics/traces/logs export |
 | otel.existingSecret | string | `""` | Use a pre-existing secret (must provide key `OTEL_EXPORTER_OTLP_HEADERS`) instead of generating one. When set, `authHeader` is ignored. |
+| otel.serviceNamespace | string | `"ragnerock"` | OTEL service namespace |
+| otel.servicePrefix | string | `""` | Optional prefix for otel service names. E.g., setting servicePrefix to `foobar` changes api -> foobarapi |
 | python | object | `{"batchChunkItems":16,"maxAttempts":4,"maxRequestBytes":48000000,"timeoutMarginSeconds":60}` | Client-side knobs used by callers of python-service (API and workers). The sandbox's own configuration lives under `pythonService.sandbox`. |
 | python.batchChunkItems | int | `16` | Items per chunk when a batch execution is split across requests |
 | python.maxAttempts | int | `4` | Attempts per execution request before giving up |
@@ -382,6 +394,7 @@ Ragnerock research intelligence platform
 | rateLimits.liveLogStreamPerMinute | int | `10` | Per-user limit on opening the live-log tail |
 | rateLimits.notebookCodeFeedbackPerMinute | int | `40` |  |
 | rateLimits.notificationStreamPerMinute | int | `10` |  |
+| rateLimits.operatorParseSamplePerMinute | int | `10` | Per-user limit on workbench attachment parses. Each request can hold a synchronous worker OCR call for minutes, so the ceiling is deliberately low |
 | rateLimits.operatorTestPerMinute | int | `60` |  |
 | rateLimits.queryAssistPerMinute | int | `30` |  |
 | rateLimits.queryExecutePerMinute | int | `120` |  |

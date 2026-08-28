@@ -38,6 +38,21 @@ llm:
     apiKey: ""
   mistral:
     apiKey: ""
+    # -- Retry policy for the Mistral OCR call. The SDK does not retry unless it
+    # is handed a config, so without these a single 429 or 5xx from the OCR
+    # endpoint fails the whole document job. Intervals are in milliseconds, the
+    # unit the SDK's backoff strategy takes.
+    retry:
+      # -- First backoff interval before the OCR call is retried
+      initialIntervalMS: 1000
+      # -- Ceiling on the backoff interval. A `Retry-After` header on the
+      # response wins over the computed backoff.
+      maxIntervalMS: 60000
+      # -- Growth factor applied to the backoff after each attempt
+      exponent: 2.0
+      # -- Total retry budget for one OCR call, matching the Document AI
+      # backend's 10-minute deadline
+      maxElapsedMS: 600000
   azure:
     apiKey: ""
     endpoint: ""
@@ -66,6 +81,16 @@ encryption:
   # -- Use a pre-existing secret (must provide key `ENCRYPTION_KEK`) instead of generating one. When set, `kek` is ignored.
   existingSecret: ""
 
+gitops:
+  # -- RSA private key (PEM) that opens GitOps secrets the GitHub action sealed for transport, generate with `task gitops-sealing-key`. Leave empty to run without transport sealing; the action then fails rather than uploading plaintext.
+  sealingPrivateKey: ""
+  # -- Use a pre-existing secret (must provide key `GITOPS_SEALING_PRIVATE_KEY`) instead of generating one. When set, `sealingPrivateKey` is ignored.
+  existingSecret: ""
+  # -- Largest manifest `POST /api/gitops/apply` accepts, in bytes
+  maxManifestBytes: 5242880
+  # -- Wall-clock budget for the code security review that runs after a GitOps apply, in seconds. Agents not reached in time are reported unreviewed.
+  codeReviewBudgetSeconds: 60
+
 # -- General app configuration
 config:
   environmentIdentifier: ragnerock
@@ -81,6 +106,10 @@ otel:
   exporterEndpoint: ""
   exporterInsecure: false
   exporterProtocol: "http/protobuf"
+  # -- Optional prefix for otel service names. E.g., setting servicePrefix to `foobar` changes api -> foobarapi
+  servicePrefix: ""
+  # -- OTEL service namespace
+  serviceNamespace: "ragnerock"
   authHeader: ""
   # -- Use a pre-existing secret (must provide key `OTEL_EXPORTER_OTLP_HEADERS`) instead of generating one. When set, `authHeader` is ignored.
   existingSecret: ""
@@ -176,6 +205,8 @@ rateLimits:
   queryValidatePerMinute: 60
   auditPayloadPerMinute: 30
   operatorTestPerMinute: 60
+  # -- Per-user limit on workbench attachment parses. Each request can hold a synchronous worker OCR call for minutes, so the ceiling is deliberately low
+  operatorParseSamplePerMinute: 10
   backfillRunPerMinute: 30
   # -- Per-user limit on opening the live-log tail
   liveLogStreamPerMinute: 10
@@ -219,6 +250,11 @@ api:
   capacityWaitSeconds: 5.0
   # -- Threads serving blocking DB work off the event loop
   dbThreadpoolSize: 64
+  operatorSample:
+    # -- Max workbench attachment size accepted by the parse-sample endpoint. The file rides to the worker as base64 JSON (~4/3 the size), so keep it at or below 20 MiB
+    maxFileBytes: 20971520
+    # -- API-side read timeout on the synchronous worker parse call, in seconds. Whole-document OCR of a large PDF via an external backend takes minutes
+    parseTimeoutSeconds: 300
   # -- Deployment resoruce contraints (i.e. requests/limits)
   resources: {}
   # -- Pod tolerations (overrides `global.tolerations`)
@@ -621,6 +657,8 @@ limits:
     maxConcurrentSubtasks: 50
     maxConcurrentAnnotations: 10
     maxConcurrentJobs: 10
+    # -- Concurrent workbench attachment parses one worker pod accepts. These are synchronous API-originated calls sharing the pod with queue deliveries, so the pool is small; excess requests shed as 503
+    maxConcurrentSampleParses: 2
   usage:
     maxInputTokens: "1000000"
     maxOutputTokens: "1000000"
@@ -793,34 +831,86 @@ audit:
   queueMaxBytes: 134217728 # 128 * 1024 * 1024
   queueMaxEvents: 10000
   resnapshotTurns: 10
-  
-liveLogs:
-  enabled: false
+
+# -- Live log tail (docs/design-docs/live-logs.md). Services ship their log
+# records to audit-service, which buffers them for the Live Logs admin view.
+liveLog:
+  # -- Serve the live log tail. On by default: a self-hosted install is the case
+  # this feature is for. Shipping is demand-gated on top of this, so services
+  # send nothing until an operator opens the tail. Turn it off in a shared
+  # environment, where the tail is our operational surface and not the tenant's.
+  enabled: true
+  # -- Allow admins to tail every account's log lines, not just their own.
+  # Correct for a single-tenant install; must stay false anywhere several
+  # tenants share the deployment, where it would expose one tenant's logs to
+  # another.
   allowUnscoped: false
-  queueMaxRecords: 10000
-  batchMaxRecords: 500
-  flushSeconds: 1
-  idlePollSchedule:
-    - afterIdleSeconds: 0
-      intervalSeconds: 3
-    - afterIdleSeconds: 120
-      intervalSeconds: 15
-    - afterIdleSeconds: 600
-      intervalSeconds: 30
-  maxExceptionBytes: 16384
-  requestTimeoutSeconds: 5
-  drainTimeoutSeconds: 3
-  backpressureLogSeconds: 60
-  maxRows: 100000
-  maxAgeSeconds: 900
-  trimIntervalSeconds: 10
-  tailCacheSeconds: 2
-  leaseSeconds: 60
-  streamPollSeconds: 1
-  streamHeartbeatSeconds: 20
-  snapshotLines: 500
-  streamPageSize: 500
-  clientMaxRecords: 100
+  # -- Pacing and bounds for the in-process shipper every service runs. It drops
+  # rather than blocks, so these govern how much it may hold and how long it may
+  # wait.
+  shipper:
+    # -- Count-only bound on each service's shipper queue; oldest records are
+    # evicted first, which is what a tail wants
+    queueMaxRecords: 10000
+    # -- Records the shipper sends to audit-service in one batch
+    batchMaxRecords: 500
+    # -- Seconds a record waits in the queue before a batch is sent
+    flushSeconds: 1.0
+    # -- Decaying idle heartbeat: how often the shipper polls for tail demand,
+    # stepping to the last tier whose idle threshold has been reached. Tiers must
+    # be in ascending threshold order.
+    idlePollSchedule:
+      - after_idle_seconds: 0
+        interval_seconds: 3
+      - after_idle_seconds: 120
+        interval_seconds: 15
+      - after_idle_seconds: 600
+        interval_seconds: 30
+    # -- Tracebacks longer than this are truncated, and flagged on the record
+    maxExceptionBytes: 16384
+    # -- Timeout on the shipper's call to audit-service. Kept short: a shipper
+    # that blocks is worse than one that drops.
+    requestTimeoutSeconds: 5.0
+    # -- Shutdown drain budget for the shipper, in seconds
+    drainTimeoutSeconds: 3.0
+    # -- Minimum gap between a shipper's reports of records it lost, so the loss
+    # can be alerted on rather than only counted in-process
+    backpressureLogSeconds: 60.0
+  # -- Bounds on the buffer table both writers -- audit-service's service ingest
+  # and the API's relay of browser logs -- trim, so they agree on its size.
+  buffer:
+    # -- Row cap on the buffer table. Sized to cover a client's reconnect gap,
+    # not to hold history; dominates under load.
+    maxRows: 100000
+    # -- Age cap on the buffer table, applied alongside the row cap. Dominates
+    # when the system is quiet.
+    maxAgeSeconds: 900
+    # -- Minimum gap between trims in one writer process. The bounds hold
+    # approximately; trimming per write has every writer deleting from the same
+    # hot range under its insert locks.
+    trimIntervalSeconds: 10.0
+    # -- Seconds audit-service caches the answer to "is a tail open?" before
+    # re-reading the lease table. Every ingest batch asks, so this bounds that
+    # read rate.
+    tailCacheSeconds: 2.0
+  # -- The API's tail read path: lease renewal, opening snapshot, poll pacing,
+  # and the tighter caps on the untrusted browser relay.
+  tail:
+    # -- Seconds a poll cycle of an open tail extends the shipping lease.
+    # Services ship only while an unexpired lease exists, so this also bounds how
+    # long shipping outlives a crashed API pod.
+    leaseSeconds: 60
+    # -- Seconds between an open tail's polls for new lines
+    streamPollSeconds: 1.0
+    # -- Idle seconds after which the tail sends an SSE keepalive comment
+    streamHeartbeatSeconds: 20.0
+    # -- Lines sent when a tail opens. Sized for time-to-first-paint, not history.
+    snapshotLines: 500
+    # -- Maximum lines a single tail poll returns
+    streamPageSize: 500
+    # -- Maximum records accepted per browser-forwarded log batch. Browser input
+    # is untrusted, so this is capped tighter than anything on the service side.
+    clientMaxRecords: 100
 
 db:
   timeout:

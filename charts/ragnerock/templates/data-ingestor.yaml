@@ -64,7 +64,7 @@ spec:
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-db-conn
             - configMapRef:
-                name: {{ include "ragnerock.fullname" . }}-live-logs
+                name: {{ include "ragnerock.fullname" . }}-live-log
             - secretRef:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "cloudflare" "existingSecret" .Values.cloudflare.existingSecret) }}
             - secretRef:
@@ -73,7 +73,7 @@ spec:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "encryption" "existingSecret" .Values.encryption.existingSecret) }}
           env:
             - name: OTEL_RESOURCE_ATTRIBUTES
-              value: service.name=data-ingestor,deployment.environment={{ .Values.config.environmentIdentifier }}
+              value: service.namespace={{ .Values.otel.serviceNamespace }},service.name={{ .Values.otel.servicePrefix }}data-ingestor,deployment.environment={{ .Values.config.environmentIdentifier }}
             - name: OTEL_SERVICE_NAME
               value: data-ingestor
 {{- with .Values.dataIngestor.volumeMounts }}

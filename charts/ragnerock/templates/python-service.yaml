@@ -54,12 +54,12 @@ spec:
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-otel
             - configMapRef:
-                name: {{ include "ragnerock.fullname" . }}-live-logs
+                name: {{ include "ragnerock.fullname" . }}-live-log
             - secretRef:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "otel" "existingSecret" .Values.otel.existingSecret) }}
           env:
             - name: OTEL_RESOURCE_ATTRIBUTES
-              value: service.name=python-service,deployment.environment={{ .Values.config.environmentIdentifier }}
+              value: service.namespace={{ .Values.otel.serviceNamespace }},service.name={{ .Values.otel.servicePrefix }}python-service,deployment.environment={{ .Values.config.environmentIdentifier }}
             - name: OTEL_SERVICE_NAME
               value: python-service
 {{- with .Values.pythonService.volumeMounts }}

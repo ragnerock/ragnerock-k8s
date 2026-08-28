@@ -30,13 +30,17 @@ data:
   MEMORY_WRITE_BUDGET_ANNOTATION: "{{ include "ragnerock.number" .Values.memory.writeBudgetAnnotation }}"
   MEMORY_WRITE_BUDGET_NOTEBOOK: "{{ include "ragnerock.number" .Values.memory.writeBudgetNotebook }}"
   RESOURCE_VALUE_MAX_BYTES: "{{ include "ragnerock.number" .Values.workflowResources.valueMaxBytes }}"
-  LIVE_LOG_MAX_ROWS: "{{ include "ragnerock.number" .Values.liveLogs.maxRows }}"
-  LIVE_LOG_MAX_AGE_SECONDS: "{{ include "ragnerock.number" .Values.liveLogs.maxAgeSeconds }}"
-  LIVE_LOG_TRIM_INTERVAL_SECONDS: "{{ include "ragnerock.number" .Values.liveLogs.trimIntervalSeconds }}"
   TABULAR_LIST_PAGE_SIZE: "{{ include "ragnerock.number" .Values.tabular.listPageSize }}"
   TABULAR_PROMPT_MAX_COLUMNS: "{{ include "ragnerock.number" .Values.tabular.promptMaxColumns }}"
   TABULAR_PROMPT_MAX_SOURCES: "{{ include "ragnerock.number" .Values.tabular.promptMaxSources }}"
   TABULAR_READ_ROWS_PER_PAGE: "{{ include "ragnerock.number" .Values.tabular.readRowsPerPage }}"
+  # Live-log buffer trim bounds. Only the API and audit-service write to the
+  # buffer, but they read the bounds through core.settings, and every
+  # core-running service carries them for settings parity as it does in
+  # Terraform.
+  LIVE_LOG_MAX_ROWS: "{{ include "ragnerock.number" .Values.liveLog.buffer.maxRows }}"
+  LIVE_LOG_MAX_AGE_SECONDS: "{{ include "ragnerock.number" .Values.liveLog.buffer.maxAgeSeconds }}"
+  LIVE_LOG_TRIM_INTERVAL_SECONDS: "{{ include "ragnerock.number" .Values.liveLog.buffer.trimIntervalSeconds }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -67,6 +71,7 @@ metadata:
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
+  API_SELF_URL: "http://{{ include "ragnerock.fullname" . }}-api:8080"
   DB_POOL_SIZE: "{{ include "ragnerock.number" .Values.database.poolSize }}"
   DB_MAX_OVERFLOW: "{{ include "ragnerock.number" .Values.database.maxOverflow }}"
   DB_POOL_TIMEOUT: "{{ include "ragnerock.number" .Values.database.poolTimeout }}"
@@ -84,6 +89,16 @@ data:
   ENDPOINT_EXECUTION_RETENTION_DAYS: "{{ include "ragnerock.number" .Values.endpoints.executionRetentionDays }}"
   ENDPOINT_EXECUTION_PRUNE_BATCH_SIZE: "{{ include "ragnerock.number" .Values.endpoints.executionPruneBatchSize }}"
   ENDPOINT_EXECUTION_PRUNE_MAX_BATCHES: "{{ include "ragnerock.number" .Values.endpoints.executionPruneMaxBatches }}"
+  # GitOps apply, which only the API serves.
+  GITOPS_MAX_MANIFEST_BYTES: "{{ include "ragnerock.number" .Values.gitops.maxManifestBytes }}"
+  GITOPS_CODE_REVIEW_BUDGET_SECONDS: "{{ include "ragnerock.number" .Values.gitops.codeReviewBudgetSeconds }}"
+  # Workbench attachment parsing (POST /api/operators/parse-sample) and the
+  # operator-test sandbox deadline. The timeout reads the same value the
+  # workers get, so a workbench test cannot time out differently from the
+  # production run it stands in for.
+  OPERATOR_SAMPLE_MAX_FILE_BYTES: "{{ include "ragnerock.number" .Values.api.operatorSample.maxFileBytes }}"
+  OPERATOR_SAMPLE_PARSE_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.api.operatorSample.parseTimeoutSeconds }}"
+  CODE_OPERATOR_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.limits.codeOperator.timeoutSeconds }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -122,6 +137,7 @@ data:
   RATE_LIMIT_QUERY_VALIDATE: "{{ include "ragnerock.number" .Values.rateLimits.queryValidatePerMinute }}"
   RATE_LIMIT_AUDIT_PAYLOAD_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.auditPayloadPerMinute }}"
   RATE_LIMIT_OPERATOR_TEST_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.operatorTestPerMinute }}"
+  RATE_LIMIT_OPERATOR_PARSE_SAMPLE_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.operatorParseSamplePerMinute }}"
   RATE_LIMIT_BACKFILL_RUN_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.backfillRunPerMinute }}"
   RATE_LIMIT_LIVE_LOG_STREAM_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.liveLogStreamPerMinute }}"
   RATE_LIMIT_LIVE_LOG_CLIENT_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.liveLogClientPerMinute }}"
@@ -239,6 +255,14 @@ metadata:
 data:
   PDF_PARSER_BACKEND: "{{ .Values.llm.pdfParserBackend }}"
   PDF_EXTRACT_IMAGES: "{{ .Values.llm.pdfExtractImages }}"
+{{- if eq .Values.llm.pdfParserBackend "mistral" }}
+  # Without a retry config the Mistral SDK does not retry, so one 429 from the
+  # OCR endpoint fails the whole document job.
+  MISTRAL_RETRY_INITIAL_INTERVAL_MS: "{{ include "ragnerock.number" .Values.llm.mistral.retry.initialIntervalMS }}"
+  MISTRAL_RETRY_MAX_INTERVAL_MS: "{{ include "ragnerock.number" .Values.llm.mistral.retry.maxIntervalMS }}"
+  MISTRAL_RETRY_EXPONENT: "{{ include "ragnerock.number" .Values.llm.mistral.retry.exponent }}"
+  MISTRAL_RETRY_MAX_ELAPSED_MS: "{{ include "ragnerock.number" .Values.llm.mistral.retry.maxElapsedMS }}"
+{{- end }}
 {{- if eq .Values.llm.pdfParserBackend "azure" }}
   AZURE_DOC_INTEL_ENDPOINT: "{{ .Values.llm.azure.endpoint }}"
 {{- end }}
@@ -298,6 +322,52 @@ metadata:
 data:
   AUDIT_LIST_LIMIT_CAP: "{{ include "ragnerock.number" .Values.audit.listLimitCap }}"
   AUDIT_RESNAPSHOT_TURNS: "{{ include "ragnerock.number" .Values.audit.resnapshotTurns }}"
+---
+# The live-log shipper every service runs (live-logs design §2.5). The gate and
+# the pacing are shared, so a deployment moves them together; the buffer bounds
+# they trim against live in the `-core` map, and the tail read path in
+# `-live-log-api`.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-live-log
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  LIVE_LOG_ENABLED: "{{ .Values.liveLog.enabled }}"
+  LIVE_LOG_INGEST_URL: http://{{ include "ragnerock.fullname" . }}-audit-service:{{ include "ragnerock.number" .Values.auditService.service.port }}/logs/ingest
+  LIVE_LOG_INGEST_AUDIENCE: http://{{ include "ragnerock.fullname" . }}-audit-service:{{ include "ragnerock.number" .Values.auditService.service.port }}
+  # In-cluster the hop to audit-service is a plain Service call, with no OIDC
+  # token issuer behind it — the same reason every other `*_AUTH_ENABLED` is
+  # left off in this chart.
+  LIVE_LOG_INGEST_AUTH_ENABLED: "false"
+  LIVE_LOG_QUEUE_MAX_RECORDS: "{{ include "ragnerock.number" .Values.liveLog.shipper.queueMaxRecords }}"
+  LIVE_LOG_BATCH_MAX_RECORDS: "{{ include "ragnerock.number" .Values.liveLog.shipper.batchMaxRecords }}"
+  LIVE_LOG_FLUSH_SECONDS: "{{ include "ragnerock.number" .Values.liveLog.shipper.flushSeconds }}"
+  # A list of tiers; pydantic reads a structured setting from the environment
+  # as JSON.
+  LIVE_LOG_IDLE_POLL_SCHEDULE: {{ .Values.liveLog.shipper.idlePollSchedule | toJson | quote }}
+  LIVE_LOG_MAX_EXCEPTION_BYTES: "{{ include "ragnerock.number" .Values.liveLog.shipper.maxExceptionBytes }}"
+  LIVE_LOG_REQUEST_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.liveLog.shipper.requestTimeoutSeconds }}"
+  LIVE_LOG_DRAIN_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.liveLog.shipper.drainTimeoutSeconds }}"
+  LIVE_LOG_BACKPRESSURE_LOG_SECONDS: "{{ include "ragnerock.number" .Values.liveLog.shipper.backpressureLogSeconds }}"
+---
+# The live-log tail read path (§5.2), which only the API serves: lease renewal,
+# opening snapshot, poll pacing, scope, and the caps on the browser relay.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-live-log-api
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  LIVE_LOGS_ALLOW_UNSCOPED: "{{ .Values.liveLog.allowUnscoped }}"
+  LIVE_LOG_LEASE_SECONDS: "{{ include "ragnerock.number" .Values.liveLog.tail.leaseSeconds }}"
+  LIVE_LOG_STREAM_POLL_SECONDS: "{{ include "ragnerock.number" .Values.liveLog.tail.streamPollSeconds }}"
+  LIVE_LOG_STREAM_HEARTBEAT_SECONDS: "{{ include "ragnerock.number" .Values.liveLog.tail.streamHeartbeatSeconds }}"
+  LIVE_LOG_SNAPSHOT_LINES: "{{ include "ragnerock.number" .Values.liveLog.tail.snapshotLines }}"
+  LIVE_LOG_STREAM_PAGE_SIZE: "{{ include "ragnerock.number" .Values.liveLog.tail.streamPageSize }}"
+  LIVE_LOG_CLIENT_MAX_RECORDS: "{{ include "ragnerock.number" .Values.liveLog.tail.clientMaxRecords }}"
 ---
 # IAM permissions-cache TTL (core.iam.constants). Only the API and the two
 # workers reach the IAM permission cache.
@@ -381,6 +451,9 @@ data:
   MAX_CONCURRENT_SUBTASKS: "{{ include "ragnerock.number" .Values.limits.concurrency.maxConcurrentSubtasks }}"
   MAX_CONCURRENT_ANNOTATIONS: "{{ include "ragnerock.number" .Values.limits.concurrency.maxConcurrentAnnotations }}"
   MAX_CONCURRENT_JOBS: "{{ include "ragnerock.number" .Values.limits.concurrency.maxConcurrentJobs }}"
+  # Only the job worker is targeted by the API's parse-sample calls; the
+  # subtask-worker gets this for settings parity, as it does in Terraform.
+  MAX_CONCURRENT_SAMPLE_PARSES: "{{ include "ragnerock.number" .Values.limits.concurrency.maxConcurrentSampleParses }}"
   EMBEDDING_BATCH_SIZE: "{{ include "ragnerock.number" .Values.limits.batches.embedding }}"
   ANNOTATION_BATCH_SIZE: "{{ include "ragnerock.number" .Values.limits.batches.annotation }}"
   TABULAR_ANNOTATION_BATCH_SIZE: "{{ include "ragnerock.number" .Values.limits.batches.tabularAnnotation }}"
@@ -527,40 +600,6 @@ data:
   RECYCLE_AFTER_N_EXECUTIONS: "{{ include "ragnerock.number" .Values.pythonService.sandbox.recycleAfterNExecutions }}"
   SANDBOX_ENFORCEMENT: "{{ .Values.pythonService.sandbox.enforcement }}"
 ---
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {{ include "ragnerock.fullname" . }}-live-logs
-  labels:
-    {{- include "ragnerock.labels" . | nindent 4 }}
-data:
-  LIVE_LOG_ENABLED: "{{ .Values.liveLogs.enabled }}"
-  LIVE_LOG_INGEST_URL: http://{{ include "ragnerock.fullname" . }}-audit-service:{{ include "ragnerock.number" .Values.auditService.service.port }}/logs/ingest
-  LIVE_LOG_INGEST_AUDIENCE: http://{{ include "ragnerock.fullname" . }}-audit-service:{{ include "ragnerock.number" .Values.auditService.service.port }}
-  LIVE_LOG_INGEST_AUTH_ENABLED: "false"
-  LIVE_LOG_QUEUE_MAX_RECORDS: "{{ include "ragnerock.number" .Values.liveLogs.queueMaxRecords }}"
-  LIVE_LOG_BATCH_MAX_RECORDS: "{{ include "ragnerock.number" .Values.liveLogs.batchMaxRecords }}"
-  LIVE_LOG_FLUSH_SECONDS: "{{ include "ragnerock.number" .Values.liveLogs.flushSeconds }}"
-  LIVE_LOG_MAX_EXCEPTION_BYTES: "{{ include "ragnerock.number" .Values.liveLogs.maxExceptionBytes }}"
-  LIVE_LOG_REQUEST_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.liveLogs.requestTimeoutSeconds }}"
-  LIVE_LOG_DRAIN_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.liveLogs.drainTimeoutSeconds }}"
-  LIVE_LOG_BACKPRESSURE_LOG_SECONDS: "{{ include "ragnerock.number" .Values.liveLogs.backpressureLogSeconds }}"
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {{ include "ragnerock.fullname" . }}-live-logs-api
-  labels:
-    {{- include "ragnerock.labels" . | nindent 4 }}
-data:
-  LIVE_LOGS_ALLOW_UNSCOPED: "{{ .Values.liveLogs.allowUnscoped }}"
-  LIVE_LOG_LEASE_SECONDS: "{{ include "ragnerock.number" .Values.liveLogs.leaseSeconds }}"
-  LIVE_LOG_STREAM_POLL_SECONDS: "{{ include "ragnerock.number" .Values.liveLogs.streamPollSeconds }}"
-  LIVE_LOG_STREAM_HEARTBEAT_SECONDS: "{{ include "ragnerock.number" .Values.liveLogs.streamHeartbeatSeconds }}"
-  LIVE_LOG_SNAPSHOT_LINES: "{{ include "ragnerock.number" .Values.liveLogs.snapshotLines }}"
-  LIVE_LOG_STREAM_PAGE_SIZE: "{{ include "ragnerock.number" .Values.liveLogs.streamPageSize }}"
-  LIVE_LOG_CLIENT_MAX_RECORDS: "{{ include "ragnerock.number" .Values.liveLogs.clientMaxRecords }}"
----
 # audit-service configuration: ingest-time derivation caps, the partition
 # lifecycle, and the blob-export scan that self-dispatches /audit/export-run
 # tasks. LOG_LEVEL / ENVIRONMENT_IDENTIFIER come from the shared `-config` map.
@@ -574,12 +613,15 @@ data:
   AUDIT_PROMPT_PREVIEW_MAX_CHARS: "{{ include "ragnerock.number" .Values.audit.promptPreviewMaxChars }}"
   AUDIT_ERROR_MESSAGE_MAX_CHARS: "{{ include "ragnerock.number" .Values.audit.errorMessageMaxChars }}"
   AUDIT_PARTITION_PRECREATE_MONTHS: "{{ include "ragnerock.number" .Values.auditService.partitionPrecreateMonths }}"
-  LIVE_LOG_TAIL_CACHE_SECONDS: "{{ include "ragnerock.number" .Values.liveLogs.tailCacheSeconds }}"
   AUDIT_EXPORT_RUN_URL: http://{{ include "ragnerock.fullname" . }}-audit-service:{{ include "ragnerock.number" .Values.auditService.service.port }}/audit/export-run
   AUDIT_EXPORT_RUN_AUDIENCE: http://{{ include "ragnerock.fullname" . }}-audit-service:{{ include "ragnerock.number" .Values.auditService.service.port }}
   AUDIT_EXPORT_WATERMARK_MINUTES: "{{ include "ragnerock.number" .Values.auditService.export.watermarkMinutes }}"
   AUDIT_EXPORT_SCAN_LOOKBACK_HOURS: "{{ include "ragnerock.number" .Values.auditService.export.scanLookbackHours }}"
   AUDIT_EXPORT_LAG_ALERT_MINUTES: "{{ include "ragnerock.number" .Values.auditService.export.lagAlertMinutes }}"
+  # Every live-log ingest batch asks whether a tail is open; this bounds how
+  # often that question reaches the lease table. The rest of the live-log
+  # settings this service reads come from the `-live-log` and `-core` maps.
+  LIVE_LOG_TAIL_CACHE_SECONDS: "{{ include "ragnerock.number" .Values.liveLog.buffer.tailCacheSeconds }}"
   CLOUD_TASKS_AUDIT_EXPORT_QUEUE_NAME: "{{ .Values.queue.auditExportQueueName }}"
   CLOUD_TASKS_ENABLED: "true"
   CLOUD_TASKS_PROJECT_ID: local

@@ -66,7 +66,7 @@ spec:
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-callback-delivery
             - configMapRef:
-                name: {{ include "ragnerock.fullname" . }}-live-logs
+                name: {{ include "ragnerock.fullname" . }}-live-log
             - secretRef:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "llm" "existingSecret" .Values.llm.existingSecret) }}
             - secretRef:
@@ -75,7 +75,7 @@ spec:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "otel" "existingSecret" .Values.otel.existingSecret) }}
           env:
             - name: OTEL_RESOURCE_ATTRIBUTES
-              value: service.name=model-service,deployment.environment={{ .Values.config.environmentIdentifier }}
+              value: service.namespace={{ .Values.otel.serviceNamespace }},service.name={{ .Values.otel.servicePrefix }}model-service,deployment.environment={{ .Values.config.environmentIdentifier }}
             - name: OTEL_SERVICE_NAME
               value: model-service
 {{- with .Values.modelService.volumeMounts }}
