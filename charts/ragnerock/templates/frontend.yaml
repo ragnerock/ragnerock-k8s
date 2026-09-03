@@ -56,10 +56,7 @@ spec:
             - secretRef:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "otel" "existingSecret" .Values.otel.existingSecret) }}
           env:
-            - name: OTEL_RESOURCE_ATTRIBUTES
-              value: service.namespace={{ .Values.otel.serviceNamespace }},service.name={{ .Values.otel.servicePrefix }}frontend,deployment.environment={{ .Values.config.environmentIdentifier }}
-            - name: OTEL_SERVICE_NAME
-              value: frontend
+            {{- include "ragnerock.otelEnv" (dict "context" . "service" "frontend") | nindent 12 }}
 {{- with .Values.frontend.volumeMounts }}
           volumeMounts:
             {{- toYaml . | nindent 12 }}

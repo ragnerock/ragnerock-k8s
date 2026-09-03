@@ -29,11 +29,27 @@ data:
   MEMORY_SCHEMA_HARD_CAP: "{{ include "ragnerock.number" .Values.memory.schemaHardCap }}"
   MEMORY_WRITE_BUDGET_ANNOTATION: "{{ include "ragnerock.number" .Values.memory.writeBudgetAnnotation }}"
   MEMORY_WRITE_BUDGET_NOTEBOOK: "{{ include "ragnerock.number" .Values.memory.writeBudgetNotebook }}"
+  SKILLS_ENABLED: "{{ .Values.skills.enabled }}"
+  SKILL_BODY_MAX_CHARS: "{{ include "ragnerock.number" .Values.skills.bodyMaxChars }}"
+  SKILL_DESCRIPTION_MAX_CHARS: "{{ include "ragnerock.number" .Values.skills.descriptionMaxChars }}"
+  SKILL_MAX_PER_OPERATOR: "{{ include "ragnerock.number" .Values.skills.maxPerOperator }}"
+  SKILL_LOAD_MAX_CALLS: "{{ include "ragnerock.number" .Values.skills.loadMaxCalls }}"
   RESOURCE_VALUE_MAX_BYTES: "{{ include "ragnerock.number" .Values.workflowResources.valueMaxBytes }}"
   TABULAR_LIST_PAGE_SIZE: "{{ include "ragnerock.number" .Values.tabular.listPageSize }}"
   TABULAR_PROMPT_MAX_COLUMNS: "{{ include "ragnerock.number" .Values.tabular.promptMaxColumns }}"
   TABULAR_PROMPT_MAX_SOURCES: "{{ include "ragnerock.number" .Values.tabular.promptMaxSources }}"
   TABULAR_READ_ROWS_PER_PAGE: "{{ include "ragnerock.number" .Values.tabular.readRowsPerPage }}"
+  # Node decorators (JUDGE/CHECK/CRITIC/TOKEN_BUDGET): the kill switch and the
+  # write-time/runtime bounds, read by core validation (API) and the worker
+  # chain. Every core-running service carries them for settings parity as it
+  # does in Terraform.
+  DECORATORS_ENABLED: "{{ .Values.decorators.enabled }}"
+  DECORATOR_MAX_PER_NODE: "{{ include "ragnerock.number" .Values.decorators.maxPerNode }}"
+  DECORATOR_JUDGE_MAX_RUNS: "{{ include "ragnerock.number" .Values.decorators.judgeMaxRuns }}"
+  DECORATOR_CHECK_MAX_ATTEMPTS: "{{ include "ragnerock.number" .Values.decorators.checkMaxAttempts }}"
+  DECORATOR_MAX_LEAF_CALLS: "{{ include "ragnerock.number" .Values.decorators.maxLeafCalls }}"
+  DECORATOR_RENDER_MAX_CHARS: "{{ include "ragnerock.number" .Values.decorators.renderMaxChars }}"
+  DECORATOR_CHECK_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.decorators.checkTimeoutSeconds }}"
   # Live-log buffer trim bounds. Only the API and audit-service write to the
   # buffer, but they read the bounds through core.settings, and every
   # core-running service carries them for settings parity as it does in
@@ -41,6 +57,26 @@ data:
   LIVE_LOG_MAX_ROWS: "{{ include "ragnerock.number" .Values.liveLog.buffer.maxRows }}"
   LIVE_LOG_MAX_AGE_SECONDS: "{{ include "ragnerock.number" .Values.liveLog.buffer.maxAgeSeconds }}"
   LIVE_LOG_TRIM_INTERVAL_SECONDS: "{{ include "ragnerock.number" .Values.liveLog.buffer.trimIntervalSeconds }}"
+---
+# License validation. Every licensed service reads these: the startup check
+# refuses to serve without a valid license, and the periodic monitor
+# re-validates daily and stops the process once the license lapses. See
+# docs/design-docs/periodic-license-checks.md. The key itself is a Secret
+# (`-license`), not a ConfigMap value.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-license
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  RAGNEROCK_LICENSE_SERVER_URL: "{{ .Values.licenseServerUrl }}"
+  LICENSE_CHECK_ENABLED: "{{ .Values.licenseCheck.enabled }}"
+  LICENSE_CHECK_INTERVAL_SECONDS: "{{ include "ragnerock.number" .Values.licenseCheck.intervalSeconds }}"
+  LICENSE_CHECK_RETRY_SECONDS: "{{ include "ragnerock.number" .Values.licenseCheck.retrySeconds }}"
+  LICENSE_CHECK_GRACE_SECONDS: "{{ include "ragnerock.number" .Values.licenseCheck.graceSeconds }}"
+  LICENSE_CHECK_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.licenseCheck.timeoutSeconds }}"
+  LICENSE_CHECK_SHUTDOWN_GRACE_SECONDS: "{{ include "ragnerock.number" .Values.licenseCheck.shutdownGraceSeconds }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -120,6 +156,7 @@ data:
   RATE_LIMIT_AUTH_CHANGE_PASSWORD_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.authChangePasswordPerMinute }}"
   RATE_LIMIT_AGENT_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.agentPerMinute }}"
   RATE_LIMIT_NOTEBOOK_CODE_FEEDBACK_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.notebookCodeFeedbackPerMinute }}"
+  RATE_LIMIT_NOTEBOOK_COMPACTION_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.notebookCompactionPerMinute }}"
   RATE_LIMIT_DOCUMENT_UPLOAD_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.documentUploadPerMinute }}"
   RATE_LIMIT_SEARCH_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.searchPerMinute }}"
   RATE_LIMIT_INGEST_TRIGGER_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.ingestTriggerPerMinute }}"
@@ -280,6 +317,23 @@ metadata:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
   AGENT_MAX_ITERATIONS: "{{ include "ragnerock.number" .Values.agent.maxIterations }}"
+  # Turn-budget, reasoning, drain, context-eviction, and image knobs — read only
+  # in the API process (the sole Runner host); other services ignore them in
+  # .configignore. The two nullable budgets render empty when unset; the
+  # settings-side validator reads "" as None.
+  AGENT_TURN_TOKEN_BUDGET: "{{ if .Values.agent.turnTokenBudget }}{{ include "ragnerock.number" .Values.agent.turnTokenBudget }}{{ end }}"
+  AGENT_TOKEN_BUDGET_SOFT_FRACTION: "{{ include "ragnerock.number" .Values.agent.tokenBudgetSoftFraction }}"
+  AGENT_CACHED_TOKEN_WEIGHT: "{{ include "ragnerock.number" .Values.agent.cachedTokenWeight }}"
+  AGENT_SUB_AGENT_BUDGET_FRACTION: "{{ include "ragnerock.number" .Values.agent.subAgentBudgetFraction }}"
+  AGENT_REASONING_ENABLED: "{{ .Values.agent.reasoningEnabled }}"
+  AGENT_DRAIN_TOOL_CALLS: "{{ .Values.agent.drainToolCalls }}"
+  AGENT_CONTEXT_EVICTION_HIGH_WATER_TOKENS: "{{ if .Values.agent.contextEvictionHighWaterTokens }}{{ include "ragnerock.number" .Values.agent.contextEvictionHighWaterTokens }}{{ end }}"
+  AGENT_CONTEXT_EVICTION_LOW_WATER_TOKENS: "{{ include "ragnerock.number" .Values.agent.contextEvictionLowWaterTokens }}"
+  AGENT_CONTEXT_EVICTION_MIN_CHARS: "{{ include "ragnerock.number" .Values.agent.contextEvictionMinChars }}"
+  AGENT_TOOL_RESULT_IMAGES: "{{ .Values.agent.toolResultImages }}"
+  NOTEBOOK_SANDBOX_CODE_CELLS: "{{ .Values.notebook.sandboxCodeCells }}"
+  AUDIT_NOTEBOOK_TURN_SNAPSHOT: "{{ .Values.notebook.auditTurnSnapshot }}"
+  NOTEBOOK_COMPACTION_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.notebook.compactionTimeoutSeconds }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -289,6 +343,7 @@ metadata:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
   CODE_TOOL_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.tools.codeToolTimeoutSeconds }}"
+  CODE_TOOL_MAX_RESULT_IMAGES: "{{ include "ragnerock.number" .Values.tools.maxResultImages }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -309,6 +364,14 @@ data:
   AUDIT_PAYLOAD_FIELD_MAX_BYTES: "{{ include "ragnerock.number" .Values.audit.payloadFieldMaxBytes }}"
   AUDIT_QUEUE_MAX_BYTES: "{{ include "ragnerock.number" .Values.audit.queueMaxBytes }}"
   AUDIT_QUEUE_MAX_EVENTS: "{{ include "ragnerock.number" .Values.audit.queueMaxEvents }}"
+  # Audit image sink (image-visibility design §3.2): the emitter ships stripped
+  # image bytes to audit-service for content-addressed blob storage. Rides on the
+  # -audit ConfigMap alongside the other emitter knobs; db-service mounts this
+  # ConfigMap but declares none of these fields, so it ignores them.
+  AUDIT_IMAGE_STORE_ENABLED: "{{ .Values.audit.imageStoreEnabled }}"
+  AUDIT_IMAGE_INGEST_URL: http://{{ include "ragnerock.fullname" . }}-audit-service:{{ include "ragnerock.number" .Values.auditService.service.port }}/audit/images/ingest
+  AUDIT_IMAGE_MAX_BYTES: "{{ include "ragnerock.number" .Values.audit.imageMaxBytes }}"
+  AUDIT_IMAGE_QUEUE_MAX_BYTES: "{{ include "ragnerock.number" .Values.audit.imageQueueMaxBytes }}"
 ---
 # Audit knobs read only in the API process: the event-list cap belongs to the
 # audit read side (api.routers.audit / core.audit.query) and the re-snapshot
@@ -422,6 +485,17 @@ data:
   FALLBACK_CHAIN_BUDGET_SECONDS: "{{ include "ragnerock.number" .Values.fallback.chainBudgetSeconds }}"
   FALLBACK_AGENT_CHAIN_BUDGET_SECONDS: "{{ include "ragnerock.number" .Values.fallback.agentChainBudgetSeconds }}"
   FALLBACK_PER_PROVIDER_ATTEMPTS: "{{ include "ragnerock.number" .Values.fallback.perProviderAttempts }}"
+  # Reasoning / extended-thinking config (agent-thinking design). Anthropic gets
+  # a response-length ceiling and per-effort thinking budgets; Gemini per-effort
+  # thinking budgets; OpenAI a Responses-API switch that enables reasoning items.
+  ANTHROPIC_MAX_OUTPUT_TOKENS: "{{ include "ragnerock.number" .Values.model.anthropicMaxOutputTokens }}"
+  ANTHROPIC_THINKING_BUDGET_LOW: "{{ include "ragnerock.number" .Values.model.anthropicThinkingBudgetLow }}"
+  ANTHROPIC_THINKING_BUDGET_MEDIUM: "{{ include "ragnerock.number" .Values.model.anthropicThinkingBudgetMedium }}"
+  ANTHROPIC_THINKING_BUDGET_HIGH: "{{ include "ragnerock.number" .Values.model.anthropicThinkingBudgetHigh }}"
+  GEMINI_THINKING_BUDGET_LOW: "{{ include "ragnerock.number" .Values.model.geminiThinkingBudgetLow }}"
+  GEMINI_THINKING_BUDGET_MEDIUM: "{{ include "ragnerock.number" .Values.model.geminiThinkingBudgetMedium }}"
+  GEMINI_THINKING_BUDGET_HIGH: "{{ include "ragnerock.number" .Values.model.geminiThinkingBudgetHigh }}"
+  OPENAI_USE_RESPONSES_API: "{{ .Values.model.openaiUseResponsesApi }}"
 ---
 apiVersion: v1
 kind: ConfigMap

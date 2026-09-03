@@ -1,6 +1,6 @@
 # ragnerock
 
-![Version: 1.4.2](https://img.shields.io/badge/Version-1.4.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v2026.08.26](https://img.shields.io/badge/AppVersion-v2026.08.26-informational?style=flat-square)
+![Version: 1.5.0](https://img.shields.io/badge/Version-1.5.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v2026.08.28](https://img.shields.io/badge/AppVersion-v2026.08.28-informational?style=flat-square)
 
 Ragnerock research intelligence platform
 
@@ -9,7 +9,17 @@ Ragnerock research intelligence platform
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | agent.annotationToolMaxIterations | int | `25` | Tool-call iterations an annotation operator's agent may take before it is cut off |
+| agent.cachedTokenWeight | float | `0.1` | Weight of a cache-read input token in the cost-weighted budget unit |
+| agent.contextEvictionHighWaterTokens | string | `""` | In-turn context-eviction trigger (previous call's input tokens). Empty disables eviction; intended production value 140000 |
+| agent.contextEvictionLowWaterTokens | int | `90000` | Context-eviction pass target, in tokens |
+| agent.contextEvictionMinChars | int | `2000` | Smallest tool-result content (chars) worth stubbing during eviction |
+| agent.drainToolCalls | bool | `false` | Rollout flag for parallel tool-call draining: when true the Runner executes the whole tool-call batch before re-invoking |
 | agent.maxIterations | int | `10` |  |
+| agent.reasoningEnabled | bool | `true` | Ops kill switch for reasoning/thinking: when false the API never sets a reasoning effort |
+| agent.subAgentBudgetFraction | float | `0.5` | A sub-runner's spend ceiling as a share of the parent turn's remaining budget at spawn |
+| agent.tokenBudgetSoftFraction | float | `0.8` | Soft advisory threshold: at this fraction of the turn budget the Runner injects one non-forcing wrap-up message |
+| agent.toolResultImages | bool | `false` | Rollout flag: attach sandbox plots to tool results so the model sees them within the producing turn |
+| agent.turnTokenBudget | int | `150000` | Turn token budget in cost-weighted units (output + uncached input + cachedTokenWeight x cached input). Empty disables budget termination, leaving the iteration cap as the only backstop |
 | analysis.dataframeOpTimeout | int | `60` |  |
 | analysis.maxColumns | int | `500` |  |
 | analysis.maxRows | int | `50000` |  |
@@ -65,6 +75,9 @@ Ragnerock research intelligence platform
 | audit.errorMessageMaxChars | int | `2000` |  |
 | audit.eventMaxBytes | int | `512000` |  |
 | audit.flushIntervalSeconds | float | `2` |  |
+| audit.imageMaxBytes | int | `716800` | Largest single stripped audit image (bytes) the emitter ships to the image sink |
+| audit.imageQueueMaxBytes | int | `33554432` | Byte ceiling on the audit emitter's in-memory image queue |
+| audit.imageStoreEnabled | bool | `false` | Rollout flag: ship stripped audit image bytes to audit-service for content-addressed blob storage |
 | audit.kwargsSummaryMaxKeys | int | `50` |  |
 | audit.listLimitCap | int | `200` |  |
 | audit.payloadFieldMaxBytes | int | `204800` |  |
@@ -168,6 +181,14 @@ Ragnerock research intelligence platform
 | dbService.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | dbService.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
 | dbService.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
+| decorators | object | `{"checkMaxAttempts":5,"checkTimeoutSeconds":30,"enabled":true,"judgeMaxRuns":5,"maxLeafCalls":30,"maxPerNode":4,"renderMaxChars":20000}` | Node decorators (JUDGE/CHECK/CRITIC/TOKEN_BUDGET): the global kill switch and the bounds that keep a decorated node's per-item cost bounded. |
+| decorators.checkMaxAttempts | int | `5` | Upper bound on a check/critic's retry attempts |
+| decorators.checkTimeoutSeconds | int | `30` | python-service timeout for a check's code, in seconds |
+| decorators.enabled | bool | `true` | Serve node decorators. Set to false to reject decorator writes and fail decorated items rather than silently running the bare operator. |
+| decorators.judgeMaxRuns | int | `5` | Upper bound on a judge's runs |
+| decorators.maxLeafCalls | int | `30` | Ceiling on base-operator calls one decorated invocation may make |
+| decorators.maxPerNode | int | `4` | Decorator specs allowed on a single node |
+| decorators.renderMaxChars | int | `20000` | Ceiling on a rendered judge candidate / critic output, in characters |
 | encryption.existingSecret | string | `""` | Use a pre-existing secret (must provide key `ENCRYPTION_KEK`) instead of generating one. When set, `kek` is ignored. |
 | encryption.kek | string | `""` | Key Encryption Key (KEK), generate with python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())' |
 | endpoints.HMACMasterKey | string | `""` |  |
@@ -220,7 +241,14 @@ Ragnerock research intelligence platform
 | iam.permissionsCacheTTL | int | `60` | Seconds a resolved IAM permission set is cached in-process |
 | ingest.staleTimeoutSeconds | int | `3600` |  |
 | license | string | `""` | Ragnerock provided license key |
+| licenseCheck.enabled | bool | `true` | Enable license enforcement. Turning this off skips both the startup check and the periodic re-check; intended for air-gapped evaluation, not for production. |
+| licenseCheck.graceSeconds | int | `259200` | How long a service may keep serving without a successful validation before it stops (default: 3 days) |
+| licenseCheck.intervalSeconds | int | `86400` | Seconds between checks after a successful validation (default: once a day) |
+| licenseCheck.retrySeconds | int | `3600` | Seconds between checks while the license server is unreachable |
+| licenseCheck.shutdownGraceSeconds | int | `30` | Seconds allowed for graceful shutdown after a lapsed license before the process is killed |
+| licenseCheck.timeoutSeconds | int | `10` | Per-request timeout for one validation call, in seconds |
 | licenseExistingSecret | string | `""` | Use a pre-existing secret (must provide key `RAGNEROCK_LICENSE`) instead of generating one. When set, `license` is ignored. |
+| licenseServerUrl | string | `"https://licenses.ragnerock.com"` | License server the deployment validates against |
 | limits.batches.annotation | int | `50` |  |
 | limits.batches.defaultRow | int | `50` |  |
 | limits.batches.embedding | int | `100` |  |
@@ -293,12 +321,20 @@ Ragnerock research intelligence platform
 | model.agentNoChainMaxAttempts | int | `4` | Agent attempts when no fallback chain is configured |
 | model.annotatorNoChainMaxAttempts | int | `8` | Annotator attempts when no fallback chain is configured |
 | model.annotatorRetryBudgetSeconds | int | `420` | Wall-clock budget for annotator retries, in seconds |
+| model.anthropicMaxOutputTokens | int | `8192` | Anthropic response-length ceiling (tokens); with thinking, max_tokens = thinking budget + this |
+| model.anthropicThinkingBudgetHigh | int | `16384` | Anthropic thinking token budget for the HIGH effort tier |
+| model.anthropicThinkingBudgetLow | int | `4096` | Anthropic thinking token budget for the LOW effort tier |
+| model.anthropicThinkingBudgetMedium | int | `8192` | Anthropic thinking token budget for the MEDIUM effort tier |
 | model.geminiMaxOutputTokens | int | `16384` | Output-token ceiling for the default Gemini provider |
 | model.geminiModelName | string | `"gemini-3-flash-preview"` |  |
+| model.geminiThinkingBudgetHigh | int | `24576` | Gemini thinking token budget for the HIGH effort tier |
+| model.geminiThinkingBudgetLow | int | `1024` | Gemini thinking token budget for the LOW effort tier |
+| model.geminiThinkingBudgetMedium | int | `8192` | Gemini thinking token budget for the MEDIUM effort tier |
 | model.geminiThinkingLevel | string | `"LOW"` | Gemini thinking budget: `LOW`, `MEDIUM`, or `HIGH` |
 | model.geminiTruncationRetries | int | `1` | Retries when a Gemini response comes back truncated |
 | model.httpTimeoutSeconds | int | `180` |  |
 | model.maxConcurrentProviderCalls | int | `50` | Provider calls the model-service will have in flight at once |
+| model.openaiUseResponsesApi | bool | `false` | Route OpenAI calls through the Responses API (enables encrypted reasoning items) |
 | modelService.affinity | object | `{}` | Pod affinity rules (overrides `global.affinity`) |
 | modelService.annotations | object | `{}` | Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence) |
 | modelService.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
@@ -317,6 +353,10 @@ Ragnerock research intelligence platform
 | modelService.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
 | modelService.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
 | nameOverride | string | `nil` |  |
+| notebook | object | `{"auditTurnSnapshot":false,"compactionTimeoutSeconds":120,"sandboxCodeCells":false}` | Notebook agent rollout flags and the compaction-call timeout. |
+| notebook.auditTurnSnapshot | bool | `false` | Rollout flag: capture a full history snapshot on the first iteration of every notebook turn so the audit record is exactly replayable |
+| notebook.compactionTimeoutSeconds | int | `120` | Wall-clock bound (seconds) on the one-shot notebook-compaction summarization call |
+| notebook.sandboxCodeCells | bool | `false` | Rollout flag: persist a real CODE cell for each sandbox execution so the UI and next turn's history see sandbox runs like kernel runs |
 | otel | object | `{"authHeader":"","enabled":false,"existingSecret":"","exporterEndpoint":"","exporterInsecure":false,"exporterProtocol":"http/protobuf","serviceNamespace":"ragnerock","servicePrefix":""}` | Otel metrics/traces/logs export |
 | otel.existingSecret | string | `""` | Use a pre-existing secret (must provide key `OTEL_EXPORTER_OTLP_HEADERS`) instead of generating one. When set, `authHeader` is ignored. |
 | otel.serviceNamespace | string | `"ragnerock"` | OTEL service namespace |
@@ -393,6 +433,7 @@ Ragnerock research intelligence platform
 | rateLimits.liveLogClientPerMinute | int | `30` | Per-user limit on the browser log relay endpoint |
 | rateLimits.liveLogStreamPerMinute | int | `10` | Per-user limit on opening the live-log tail |
 | rateLimits.notebookCodeFeedbackPerMinute | int | `40` |  |
+| rateLimits.notebookCompactionPerMinute | int | `10` |  |
 | rateLimits.notificationStreamPerMinute | int | `10` |  |
 | rateLimits.operatorParseSamplePerMinute | int | `10` | Per-user limit on workbench attachment parses. Each request can hold a synchronous worker OCR call for minutes, so the ceiling is deliberately low |
 | rateLimits.operatorTestPerMinute | int | `60` |  |
@@ -404,6 +445,12 @@ Ragnerock research intelligence platform
 | rateLimits.toolsPerMinute | int | `60` |  |
 | rateLimits.windowMinutes | int | `1` |  |
 | rateLimits.workflowTestConditionPerMinute | int | `120` |  |
+| skills | object | `{"bodyMaxChars":32000,"descriptionMaxChars":512,"enabled":true,"loadMaxCalls":10,"maxPerOperator":10}` | Agent skills: the ops kill switch, the size caps that bound catalog and body token cost, and the per-run load budget. |
+| skills.bodyMaxChars | int | `32000` | Maximum instruction-body length in characters |
+| skills.descriptionMaxChars | int | `512` | Maximum description length in characters (bounds catalog token cost) |
+| skills.enabled | bool | `true` | Serve skills to agents. Set to false to switch skills off entirely. |
+| skills.loadMaxCalls | int | `10` | load_skill calls allowed in a single run |
+| skills.maxPerOperator | int | `10` | Skills a single workflow agent may select |
 | subtaskWorker.affinity | object | `{}` | Pod affinity rules (overrides `global.affinity`) |
 | subtaskWorker.annotations | object | `{}` | Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence) |
 | subtaskWorker.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
@@ -428,6 +475,7 @@ Ragnerock research intelligence platform
 | tabular.promptMaxSources | int | `10` | Tables described in a single prompt |
 | tabular.readRowsPerPage | int | `50` | Rows returned per page when an agent reads a tabular document |
 | tools.codeToolTimeoutSeconds | int | `30` |  |
+| tools.maxResultImages | int | `10` | Cap on images attached to a single agent tool result |
 | worker.affinity | object | `{}` | Pod affinity rules (overrides `global.affinity`) |
 | worker.annotations | object | `{}` | Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence) |
 | worker.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |

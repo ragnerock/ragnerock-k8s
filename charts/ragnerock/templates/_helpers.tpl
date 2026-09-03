@@ -188,6 +188,23 @@ Usage: {{ include "ragnerock.serviceAccountName" (dict "context" . "config" .Val
 {{- end -}}
 
 {{/*
+OpenTelemetry service-identity env vars for a component.
+servicePrefix is applied to BOTH service.name (in OTEL_RESOURCE_ATTRIBUTES) and
+OTEL_SERVICE_NAME so they never disagree — per the OTEL spec OTEL_SERVICE_NAME
+overrides service.name from OTEL_RESOURCE_ATTRIBUTES, so both must carry the
+prefix for servicePrefix to take effect.
+Usage: {{ include "ragnerock.otelEnv" (dict "context" . "service" "db-service") | nindent 12 }}
+*/}}
+{{- define "ragnerock.otelEnv" -}}
+  {{- $otel := .context.Values.otel -}}
+  {{- $name := printf "%s%s" $otel.servicePrefix .service -}}
+- name: OTEL_RESOURCE_ATTRIBUTES
+  value: service.namespace={{ $otel.serviceNamespace }},service.name={{ $name }},deployment.environment={{ .context.Values.config.environmentIdentifier }}
+- name: OTEL_SERVICE_NAME
+  value: {{ $name }}
+{{- end -}}
+
+{{/*
 Merge global and per-service annotations into a single set of key/value pairs.
 Per-service keys (`<service>.annotations`) take precedence over `global.annotations`.
 Renders the annotation lines only (no `annotations:` header) so callers can nest

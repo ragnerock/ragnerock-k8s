@@ -85,6 +85,8 @@ spec:
                 name: {{ include "ragnerock.fullname" . }}-db-conn
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-live-log
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-license
             - secretRef:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "db" "existingSecret" .Values.database.existingSecret) }}
             - secretRef:
@@ -100,10 +102,7 @@ spec:
             - secretRef:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "license" "existingSecret" .Values.licenseExistingSecret) }}
           env:
-            - name: OTEL_RESOURCE_ATTRIBUTES
-              value: service.namespace={{ .Values.otel.serviceNamespace }},service.name={{ .Values.otel.servicePrefix }}subtask-worker,deployment.environment={{ .Values.config.environmentIdentifier }}
-            - name: OTEL_SERVICE_NAME
-              value: subtask-worker
+            {{- include "ragnerock.otelEnv" (dict "context" . "service" "subtask-worker") | nindent 12 }}
 {{- with .Values.subtaskWorker.volumeMounts }}
           volumeMounts:
             {{- toYaml . | nindent 12 }}

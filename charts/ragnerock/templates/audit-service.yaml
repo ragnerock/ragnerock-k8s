@@ -59,17 +59,18 @@ spec:
                 name: {{ include "ragnerock.fullname" . }}-otel
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-live-log
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-license
             - secretRef:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "db" "existingSecret" .Values.database.existingSecret) }}
             - secretRef:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "encryption" "existingSecret" .Values.encryption.existingSecret) }}
             - secretRef:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "otel" "existingSecret" .Values.otel.existingSecret) }}
+            - secretRef:
+                name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "license" "existingSecret" .Values.licenseExistingSecret) }}
           env:
-            - name: OTEL_RESOURCE_ATTRIBUTES
-              value: service.namespace={{ .Values.otel.serviceNamespace }},service.name={{ .Values.otel.servicePrefix }}audit-service,deployment.environment={{ .Values.config.environmentIdentifier }}
-            - name: OTEL_SERVICE_NAME
-              value: audit-service
+            {{- include "ragnerock.otelEnv" (dict "context" . "service" "audit-service") | nindent 12 }}
 {{- with .Values.auditService.volumeMounts }}
           volumeMounts:
             {{- toYaml . | nindent 12 }}

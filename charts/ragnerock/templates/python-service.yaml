@@ -58,10 +58,7 @@ spec:
             - secretRef:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "otel" "existingSecret" .Values.otel.existingSecret) }}
           env:
-            - name: OTEL_RESOURCE_ATTRIBUTES
-              value: service.namespace={{ .Values.otel.serviceNamespace }},service.name={{ .Values.otel.servicePrefix }}python-service,deployment.environment={{ .Values.config.environmentIdentifier }}
-            - name: OTEL_SERVICE_NAME
-              value: python-service
+            {{- include "ragnerock.otelEnv" (dict "context" . "service" "python-service") | nindent 12 }}
 {{- with .Values.pythonService.volumeMounts }}
           volumeMounts:
             {{- toYaml . | nindent 12 }}

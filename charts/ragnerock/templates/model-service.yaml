@@ -67,17 +67,18 @@ spec:
                 name: {{ include "ragnerock.fullname" . }}-callback-delivery
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-live-log
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-license
             - secretRef:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "llm" "existingSecret" .Values.llm.existingSecret) }}
             - secretRef:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "encryption" "existingSecret" .Values.encryption.existingSecret) }}
             - secretRef:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "otel" "existingSecret" .Values.otel.existingSecret) }}
+            - secretRef:
+                name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "license" "existingSecret" .Values.licenseExistingSecret) }}
           env:
-            - name: OTEL_RESOURCE_ATTRIBUTES
-              value: service.namespace={{ .Values.otel.serviceNamespace }},service.name={{ .Values.otel.servicePrefix }}model-service,deployment.environment={{ .Values.config.environmentIdentifier }}
-            - name: OTEL_SERVICE_NAME
-              value: model-service
+            {{- include "ragnerock.otelEnv" (dict "context" . "service" "model-service") | nindent 12 }}
 {{- with .Values.modelService.volumeMounts }}
           volumeMounts:
             {{- toYaml . | nindent 12 }}

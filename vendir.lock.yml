@@ -2,34 +2,34 @@ apiVersion: vendir.k14s.io/v1alpha1
 directories:
 - contents:
   - git:
-      commitTitle: 'ENH: Configurable OTEL, CI optimizations (#388)...'
-      sha: fceb403e3292d46be0e3f96bb01c2a365cc58914
+      commitTitle: Fix failing integration tests (#396)
+      sha: a507ec9337a28b403a41b2a82664c1d28e439179
       tags:
-      - v2026.08.26-2-gfceb403e
+      - v2026.09.03
     path: .
   path: charts
 - contents:
   - git:
-      commitTitle: 'ENH: Configurable OTEL, CI optimizations (#388)...'
-      sha: fceb403e3292d46be0e3f96bb01c2a365cc58914
+      commitTitle: Fix failing integration tests (#396)
+      sha: a507ec9337a28b403a41b2a82664c1d28e439179
       tags:
-      - v2026.08.26-2-gfceb403e
+      - v2026.09.03
     path: .
   path: scripts
 - contents:
   - git:
-      commitTitle: 'ENH: Configurable OTEL, CI optimizations (#388)...'
-      sha: fceb403e3292d46be0e3f96bb01c2a365cc58914
+      commitTitle: Fix failing integration tests (#396)
+      sha: a507ec9337a28b403a41b2a82664c1d28e439179
       tags:
-      - v2026.08.26-2-gfceb403e
+      - v2026.09.03
     path: .
   path: .github/workflows
 - contents:
   - git:
-      commitTitle: 'ENH: Configurable OTEL, CI optimizations (#388)...'
-      sha: fceb403e3292d46be0e3f96bb01c2a365cc58914
+      commitTitle: Fix failing integration tests (#396)
+      sha: a507ec9337a28b403a41b2a82664c1d28e439179
       tags:
-      - v2026.08.26-2-gfceb403e
+      - v2026.09.03
     path: .
   path: .vendir-staging/root
 kind: LockConfig

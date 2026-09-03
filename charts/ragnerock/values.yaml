@@ -188,6 +188,7 @@ rateLimits:
   authChangePasswordPerMinute: 5
   agentPerMinute: 20
   notebookCodeFeedbackPerMinute: 40
+  notebookCompactionPerMinute: 10
   documentUploadPerMinute: 60
   searchPerMinute: 60
   ingestTriggerPerMinute: 20
@@ -235,6 +236,22 @@ model:
   annotatorNoChainMaxAttempts: 8
   # -- Wall-clock budget for annotator retries, in seconds
   annotatorRetryBudgetSeconds: 420
+  # -- Anthropic response-length ceiling (tokens); with thinking, max_tokens = thinking budget + this
+  anthropicMaxOutputTokens: 8192
+  # -- Anthropic thinking token budget for the LOW effort tier
+  anthropicThinkingBudgetLow: 4096
+  # -- Anthropic thinking token budget for the MEDIUM effort tier
+  anthropicThinkingBudgetMedium: 8192
+  # -- Anthropic thinking token budget for the HIGH effort tier
+  anthropicThinkingBudgetHigh: 16384
+  # -- Gemini thinking token budget for the LOW effort tier
+  geminiThinkingBudgetLow: 1024
+  # -- Gemini thinking token budget for the MEDIUM effort tier
+  geminiThinkingBudgetMedium: 8192
+  # -- Gemini thinking token budget for the HIGH effort tier
+  geminiThinkingBudgetHigh: 24576
+  # -- Route OpenAI calls through the Responses API (enables encrypted reasoning items)
+  openaiUseResponsesApi: false
 
 api:
   replicaCount: 1
@@ -685,6 +702,25 @@ limits:
 license: ""
 # -- Use a pre-existing secret (must provide key `RAGNEROCK_LICENSE`) instead of generating one. When set, `license` is ignored.
 licenseExistingSecret: ""
+# -- License server the deployment validates against
+licenseServerUrl: "https://licenses.ragnerock.com"
+
+# Periodic license re-validation. Every licensed service validates once at
+# startup and then re-validates on this schedule, stopping the process when the
+# license is refused. See docs/design-docs/periodic-license-checks.md.
+licenseCheck:
+  # -- Enable license enforcement. Turning this off skips both the startup check and the periodic re-check; intended for air-gapped evaluation, not for production.
+  enabled: true
+  # -- Seconds between checks after a successful validation (default: once a day)
+  intervalSeconds: 86400
+  # -- Seconds between checks while the license server is unreachable
+  retrySeconds: 3600
+  # -- How long a service may keep serving without a successful validation before it stops (default: 3 days)
+  graceSeconds: 259200
+  # -- Per-request timeout for one validation call, in seconds
+  timeoutSeconds: 10
+  # -- Seconds allowed for graceful shutdown after a lapsed license before the process is killed
+  shutdownGraceSeconds: 30
 
 endpoints:
   HMACMasterKey: ""
@@ -722,9 +758,40 @@ agent:
   maxIterations: 10
   # -- Tool-call iterations an annotation operator's agent may take before it is cut off
   annotationToolMaxIterations: 25
+  # -- Turn token budget in cost-weighted units (output + uncached input + cachedTokenWeight x cached input). Empty disables budget termination, leaving the iteration cap as the only backstop
+  turnTokenBudget: 150000
+  # -- Soft advisory threshold: at this fraction of the turn budget the Runner injects one non-forcing wrap-up message
+  tokenBudgetSoftFraction: 0.8
+  # -- Weight of a cache-read input token in the cost-weighted budget unit
+  cachedTokenWeight: 0.1
+  # -- A sub-runner's spend ceiling as a share of the parent turn's remaining budget at spawn
+  subAgentBudgetFraction: 0.5
+  # -- Ops kill switch for reasoning/thinking: when false the API never sets a reasoning effort
+  reasoningEnabled: true
+  # -- Rollout flag for parallel tool-call draining: when true the Runner executes the whole tool-call batch before re-invoking
+  drainToolCalls: false
+  # -- In-turn context-eviction trigger (previous call's input tokens). Empty disables eviction; intended production value 140000
+  contextEvictionHighWaterTokens: ""
+  # -- Context-eviction pass target, in tokens
+  contextEvictionLowWaterTokens: 90000
+  # -- Smallest tool-result content (chars) worth stubbing during eviction
+  contextEvictionMinChars: 2000
+  # -- Rollout flag: attach sandbox plots to tool results so the model sees them within the producing turn
+  toolResultImages: false
 
 tools:
   codeToolTimeoutSeconds: 30
+  # -- Cap on images attached to a single agent tool result
+  maxResultImages: 10
+
+# -- Notebook agent rollout flags and the compaction-call timeout.
+notebook:
+  # -- Rollout flag: persist a real CODE cell for each sandbox execution so the UI and next turn's history see sandbox runs like kernel runs
+  sandboxCodeCells: false
+  # -- Rollout flag: capture a full history snapshot on the first iteration of every notebook turn so the audit record is exactly replayable
+  auditTurnSnapshot: false
+  # -- Wall-clock bound (seconds) on the one-shot notebook-compaction summarization call
+  compactionTimeoutSeconds: 120
 
 # -- Agentic memory: the ops kill switch, schema-proliferation caps, and the
 # per-run write budgets that bound a single agent's memory writes.
@@ -739,6 +806,39 @@ memory:
   writeBudgetAnnotation: 12
   # -- Memory writes allowed in a single notebook turn
   writeBudgetNotebook: 8
+
+# -- Agent skills: the ops kill switch, the size caps that bound catalog and
+# body token cost, and the per-run load budget.
+skills:
+  # -- Serve skills to agents. Set to false to switch skills off entirely.
+  enabled: true
+  # -- Maximum instruction-body length in characters
+  bodyMaxChars: 32000
+  # -- Maximum description length in characters (bounds catalog token cost)
+  descriptionMaxChars: 512
+  # -- Skills a single workflow agent may select
+  maxPerOperator: 10
+  # -- load_skill calls allowed in a single run
+  loadMaxCalls: 10
+
+# -- Node decorators (JUDGE/CHECK/CRITIC/TOKEN_BUDGET): the global kill switch
+# and the bounds that keep a decorated node's per-item cost bounded.
+decorators:
+  # -- Serve node decorators. Set to false to reject decorator writes and fail
+  # decorated items rather than silently running the bare operator.
+  enabled: true
+  # -- Decorator specs allowed on a single node
+  maxPerNode: 4
+  # -- Upper bound on a judge's runs
+  judgeMaxRuns: 5
+  # -- Upper bound on a check/critic's retry attempts
+  checkMaxAttempts: 5
+  # -- Ceiling on base-operator calls one decorated invocation may make
+  maxLeafCalls: 30
+  # -- Ceiling on a rendered judge candidate / critic output, in characters
+  renderMaxChars: 20000
+  # -- python-service timeout for a check's code, in seconds
+  checkTimeoutSeconds: 30
 
 # -- Tabular documents: page sizes for reads and the shape of the table
 # summaries rendered into prompts.
@@ -831,6 +931,12 @@ audit:
   queueMaxBytes: 134217728 # 128 * 1024 * 1024
   queueMaxEvents: 10000
   resnapshotTurns: 10
+  # -- Rollout flag: ship stripped audit image bytes to audit-service for content-addressed blob storage
+  imageStoreEnabled: false
+  # -- Largest single stripped audit image (bytes) the emitter ships to the image sink
+  imageMaxBytes: 716800 # 700 * 1024
+  # -- Byte ceiling on the audit emitter's in-memory image queue
+  imageQueueMaxBytes: 33554432 # 32 * 1024 * 1024
 
 # -- Live log tail (docs/design-docs/live-logs.md). Services ship their log
 # records to audit-service, which buffers them for the Live Logs admin view.
