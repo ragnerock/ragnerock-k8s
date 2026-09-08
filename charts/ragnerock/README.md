@@ -1,6 +1,6 @@
 # ragnerock
 
-![Version: 1.5.1](https://img.shields.io/badge/Version-1.5.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v2026.09.03](https://img.shields.io/badge/AppVersion-v2026.09.03-informational?style=flat-square)
+![Version: 1.5.0](https://img.shields.io/badge/Version-1.5.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v2026.08.28](https://img.shields.io/badge/AppVersion-v2026.08.28-informational?style=flat-square)
 
 Ragnerock research intelligence platform
 
@@ -20,6 +20,36 @@ Ragnerock research intelligence platform
 | agent.tokenBudgetSoftFraction | float | `0.8` | Soft advisory threshold: at this fraction of the turn budget the Runner injects one non-forcing wrap-up message |
 | agent.toolResultImages | bool | `false` | Rollout flag: attach sandbox plots to tool results so the model sees them within the producing turn |
 | agent.turnTokenBudget | int | `150000` | Turn token budget in cost-weighted units (output + uncached input + cachedTokenWeight x cached input). Empty disables budget termination, leaving the iteration cap as the only backstop |
+| agentTools | object | `{"annotationToolCallRecordResultMaxChars":40000,"auditResultMaxChars":8000,"buildTimeBudgetSeconds":600,"busyWaitSeconds":5,"callTimeoutMaxSeconds":120,"callTimeoutSeconds":30,"connectTimeoutSeconds":5,"descriptionMaxChars":1024,"discoveryTimeoutSeconds":20,"enabled":true,"executionLogEnabled":true,"executionLogWriteTimeoutSeconds":5,"headerValueMaxChars":4096,"maxCallsPerInvocation":10,"maxConcurrentCalls":20,"maxFunctionsPerAgent":40,"maxHeaders":20,"maxPerOperator":10,"maxResultImages":4,"maxUserToolsPerProject":25,"mcpMaxFunctions":30,"paramDescriptionMaxChars":256,"privateEgressAllowlist":"","requestBodyMaxBytes":262144,"responseMaxBytes":262144,"restMaxRoutes":30,"resultMaxChars":32000,"schemaMaxBytes":16384,"schemaMaxDepth":5}` | Agent tools: the ops kill switch plus the size, time, and concurrency bounds for the MCP servers and REST APIs a project points its agents at. |
+| agentTools.annotationToolCallRecordResultMaxChars | int | `40000` | Cap on a stored annotation tool-call result (provenance, not replay) |
+| agentTools.auditResultMaxChars | int | `8000` | Cap on the result text carried in an external-tool audit payload |
+| agentTools.buildTimeBudgetSeconds | int | `600` | Total tool wall clock per subtask or notebook turn |
+| agentTools.busyWaitSeconds | int | `5` | How long a call waits for the concurrency semaphore before failing in-band |
+| agentTools.callTimeoutMaxSeconds | int | `120` | Cap on a per-route or per-server timeout override |
+| agentTools.callTimeoutSeconds | int | `30` | Per-call wall clock when the route or server sets none |
+| agentTools.connectTimeoutSeconds | int | `5` | Connect timeout, so unreachable hosts fail fast |
+| agentTools.descriptionMaxChars | int | `1024` | Maximum function description length (it rides every prompt) |
+| agentTools.discoveryTimeoutSeconds | int | `20` | Timeout for an MCP tools/list call at save or refresh |
+| agentTools.enabled | bool | `true` | Serve user-defined agent tools. Set to false to build no MCP or REST tools anywhere and ignore the system-tool rows (a full revert to the built-in list). |
+| agentTools.executionLogEnabled | bool | `true` | Record every MCP/REST call an agent makes as a row of the tool's tool_<slug> table in the customer's data DB (the audit trail is unaffected) |
+| agentTools.executionLogWriteTimeoutSeconds | int | `5` | Ceiling on one execution-log write; past it the row is dropped with a warning |
+| agentTools.headerValueMaxChars | int | `4096` | Maximum header value length in characters (a JWT fits) |
+| agentTools.maxCallsPerInvocation | int | `10` | Default per-invocation call budget on every tool function |
+| agentTools.maxConcurrentCalls | int | `20` | Per-process concurrency semaphore and egress pool size |
+| agentTools.maxFunctionsPerAgent | int | `40` | Expanded tool functions one consumer may carry (the notebook, or one agent) |
+| agentTools.maxHeaders | int | `20` | Request headers configurable on one tool |
+| agentTools.maxPerOperator | int | `10` | Tools a single workflow agent may select |
+| agentTools.maxResultImages | int | `4` | MCP image blocks attached to a notebook tool result |
+| agentTools.maxUserToolsPerProject | int | `25` | MCP + REST tools a single project may define |
+| agentTools.mcpMaxFunctions | int | `30` | Discovered functions kept per MCP server |
+| agentTools.paramDescriptionMaxChars | int | `256` | Maximum per-parameter description length |
+| agentTools.privateEgressAllowlist | string | `""` | Comma-separated hostnames, hostname suffixes (".corp.internal"), or CIDRs a tool may target even though they resolve to private addresses, and for which http:// is accepted. Empty means public HTTPS only. Name hosts rather than ranges: every service on an allowlisted host becomes reachable. |
+| agentTools.requestBodyMaxBytes | int | `262144` | Maximum request body, bounding argument egress |
+| agentTools.responseMaxBytes | int | `262144` | Streamed read cap, counted in decoded bytes |
+| agentTools.restMaxRoutes | int | `30` | Routes a single REST tool may declare |
+| agentTools.resultMaxChars | int | `32000` | Result text handed to the model, in characters |
+| agentTools.schemaMaxBytes | int | `16384` | Maximum serialized size of one function's parameter schema |
+| agentTools.schemaMaxDepth | int | `5` | Maximum nesting depth of one function's parameter schema |
 | analysis.dataframeOpTimeout | int | `60` |  |
 | analysis.maxColumns | int | `500` |  |
 | analysis.maxRows | int | `50000` |  |
@@ -303,12 +333,20 @@ Ragnerock research intelligence platform
 | llm.textract.maxConcurrency | int | `4` | Maximum concurrent Textract page requests per worker |
 | llm.textract.region | string | `""` | AWS region the Textract API is called in. Required when `pdfParserBackend` is `textract`. |
 | llm.textract.secretAccessKey | string | `""` | AWS secret access key. Required when `pdfParserBackend` is `textract`. |
-| memory | object | `{"schemaHardCap":100,"schemaSoftCap":25,"toolsEnabled":true,"writeBudgetAnnotation":12,"writeBudgetNotebook":8}` | Agentic memory: the ops kill switch, schema-proliferation caps, and the per-run write budgets that bound a single agent's memory writes. |
+| memory | object | `{"schemaHardCap":100,"schemaSoftCap":25,"searchBudgetAnnotation":8,"toolsEnabled":true,"writeBudgetAnnotation":12,"writeBudgetNotebook":8}` | Agentic memory: the ops kill switch, schema-proliferation caps, and the per-run write budgets that bound a single agent's memory writes. |
 | memory.schemaHardCap | int | `100` | Schemas per project past which creating another is refused |
 | memory.schemaSoftCap | int | `25` | Schemas per project past which creating another is discouraged |
+| memory.searchBudgetAnnotation | int | `8` | Memory searches allowed in a single annotation run |
 | memory.toolsEnabled | bool | `true` | Expose the memory tools to agents. Set to false to switch memory off entirely. |
 | memory.writeBudgetAnnotation | int | `12` | Memory writes allowed in a single annotation run |
 | memory.writeBudgetNotebook | int | `8` | Memory writes allowed in a single notebook turn |
+| messageBoard | object | `{"enabled":true,"inboxMaxAgeDays":30,"inboxMaxEntries":10,"maxBodyChars":1000,"maxHandles":20,"writeBudget":4}` | Agent message board: the ops switch (independent of memory.toolsEnabled), the message body cap, and the bounds on the inbox listing and the write budget. |
+| messageBoard.enabled | bool | `true` | Expose the message board's tools to agents in projects that switch it on. |
+| messageBoard.inboxMaxAgeDays | int | `30` | Days after which a message is no longer listed for anyone |
+| messageBoard.inboxMaxEntries | int | `10` | Entries in one inbox listing; also the read/archive budget per invocation |
+| messageBoard.maxBodyChars | int | `1000` | Characters allowed in a message body; longer posts are rejected |
+| messageBoard.maxHandles | int | `20` | Agent handles named before collapsing into "(and N more)" |
+| messageBoard.writeBudget | int | `4` | message_write calls allowed in a single agent invocation |
 | migrations.affinity | object | `{}` | Pod affinity rules (overrides `global.affinity`) |
 | migrations.annotations | object | `{}` | Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence) |
 | migrations.image.name | string | `"migrations"` |  |
@@ -412,6 +450,7 @@ Ragnerock research intelligence platform
 | ragnerock.safetyEnabled | bool | `true` | Should Ragnerock treat all prompts as unsafe |
 | rateLimits.adminMutationPerMinute | int | `40` |  |
 | rateLimits.agentPerMinute | int | `20` |  |
+| rateLimits.agentToolProbesPerMinute | int | `30` | Agent-tool probes (REST route test, MCP discovery preview) |
 | rateLimits.annotationPerMinute | int | `120` |  |
 | rateLimits.apiTokenPerMinute | int | `30` |  |
 | rateLimits.auditPayloadPerMinute | int | `30` |  |
@@ -443,6 +482,7 @@ Ragnerock research intelligence platform
 | rateLimits.requestsPerMinute | int | `600` |  |
 | rateLimits.searchPerMinute | int | `60` |  |
 | rateLimits.toolsPerMinute | int | `60` |  |
+| rateLimits.webSearchProbesPerMinute | int | `30` | Per-user limit on the admin page's search-provider Test button — an admin-driven, BILLED query against the workspace's own key |
 | rateLimits.windowMinutes | int | `1` |  |
 | rateLimits.workflowTestConditionPerMinute | int | `120` |  |
 | skills | object | `{"bodyMaxChars":32000,"descriptionMaxChars":512,"enabled":true,"loadMaxCalls":10,"maxPerOperator":10}` | Agent skills: the ops kill switch, the size caps that bound catalog and body token cost, and the per-run load budget. |
@@ -476,6 +516,36 @@ Ragnerock research intelligence platform
 | tabular.readRowsPerPage | int | `50` | Rows returned per page when an agent reads a tabular document |
 | tools.codeToolTimeoutSeconds | int | `30` |  |
 | tools.maxResultImages | int | `10` | Cap on images attached to a single agent tool result |
+| webTools | object | `{"auditResultMaxChars":8000,"cacheMaxBytes":16777216,"cacheMaxEntries":64,"enabled":true,"fetchAllowHttp":false,"fetchBlocklistExtra":[],"fetchExtractThreads":2,"fetchMaxBytes":5242880,"fetchMaxConcurrentPdf":2,"fetchMaxConcurrentPerHost":2,"fetchMaxRedirects":5,"fetchPdfMaxBytes":33554432,"fetchPdfMaxPages":50,"fetchRespectRobots":true,"fetchResultMaxChars":32000,"fetchRobotsCacheTtlSeconds":3600,"fetchRobotsTimeoutSeconds":5,"fetchTimeoutSeconds":45,"maxConcurrentCalls":10,"privateEgressAllowlist":"","searchAccountDailyCap":5000,"searchBraveUrl":"https://api.search.brave.com/res/v1/web/search","searchDefaultResults":10,"searchMaxCallsPerInvocation":3,"searchMaxCallsPerTurn":5,"searchMaxResults":20,"searchRetryAttempts":2,"searchTimeoutSeconds":15,"userAgent":"RagnerockBot/1 (+https://ragnerock.com/bot)"}` | Web access: the ops kill switch plus the egress, size, and budget bounds for the web_search and web_fetch tools agents reach the open web with. |
+| webTools.auditResultMaxChars | int | `8000` | Cap on the agent-visible text carried in a web tool's audit payload |
+| webTools.cacheMaxBytes | int | `16777216` | Bytes held in the per-build web cache |
+| webTools.cacheMaxEntries | int | `64` | Pages held in the per-build web cache |
+| webTools.enabled | bool | `true` | Serve the web_search and web_fetch tools. Set to false to build neither anywhere, resolve every account to no web access, and refuse the configuration API. |
+| webTools.fetchAllowHttp | bool | `false` | Accept plain http://. When false, http:// URLs are upgraded to https:// on the initial URL and every redirect hop, and public targets may use port 443 only. |
+| webTools.fetchBlocklistExtra | list | `[]` | Extra hostnames, hostname suffixes, or CIDRs web_fetch may never reach, on top of this release's own Service names (seeded automatically). List the deployment's public hostnames and any service that trusts this cluster's egress address without a credential. |
+| webTools.fetchExtractThreads | int | `2` | Threads in the dedicated extraction executor |
+| webTools.fetchMaxBytes | int | `5242880` | Decoded read cap for HTML, text, and JSON responses |
+| webTools.fetchMaxConcurrentPdf | int | `2` | In-flight PDF downloads per process; times `fetchPdfMaxBytes` is the memory worst case the API and worker limits must cover |
+| webTools.fetchMaxConcurrentPerHost | int | `2` | In-flight fetches per process per dialled host, page and robots alike |
+| webTools.fetchMaxRedirects | int | `5` | Redirect hops followed, each re-validated and re-pinned |
+| webTools.fetchPdfMaxBytes | int | `33554432` | Read cap for PDFs, which are read whole into memory |
+| webTools.fetchPdfMaxPages | int | `50` | Pages of text layer extracted from one PDF |
+| webTools.fetchRespectRobots | bool | `true` | Honor robots.txt allow and disallow rules per RFC 9309. Turn off only for intranets whose blanket Disallow targets public crawlers. |
+| webTools.fetchResultMaxChars | int | `32000` | Markdown handed to the model per fetch call; it pages past this |
+| webTools.fetchRobotsCacheTtlSeconds | int | `3600` | Process-level TTL for parsed and 4xx robots verdicts |
+| webTools.fetchRobotsTimeoutSeconds | int | `5` | Timeout for one robots.txt request |
+| webTools.fetchTimeoutSeconds | int | `45` | Wall clock for one fetch, extraction included |
+| webTools.maxConcurrentCalls | int | `10` | Per-process limiter for all web calls, separate from `agentTools.maxConcurrentCalls`; also sizes the web client's connection pool |
+| webTools.privateEgressAllowlist | string | `""` | Comma-separated hostnames, hostname suffixes (".corp.internal"), or CIDRs a MODEL-CHOSEN url may reach even though they resolve to private addresses, and which are exempt from the public-port rule. Empty means public only. Deliberately separate from `agentTools.privateEgressAllowlist`: that list is for URLs an editor typed, this one for URLs a search result suggested. |
+| webTools.searchAccountDailyCap | int | `5000` | Default billed searches per account per rolling day; an account administrator can override it per workspace |
+| webTools.searchBraveUrl | string | `"https://api.search.brave.com/res/v1/web/search"` | Where the Brave adapter sends its query. Point it at a vendor proxy if this cluster reaches the provider through one; changing it changes where each workspace's search key is sent |
+| webTools.searchDefaultResults | int | `10` | Search results returned when the model names no count |
+| webTools.searchMaxCallsPerInvocation | int | `3` | Searches an operator may make per target document |
+| webTools.searchMaxCallsPerTurn | int | `5` | Searches the notebook agent may make in one turn |
+| webTools.searchMaxResults | int | `20` | Ceiling a model-supplied result count is clamped to |
+| webTools.searchRetryAttempts | int | `2` | Retries on a 429 or 503 from the search provider, honoring Retry-After |
+| webTools.searchTimeoutSeconds | int | `15` | Wall clock for one search call, retries included |
+| webTools.userAgent | string | `"RagnerockBot/1 (+https://ragnerock.com/bot)"` | User-Agent the web tools send. Its product token is what robots.txt is matched against, and the URL must resolve to a page describing the bot. |
 | worker.affinity | object | `{}` | Pod affinity rules (overrides `global.affinity`) |
 | worker.annotations | object | `{}` | Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence) |
 | worker.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |

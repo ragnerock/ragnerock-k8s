@@ -193,6 +193,11 @@ rateLimits:
   searchPerMinute: 60
   ingestTriggerPerMinute: 20
   toolsPerMinute: 60
+  # -- Agent-tool probes (REST route test, MCP discovery preview)
+  agentToolProbesPerMinute: 30
+  # -- Per-user limit on the admin page's search-provider Test button — an
+  # admin-driven, BILLED query against the workspace's own key
+  webSearchProbesPerMinute: 30
   annotationPerMinute: 120
   debugPerMinute: 20
   workflowTestConditionPerMinute: 120
@@ -806,6 +811,24 @@ memory:
   writeBudgetAnnotation: 12
   # -- Memory writes allowed in a single notebook turn
   writeBudgetNotebook: 8
+  # -- Memory searches allowed in a single annotation run
+  searchBudgetAnnotation: 8
+
+# -- Agent message board: the ops switch (independent of memory.toolsEnabled),
+# the message body cap, and the bounds on the inbox listing and the write budget.
+messageBoard:
+  # -- Expose the message board's tools to agents in projects that switch it on.
+  enabled: true
+  # -- Characters allowed in a message body; longer posts are rejected
+  maxBodyChars: 1000
+  # -- Entries in one inbox listing; also the read/archive budget per invocation
+  inboxMaxEntries: 10
+  # -- Agent handles named before collapsing into "(and N more)"
+  maxHandles: 20
+  # -- Days after which a message is no longer listed for anyone
+  inboxMaxAgeDays: 30
+  # -- message_write calls allowed in a single agent invocation
+  writeBudget: 4
 
 # -- Agent skills: the ops kill switch, the size caps that bound catalog and
 # body token cost, and the per-run load budget.
@@ -820,6 +843,156 @@ skills:
   maxPerOperator: 10
   # -- load_skill calls allowed in a single run
   loadMaxCalls: 10
+
+# -- Web access: the ops kill switch plus the egress, size, and budget bounds
+# for the web_search and web_fetch tools agents reach the open web with.
+webTools:
+  # Both tools dial the open web directly and pin every connection to an
+  # address they checked; they do not honour HTTPS_PROXY and cannot run
+  # behind an HTTP proxy. A cluster that reaches the internet only through
+  # one should leave `enabled` false.
+  # -- Serve the web_search and web_fetch tools. Set to false to build neither
+  # anywhere, resolve every account to no web access, and refuse the
+  # configuration API.
+  enabled: true
+  # -- Comma-separated hostnames, hostname suffixes (".corp.internal"), or CIDRs
+  # a MODEL-CHOSEN url may reach even though they resolve to private addresses,
+  # and which are exempt from the public-port rule. Empty means public only.
+  # Deliberately separate from `agentTools.privateEgressAllowlist`: that list is
+  # for URLs an editor typed, this one for URLs a search result suggested.
+  privateEgressAllowlist: ""
+  # -- Extra hostnames, hostname suffixes, or CIDRs web_fetch may never reach,
+  # on top of this release's own Service names (seeded automatically). List the
+  # deployment's public hostnames and any service that trusts this cluster's
+  # egress address without a credential.
+  fetchBlocklistExtra: []
+  # -- Accept plain http://. When false, http:// URLs are upgraded to https:// on
+  # the initial URL and every redirect hop, and public targets may use port 443 only.
+  fetchAllowHttp: false
+  # -- Honor robots.txt allow and disallow rules per RFC 9309. Turn off only for
+  # intranets whose blanket Disallow targets public crawlers.
+  fetchRespectRobots: true
+  # -- In-flight fetches per process per dialled host, page and robots alike
+  fetchMaxConcurrentPerHost: 2
+  # -- Redirect hops followed, each re-validated and re-pinned
+  fetchMaxRedirects: 5
+  # -- Decoded read cap for HTML, text, and JSON responses
+  fetchMaxBytes: 5242880
+  # -- Read cap for PDFs, which are read whole into memory
+  fetchPdfMaxBytes: 33554432
+  # -- In-flight PDF downloads per process; times `fetchPdfMaxBytes` is the
+  # memory worst case the API and worker limits must cover
+  fetchMaxConcurrentPdf: 2
+  # -- Pages of text layer extracted from one PDF
+  fetchPdfMaxPages: 50
+  # -- Markdown handed to the model per fetch call; it pages past this
+  fetchResultMaxChars: 32000
+  # -- Wall clock for one fetch, extraction included
+  fetchTimeoutSeconds: 45
+  # -- Timeout for one robots.txt request
+  fetchRobotsTimeoutSeconds: 5
+  # -- Process-level TTL for parsed and 4xx robots verdicts
+  fetchRobotsCacheTtlSeconds: 3600
+  # -- Threads in the dedicated extraction executor
+  fetchExtractThreads: 2
+  # -- Per-process limiter for all web calls, separate from
+  # `agentTools.maxConcurrentCalls`; also sizes the web client's connection pool
+  maxConcurrentCalls: 10
+  # -- Pages held in the per-build web cache
+  cacheMaxEntries: 64
+  # -- Bytes held in the per-build web cache
+  cacheMaxBytes: 16777216
+  # -- User-Agent the web tools send. Its product token is what robots.txt is
+  # matched against, and the URL must resolve to a page describing the bot.
+  userAgent: "RagnerockBot/1 (+https://ragnerock.com/bot)"
+  # -- Cap on the agent-visible text carried in a web tool's audit payload
+  auditResultMaxChars: 8000
+  # -- Search results returned when the model names no count
+  searchDefaultResults: 10
+  # -- Ceiling a model-supplied result count is clamped to
+  searchMaxResults: 20
+  # -- Wall clock for one search call, retries included
+  searchTimeoutSeconds: 15
+  # -- Searches an operator may make per target document
+  searchMaxCallsPerInvocation: 3
+  # -- Searches the notebook agent may make in one turn
+  searchMaxCallsPerTurn: 5
+  # -- Default billed searches per account per rolling day; an account
+  # administrator can override it per workspace
+  searchAccountDailyCap: 5000
+  # -- Retries on a 429 or 503 from the search provider, honoring Retry-After
+  searchRetryAttempts: 2
+  # -- Where the Brave adapter sends its query. Point it at a vendor proxy if
+  # this cluster reaches the provider through one; changing it changes where
+  # each workspace's search key is sent
+  searchBraveUrl: "https://api.search.brave.com/res/v1/web/search"
+
+# -- Agent tools: the ops kill switch plus the size, time, and concurrency
+# bounds for the MCP servers and REST APIs a project points its agents at.
+agentTools:
+  # -- Serve user-defined agent tools. Set to false to build no MCP or REST tools
+  # anywhere and ignore the system-tool rows (a full revert to the built-in list).
+  enabled: true
+  # -- Comma-separated hostnames, hostname suffixes (".corp.internal"), or CIDRs
+  # a tool may target even though they resolve to private addresses, and for
+  # which http:// is accepted. Empty means public HTTPS only. Name hosts rather
+  # than ranges: every service on an allowlisted host becomes reachable.
+  privateEgressAllowlist: ""
+  # -- MCP + REST tools a single project may define
+  maxUserToolsPerProject: 25
+  # -- Tools a single workflow agent may select
+  maxPerOperator: 10
+  # -- Expanded tool functions one consumer may carry (the notebook, or one agent)
+  maxFunctionsPerAgent: 40
+  # -- Routes a single REST tool may declare
+  restMaxRoutes: 30
+  # -- Discovered functions kept per MCP server
+  mcpMaxFunctions: 30
+  # -- Request headers configurable on one tool
+  maxHeaders: 20
+  # -- Maximum header value length in characters (a JWT fits)
+  headerValueMaxChars: 4096
+  # -- Maximum function description length (it rides every prompt)
+  descriptionMaxChars: 1024
+  # -- Maximum per-parameter description length
+  paramDescriptionMaxChars: 256
+  # -- Maximum serialized size of one function's parameter schema
+  schemaMaxBytes: 16384
+  # -- Maximum nesting depth of one function's parameter schema
+  schemaMaxDepth: 5
+  # -- Per-call wall clock when the route or server sets none
+  callTimeoutSeconds: 30
+  # -- Cap on a per-route or per-server timeout override
+  callTimeoutMaxSeconds: 120
+  # -- Total tool wall clock per subtask or notebook turn
+  buildTimeBudgetSeconds: 600
+  # -- How long a call waits for the concurrency semaphore before failing in-band
+  busyWaitSeconds: 5
+  # -- Connect timeout, so unreachable hosts fail fast
+  connectTimeoutSeconds: 5
+  # -- Timeout for an MCP tools/list call at save or refresh
+  discoveryTimeoutSeconds: 20
+  # -- Streamed read cap, counted in decoded bytes
+  responseMaxBytes: 262144
+  # -- Result text handed to the model, in characters
+  resultMaxChars: 32000
+  # -- Maximum request body, bounding argument egress
+  requestBodyMaxBytes: 262144
+  # -- Default per-invocation call budget on every tool function
+  maxCallsPerInvocation: 10
+  # -- Per-process concurrency semaphore and egress pool size
+  maxConcurrentCalls: 20
+  # -- MCP image blocks attached to a notebook tool result
+  maxResultImages: 4
+  # -- Cap on the result text carried in an external-tool audit payload
+  auditResultMaxChars: 8000
+  # -- Cap on a stored annotation tool-call result (provenance, not replay)
+  annotationToolCallRecordResultMaxChars: 40000
+  # -- Record every MCP/REST call an agent makes as a row of the tool's
+  # tool_<slug> table in the customer's data DB (the audit trail is unaffected)
+  executionLogEnabled: true
+  # -- Ceiling on one execution-log write; past it the row is dropped with a warning
+  executionLogWriteTimeoutSeconds: 5
 
 # -- Node decorators (JUDGE/CHECK/CRITIC/TOKEN_BUDGET): the global kill switch
 # and the bounds that keep a decorated node's per-item cost bounded.

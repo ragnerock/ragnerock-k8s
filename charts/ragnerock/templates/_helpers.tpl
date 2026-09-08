@@ -91,6 +91,35 @@ Usage: {{ include "ragnerock.secretName" (dict "context" . "suffix" "db" "existi
 {{- end -}}
 
 {{/*
+Build WEB_FETCH_BLOCKLIST: the hosts a model-chosen URL must never reach.
+
+"Public address" is not the same as "not reachable from here" — this release's
+own Services answer any pod in the cluster, and a public name in front of the
+API answers the internet. Both are seeded here so a search result cannot talk
+the model into fetching from the deployment itself; `webTools.fetchBlocklistExtra`
+is where an operator adds partner APIs that trust this cluster's egress address.
+Usage: {{ include "ragnerock.webFetchBlocklist" . }}
+*/}}
+{{- define "ragnerock.webFetchBlocklist" -}}
+  {{- $fullname := include "ragnerock.fullname" . -}}
+  {{- $services := list "api" "worker" "subtask-worker" "model-service" "analysis-toolkit" "python-service" "frontend" "data-ingestor" "callback-delivery" "db-service" "audit-service" -}}
+  {{- $hosts := list -}}
+  {{- /* Every spelling an in-cluster name has: the bare Service name, the
+         namespace-qualified forms, and the cluster FQDN. The blocklist
+         matches hostnames exactly, so one spelling would leave the others
+         reachable. */ -}}
+  {{- range $services -}}
+    {{- $svc := printf "%s-%s" $fullname . -}}
+    {{- $hosts = append $hosts $svc -}}
+    {{- $hosts = append $hosts (printf "%s.%s" $svc $.Release.Namespace) -}}
+    {{- $hosts = append $hosts (printf "%s.%s.svc" $svc $.Release.Namespace) -}}
+    {{- $hosts = append $hosts (printf "%s.%s.svc.cluster.local" $svc $.Release.Namespace) -}}
+  {{- end -}}
+  {{- $hosts = concat $hosts .Values.webTools.fetchBlocklistExtra -}}
+  {{- join "," $hosts -}}
+{{- end }}
+
+{{/*
 Render a HorizontalPodAutoscaler for a component.
 Usage: {{ include "ragnerock.hpa" (dict "context" $ "component" "api" "values" .Values.api) }}
 The component's values must contain an `autoscaling` block. Caller is
