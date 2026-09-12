@@ -200,6 +200,22 @@ data:
   ENDPOINT_EXECUTION_RETENTION_DAYS: "{{ include "ragnerock.number" .Values.endpoints.executionRetentionDays }}"
   ENDPOINT_EXECUTION_PRUNE_BATCH_SIZE: "{{ include "ragnerock.number" .Values.endpoints.executionPruneBatchSize }}"
   ENDPOINT_EXECUTION_PRUNE_MAX_BATCHES: "{{ include "ragnerock.number" .Values.endpoints.executionPruneMaxBatches }}"
+  # The MCP front on workflow endpoints, which only the API serves. The wait
+  # and result limits are quoted verbatim in the tool contract every agent
+  # reads, so changing one changes a published contract.
+  ENDPOINTS_MCP_ENABLED: "{{ .Values.endpoints.mcp.enabled }}"
+  ENDPOINTS_MCP_DEFAULT_WAIT_SECONDS: "{{ include "ragnerock.number" .Values.endpoints.mcp.defaultWaitSeconds }}"
+  ENDPOINTS_MCP_MAX_WAIT_SECONDS: "{{ include "ragnerock.number" .Values.endpoints.mcp.maxWaitSeconds }}"
+  ENDPOINTS_MCP_STALE_HINT_SECONDS: "{{ include "ragnerock.number" .Values.endpoints.mcp.staleHintSeconds }}"
+  ENDPOINTS_MCP_RESULT_MAX_BYTES: "{{ include "ragnerock.number" .Values.endpoints.mcp.resultMaxBytes }}"
+  ENDPOINTS_MCP_ALLOW_URL_INPUTS: "{{ .Values.endpoints.mcp.allowUrlInputs }}"
+  ENDPOINTS_MCP_URL_FETCH_BUDGET_SECONDS: "{{ include "ragnerock.number" .Values.endpoints.mcp.urlFetchBudgetSeconds }}"
+  ENDPOINTS_MCP_URL_CONNECT_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.endpoints.mcp.urlConnectTimeoutSeconds }}"
+  ENDPOINTS_MCP_ALLOW_PRIVATE_URL_INPUTS: "{{ .Values.endpoints.mcp.allowPrivateUrlInputs }}"
+  ENDPOINTS_MCP_POLL_SECONDS: "{{ include "ragnerock.number" .Values.endpoints.mcp.pollSeconds }}"
+  ENDPOINTS_MCP_KEEPALIVE_SECONDS: "{{ include "ragnerock.number" .Values.endpoints.mcp.keepaliveSeconds }}"
+  ENDPOINTS_MCP_MAX_BODY_BYTES: "{{ include "ragnerock.number" .Values.endpoints.mcp.maxBodyBytes }}"
+  ENDPOINTS_MCP_MAX_WAITERS: "{{ include "ragnerock.number" .Values.endpoints.mcp.maxWaiters }}"
   # GitOps apply, which only the API serves.
   GITOPS_MAX_MANIFEST_BYTES: "{{ include "ragnerock.number" .Values.gitops.maxManifestBytes }}"
   GITOPS_CODE_REVIEW_BUDGET_SECONDS: "{{ include "ragnerock.number" .Values.gitops.codeReviewBudgetSeconds }}"
@@ -210,6 +226,17 @@ data:
   OPERATOR_SAMPLE_MAX_FILE_BYTES: "{{ include "ragnerock.number" .Values.api.operatorSample.maxFileBytes }}"
   OPERATOR_SAMPLE_PARSE_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.api.operatorSample.parseTimeoutSeconds }}"
   CODE_OPERATOR_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.limits.codeOperator.timeoutSeconds }}"
+  # Workflow workbench (chat, try-it-out, auto mode) — API-only: the workers
+  # never serve a workbench session. The auto caps bound one autonomous
+  # session; the retentions prune its restore points and debug sessions.
+  WORKBENCH_AUTO_ENABLED: "{{ .Values.workbench.autoEnabled }}"
+  WORKBENCH_AUTO_MAX_ITERATIONS: "{{ include "ragnerock.number" .Values.workbench.autoMaxIterations }}"
+  WORKBENCH_AUTO_MAX_CYCLES: "{{ include "ragnerock.number" .Values.workbench.autoMaxCycles }}"
+  WORKBENCH_AUTO_TOKEN_BUDGET: "{{ include "ragnerock.number" .Values.workbench.autoTokenBudget }}"
+  WORKBENCH_AUTO_MAX_TARGETS: "{{ include "ragnerock.number" .Values.workbench.autoMaxTargets }}"
+  WORKBENCH_RUN_RESULT_MAX_CHARS_PER_NODE: "{{ include "ragnerock.number" .Values.workbench.runResultMaxCharsPerNode }}"
+  WORKBENCH_SNAPSHOT_RETENTION: "{{ include "ragnerock.number" .Values.workbench.snapshotRetention }}"
+  WORKBENCH_DEBUG_SESSION_RETENTION: "{{ include "ragnerock.number" .Values.workbench.debugSessionRetention }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -240,6 +267,7 @@ data:
   RATE_LIMIT_WEB_SEARCH_PROBES_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.webSearchProbesPerMinute }}"
   RATE_LIMIT_ANNOTATION_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.annotationPerMinute }}"
   RATE_LIMIT_DEBUG_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.debugPerMinute }}"
+  RATE_LIMIT_WORKBENCH_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.workbenchPerMinute }}"
   RATE_LIMIT_WORKFLOW_TEST_CONDITION_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.workflowTestConditionPerMinute }}"
   RATE_LIMIT_CONFIG_VALIDATE_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.configValidatePerMinute }}"
   RATE_LIMIT_ADMIN_MUTATION_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.adminMutationPerMinute }}"
@@ -297,6 +325,9 @@ data:
   DEFAULT_DB_POOL_SIZE: "{{ include "ragnerock.number" .Values.dbService.defaultDBPoolSize }}"
   DEFAULT_DB_MAX_OVERFLOW: "{{ include "ragnerock.number" .Values.dbService.defaultDBMaxOverflow }}"
   REQUEST_THREADPOOL_SIZE: "{{ include "ragnerock.number" .Values.dbService.requestThreadpoolSize }}"
+  SNOWFLAKE_STATEMENT_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.dbService.snowflakeStatementTimeoutSeconds }}"
+  SNOWFLAKE_LOCK_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.dbService.snowflakeLockTimeoutSeconds }}"
+  SNOWFLAKE_INSERT_PAGE_SIZE: "{{ include "ragnerock.number" .Values.dbService.snowflakeInsertPageSize }}"
 ---
 apiVersion: v1
 kind: ConfigMap

@@ -208,6 +208,9 @@ Ragnerock research intelligence platform
 | dbService.serviceAccount.annotations | object | `{}` | Annotations to add to the created service account (e.g. for workload identity) |
 | dbService.serviceAccount.create | bool | `false` | Create a service account for this deployment's pods |
 | dbService.serviceAccount.name | string | `""` | Service account name to use; if empty and `create` is true a name is generated |
+| dbService.snowflakeInsertPageSize | int | `1000` | Rows per multi-row INSERT when SQLAlchemy pages an executemany batch on Snowflake |
+| dbService.snowflakeLockTimeoutSeconds | int | `30` | How long a Snowflake statement waits for a table lock (seconds); kept under the worker's 60 s write budget |
+| dbService.snowflakeStatementTimeoutSeconds | int | `600` | Ceiling for every statement on a Snowflake BYODB connection (seconds); Snowflake's own default is two days |
 | dbService.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | dbService.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
 | dbService.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
@@ -231,6 +234,19 @@ Ragnerock research intelligence platform
 | endpoints.executionRetentionDays | int | `90` | Days an endpoint execution record is kept before it is pruned |
 | endpoints.existingSecret | string | `""` | Use a pre-existing secret (must provide key `ENDPOINTS_HMAC_MASTER_KEY`) instead of generating one. When set, `HMACMasterKey` is ignored. |
 | endpoints.maxFileSizeMB | int | `50` |  |
+| endpoints.mcp.allowPrivateUrlInputs | bool | `false` | Let a URL input resolve to a private address or use plain http. Not the callback switch: a URL input hands the fetched bytes back through the workflow's output |
+| endpoints.mcp.allowUrlInputs | bool | `true` | Offer and accept URL file inputs. Advertised in the published tool contract only when on |
+| endpoints.mcp.defaultWaitSeconds | int | `55` | Wait budget, in seconds, for a call that omits `wait_seconds`. Under the TypeScript MCP SDK's absolute 60 s request timeout |
+| endpoints.mcp.enabled | bool | `true` | Serve the MCP front on workflow endpoints. When false the route answers 404 |
+| endpoints.mcp.keepaliveSeconds | int | `15` | Idle seconds between keepalives on a waiting stream. Under Cloudflare's 100 s ceiling on a silent origin |
+| endpoints.mcp.maxBodyBytes | int | `16777216` | JSON-RPC request-body ceiling, in bytes. Bounds base64 file inputs |
+| endpoints.mcp.maxWaitSeconds | int | `240` | Ceiling, in seconds, on a call's `wait_seconds`, measured from request arrival |
+| endpoints.mcp.maxWaiters | int | `32` | Concurrent waiting calls one API instance will hold before answering `processing` immediately |
+| endpoints.mcp.pollSeconds | int | `2` | How often, in seconds, a waiting call re-reads the execution row |
+| endpoints.mcp.resultMaxBytes | int | `98304` | Serialized-envelope size, in bytes, above which a result is reduced to its document-scoped fields |
+| endpoints.mcp.staleHintSeconds | int | `3600` | Elapsed seconds past which the tool contract tells an agent to stop polling a run and report it stuck |
+| endpoints.mcp.urlConnectTimeoutSeconds | int | `5` | Connect timeout, in seconds, for one URL file input; short so an unreachable host fails fast instead of eating the fetch budget |
+| endpoints.mcp.urlFetchBudgetSeconds | int | `30` | Wall-clock budget, in seconds, shared by every URL input of one call |
 | fallback | object | `{"agentChainBudgetSeconds":120,"chainBudgetSeconds":420,"maxChainCiphertextBytes":30720,"maxDepth":3,"perProviderAttempts":2}` | BYOAI fallback chains: how far a chain may reach and how long the model-service will spend working through one. |
 | fallback.agentChainBudgetSeconds | int | `120` | Wall-clock budget for one agent chain, in seconds |
 | fallback.chainBudgetSeconds | int | `420` | Wall-clock budget for one annotation chain, in seconds |
@@ -333,6 +349,22 @@ Ragnerock research intelligence platform
 | llm.textract.maxConcurrency | int | `4` | Maximum concurrent Textract page requests per worker |
 | llm.textract.region | string | `""` | AWS region the Textract API is called in. Required when `pdfParserBackend` is `textract`. |
 | llm.textract.secretAccessKey | string | `""` | AWS secret access key. Required when `pdfParserBackend` is `textract`. |
+| maintenance.affinity | object | `{}` | Pod affinity rules (overrides `global.affinity`) |
+| maintenance.annotations | object | `{}` | Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence) |
+| maintenance.backoffLimit | int | `1` | Retries within one firing. The routes are idempotent and daily, so a transient failure is better left to tomorrow's run than retried hard. |
+| maintenance.enabled | bool | `true` | Run the maintenance CronJob. Disable only if you fire the internal `/api/endpoints/internal/*` routes some other way.  The job sends no credential. Those routes are guarded by a Google OIDC check that a Kubernetes CronJob cannot satisfy, and that check is inert unless `CALLBACK_AUTH_ENABLED` is true — which this chart never sets. In other words they are protected by network isolation: reachable only from inside the cluster, and the chart ships no ingress. If you turn `CALLBACK_AUTH_ENABLED` on through `api.extraEnv`, this job starts failing every night; disable it here and drive the two routes yourself. |
+| maintenance.failedJobsHistoryLimit | int | `3` |  |
+| maintenance.image.name | string | `"api"` |  |
+| maintenance.image.tag | string | `""` |  |
+| maintenance.resources | object | `{}` | Deployment resource constraints (i.e. requests/limits) |
+| maintenance.schedule | string | `"23 3 * * *"` | Cron schedule (cluster timezone). Daily, off-peak by default. |
+| maintenance.serviceAccount.annotations | object | `{}` | Annotations to add to the created service account (e.g. for workload identity) |
+| maintenance.serviceAccount.create | bool | `false` | Create a service account for the maintenance job's pods |
+| maintenance.serviceAccount.name | string | `""` | Service account name to use; if empty and `create` is true a name is generated |
+| maintenance.startingDeadlineSeconds | int | `600` | Skip a firing that could not start within this many seconds rather than piling up missed runs after a cluster outage. |
+| maintenance.successfulJobsHistoryLimit | int | `3` |  |
+| maintenance.timeoutSeconds | int | `300` | Per-route HTTP timeout. The prune route works in bounded batches and resumes at the next firing, so it never needs a long one. |
+| maintenance.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | memory | object | `{"schemaHardCap":100,"schemaSoftCap":25,"searchBudgetAnnotation":8,"toolsEnabled":true,"writeBudgetAnnotation":12,"writeBudgetNotebook":8}` | Agentic memory: the ops kill switch, schema-proliferation caps, and the per-run write budgets that bound a single agent's memory writes. |
 | memory.schemaHardCap | int | `100` | Schemas per project past which creating another is refused |
 | memory.schemaSoftCap | int | `25` | Schemas per project past which creating another is discouraged |
@@ -484,6 +516,7 @@ Ragnerock research intelligence platform
 | rateLimits.toolsPerMinute | int | `60` |  |
 | rateLimits.webSearchProbesPerMinute | int | `30` | Per-user limit on the admin page's search-provider Test button — an admin-driven, BILLED query against the workspace's own key |
 | rateLimits.windowMinutes | int | `1` |  |
+| rateLimits.workbenchPerMinute | int | `10` |  |
 | rateLimits.workflowTestConditionPerMinute | int | `120` |  |
 | skills | object | `{"bodyMaxChars":32000,"descriptionMaxChars":512,"enabled":true,"loadMaxCalls":10,"maxPerOperator":10}` | Agent skills: the ops kill switch, the size caps that bound catalog and body token cost, and the per-run load budget. |
 | skills.bodyMaxChars | int | `32000` | Maximum instruction-body length in characters |
@@ -546,6 +579,14 @@ Ragnerock research intelligence platform
 | webTools.searchRetryAttempts | int | `2` | Retries on a 429 or 503 from the search provider, honoring Retry-After |
 | webTools.searchTimeoutSeconds | int | `15` | Wall clock for one search call, retries included |
 | webTools.userAgent | string | `"RagnerockBot/1 (+https://ragnerock.com/bot)"` | User-Agent the web tools send. Its product token is what robots.txt is matched against, and the URL must resolve to a page describing the bot. |
+| workbench.autoEnabled | bool | `true` | Kill switch for the workbench auto-iterate loop. Disabled, the chat and try-it-out surfaces keep working; only the autonomous loop is refused. |
+| workbench.autoMaxCycles | int | `5` | Max apply/run tool calls per workbench auto session |
+| workbench.autoMaxIterations | int | `40` | Runner backstop: max agent-loop iterations for one auto session |
+| workbench.autoMaxTargets | int | `5` | Clamp on the per-run target count in workbench auto mode |
+| workbench.autoTokenBudget | int | `300000` | Cost-weighted token budget for one workbench auto session. Charged the run's real model spend, not just agent-side tokens. |
+| workbench.debugSessionRetention | int | `20` | How many DebugSessions to keep per (workflow, user) |
+| workbench.runResultMaxCharsPerNode | int | `4000` | Per-node cap when condensing a workbench run's debug steps for the agent, in characters |
+| workbench.snapshotRetention | int | `10` | How many workbench restore points to keep per workflow |
 | worker.affinity | object | `{}` | Pod affinity rules (overrides `global.affinity`) |
 | worker.annotations | object | `{}` | Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence) |
 | worker.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |

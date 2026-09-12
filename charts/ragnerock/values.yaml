@@ -200,6 +200,7 @@ rateLimits:
   webSearchProbesPerMinute: 30
   annotationPerMinute: 120
   debugPerMinute: 20
+  workbenchPerMinute: 10
   workflowTestConditionPerMinute: 120
   configValidatePerMinute: 20
   adminMutationPerMinute: 40
@@ -584,6 +585,12 @@ dbService:
   defaultDBMaxOverflow: 20
   # -- Threads serving blocking driver work off the event loop
   requestThreadpoolSize: 80
+  # -- Ceiling for every statement on a Snowflake BYODB connection (seconds); Snowflake's own default is two days
+  snowflakeStatementTimeoutSeconds: 600
+  # -- How long a Snowflake statement waits for a table lock (seconds); kept under the worker's 60 s write budget
+  snowflakeLockTimeoutSeconds: 30
+  # -- Rows per multi-row INSERT when SQLAlchemy pages an executemany batch on Snowflake
+  snowflakeInsertPageSize: 1000
   # -- Deployment resoruce contraints (i.e. requests/limits)
   resources: {}
   # -- Optional horizontal pod autoscaler. Requires CPU/memory requests to be
@@ -674,6 +681,54 @@ migrations:
   # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
   annotations: {}
 
+# Periodic maintenance, fired in-cluster. On GCP these routes are driven by
+# Cloud Scheduler; a self-hosted install has no equivalent, so without this
+# neither compat execution history nor uncollected ephemeral results are ever
+# cleaned up.
+maintenance:
+  # -- Run the maintenance CronJob. Disable only if you fire the internal
+  # `/api/endpoints/internal/*` routes some other way.
+  #
+  # The job sends no credential. Those routes are guarded by a Google OIDC
+  # check that a Kubernetes CronJob cannot satisfy, and that check is inert
+  # unless `CALLBACK_AUTH_ENABLED` is true — which this chart never sets. In
+  # other words they are protected by network isolation: reachable only from
+  # inside the cluster, and the chart ships no ingress. If you turn
+  # `CALLBACK_AUTH_ENABLED` on through `api.extraEnv`, this job starts
+  # failing every night; disable it here and drive the two routes yourself.
+  enabled: true
+  # -- Cron schedule (cluster timezone). Daily, off-peak by default.
+  schedule: "23 3 * * *"
+  image:
+    name: api
+    tag: ""
+  # -- Per-route HTTP timeout. The prune route works in bounded batches and
+  # resumes at the next firing, so it never needs a long one.
+  timeoutSeconds: 300
+  # -- Retries within one firing. The routes are idempotent and daily, so a
+  # transient failure is better left to tomorrow's run than retried hard.
+  backoffLimit: 1
+  # -- Skip a firing that could not start within this many seconds rather
+  # than piling up missed runs after a cluster outage.
+  startingDeadlineSeconds: 600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  # -- Deployment resource constraints (i.e. requests/limits)
+  resources: {}
+  serviceAccount:
+    # -- Create a service account for the maintenance job's pods
+    create: false
+    # -- Service account name to use; if empty and `create` is true a name is generated
+    name: ""
+    # -- Annotations to add to the created service account (e.g. for workload identity)
+    annotations: {}
+  # -- Pod tolerations (overrides `global.tolerations`)
+  tolerations: []
+  # -- Pod affinity rules (overrides `global.affinity`)
+  affinity: {}
+  # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
+  annotations: {}
+
 limits:
   concurrency:
     maxConcurrentSubtasks: 50
@@ -744,6 +799,36 @@ endpoints:
   executionPruneBatchSize: 5000
   # -- Prune statements issued in one pass before the job yields
   executionPruneMaxBatches: 100
+  # The MCP front every workflow endpoint publishes. The wait and result
+  # limits below are quoted verbatim in the tool contract agents read, so
+  # changing one changes a contract that is already in use.
+  mcp:
+    # -- Serve the MCP front on workflow endpoints. When false the route answers 404
+    enabled: true
+    # -- Wait budget, in seconds, for a call that omits `wait_seconds`. Under the TypeScript MCP SDK's absolute 60 s request timeout
+    defaultWaitSeconds: 55
+    # -- Ceiling, in seconds, on a call's `wait_seconds`, measured from request arrival
+    maxWaitSeconds: 240
+    # -- Elapsed seconds past which the tool contract tells an agent to stop polling a run and report it stuck
+    staleHintSeconds: 3600
+    # -- Serialized-envelope size, in bytes, above which a result is reduced to its document-scoped fields
+    resultMaxBytes: 98304
+    # -- Offer and accept URL file inputs. Advertised in the published tool contract only when on
+    allowUrlInputs: true
+    # -- Wall-clock budget, in seconds, shared by every URL input of one call
+    urlFetchBudgetSeconds: 30
+    # -- Connect timeout, in seconds, for one URL file input; short so an unreachable host fails fast instead of eating the fetch budget
+    urlConnectTimeoutSeconds: 5
+    # -- Let a URL input resolve to a private address or use plain http. Not the callback switch: a URL input hands the fetched bytes back through the workflow's output
+    allowPrivateUrlInputs: false
+    # -- How often, in seconds, a waiting call re-reads the execution row
+    pollSeconds: 2
+    # -- Idle seconds between keepalives on a waiting stream. Under Cloudflare's 100 s ceiling on a silent origin
+    keepaliveSeconds: 15
+    # -- JSON-RPC request-body ceiling, in bytes. Bounds base64 file inputs
+    maxBodyBytes: 16777216
+    # -- Concurrent waiting calls one API instance will hold before answering `processing` immediately
+    maxWaiters: 32
 
 ingest:
   staleTimeoutSeconds: 3600
@@ -1051,6 +1136,26 @@ workflowResources:
   codeMaxRows: 100000
   # -- Ceiling on all code operator resources for one run, in bytes
   codeTotalMaxBytes: 40000000
+
+workbench:
+  # -- Kill switch for the workbench auto-iterate loop. Disabled, the chat and
+  # try-it-out surfaces keep working; only the autonomous loop is refused.
+  autoEnabled: true
+  # -- Runner backstop: max agent-loop iterations for one auto session
+  autoMaxIterations: 40
+  # -- Max apply/run tool calls per workbench auto session
+  autoMaxCycles: 5
+  # -- Cost-weighted token budget for one workbench auto session. Charged the
+  # run's real model spend, not just agent-side tokens.
+  autoTokenBudget: 300000
+  # -- Clamp on the per-run target count in workbench auto mode
+  autoMaxTargets: 5
+  # -- Per-node cap when condensing a workbench run's debug steps for the agent, in characters
+  runResultMaxCharsPerNode: 4000
+  # -- How many workbench restore points to keep per workflow
+  snapshotRetention: 10
+  # -- How many DebugSessions to keep per (workflow, user)
+  debugSessionRetention: 20
 
 # -- Settings shared by the worker and subtask-worker deployments. Both run the
 # same job-processing code, so they are tuned together.

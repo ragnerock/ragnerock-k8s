@@ -105,9 +105,9 @@ Usage: {{ include "ragnerock.webFetchBlocklist" . }}
   {{- $services := list "api" "worker" "subtask-worker" "model-service" "analysis-toolkit" "python-service" "frontend" "data-ingestor" "callback-delivery" "db-service" "audit-service" -}}
   {{- $hosts := list -}}
   {{- /* Every spelling an in-cluster name has: the bare Service name, the
-         namespace-qualified forms, and the cluster FQDN. The blocklist
-         matches hostnames exactly, so one spelling would leave the others
-         reachable. */ -}}
+  namespace-qualified forms, and the cluster FQDN. The blocklist
+  matches hostnames exactly, so one spelling would leave the others
+  reachable. */ -}}
   {{- range $services -}}
     {{- $svc := printf "%s-%s" $fullname . -}}
     {{- $hosts = append $hosts $svc -}}
