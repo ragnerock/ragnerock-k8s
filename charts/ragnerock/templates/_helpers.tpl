@@ -248,3 +248,132 @@ Usage: {{ include "ragnerock.annotations" (dict "context" . "config" .Values.api
 {{ toYaml . }}
   {{- end -}}
 {{- end -}}
+
+{{/*
+The worker's connection pool size: explicit when set, otherwise derived the way
+the worker derives it for itself -- one connection per possible in-flight
+handler plus headroom for non-request work, with the in-flight count capped by
+the per-instance request concurrency, because a process cannot run more
+handlers than it admits.
+
+Defined once and used by both the worker ConfigMap and the connection budget
+below, so the number a worker receives and the number the budget sums cannot
+drift apart.
+*/}}
+{{- define "ragnerock.workerPoolSize" -}}
+  {{- if .Values.workers.database.poolSize -}}
+{{- .Values.workers.database.poolSize -}}
+  {{- else -}}
+    {{- $inFlight := add .Values.limits.concurrency.maxConcurrentSubtasks .Values.limits.concurrency.maxConcurrentJobs .Values.workers.maxConcurrentJobAdvances .Values.workers.maxConcurrentSpawns -}}
+    {{- if .Values.workers.maxInstanceRequestConcurrency -}}
+      {{- $inFlight = min $inFlight (int .Values.workers.maxInstanceRequestConcurrency) -}}
+    {{- end -}}
+{{- add $inFlight .Values.workers.database.poolHeadroom -}}
+  {{- end -}}
+{{- end -}}
+
+{{/*
+The worker's overflow: explicit when set, otherwise the pool headroom.
+*/}}
+{{- define "ragnerock.workerMaxOverflow" -}}
+{{- .Values.workers.database.maxOverflow | default .Values.workers.database.poolHeadroom -}}
+{{- end -}}
+
+{{/*
+The SUBTASK worker's pool, which is a different number from the plain worker's.
+
+They share the limits ConfigMap because they run the same image, but they do not
+serve the same work: at concurrency 1 the plain worker never runs a subtask, so a
+pool sized for MAX_CONCURRENT_SUBTASKS is one it holds open for nothing. The
+derivation cannot tell them apart -- it sums every in-flight limit either could
+serve -- so the split has to be a value. Falls back to the shared pool, which is
+what every existing install already renders.
+*/}}
+{{- define "ragnerock.subtaskWorkerPoolSize" -}}
+  {{- if .Values.workers.database.subtaskPoolSize -}}
+{{- .Values.workers.database.subtaskPoolSize -}}
+  {{- else -}}
+{{- include "ragnerock.workerPoolSize" . -}}
+  {{- end -}}
+{{- end -}}
+
+{{/*
+The subtask worker's overflow, falling back to the shared one.
+*/}}
+{{- define "ragnerock.subtaskWorkerMaxOverflow" -}}
+  {{- if .Values.workers.database.subtaskMaxOverflow -}}
+{{- .Values.workers.database.subtaskMaxOverflow -}}
+  {{- else -}}
+{{- include "ragnerock.workerMaxOverflow" . -}}
+  {{- end -}}
+{{- end -}}
+
+{{/*
+Worst-case replicas for a component: the autoscaler's ceiling when it is
+managing the count, otherwise the fixed replica count. The budget has to sum
+the ceiling -- a pool is only "small" until the autoscaler decides otherwise.
+
+Call as: include "ragnerock.maxReplicas" .Values.api
+*/}}
+{{- define "ragnerock.maxReplicas" -}}
+  {{- if and .autoscaling .autoscaling.enabled -}}
+{{- .autoscaling.maxReplicas -}}
+  {{- else -}}
+{{- .replicaCount | default 1 -}}
+  {{- end -}}
+{{- end -}}
+
+{{/*
+The API's request gate against the pool it is sized from.
+
+The coherence rule the connection budget rests on: an ordinary API request
+holds a connection for most of its life, so admitting more of them than the
+pool can serve does not buy throughput -- the excess waits on `pool_timeout`,
+and Kubernetes has no platform concurrency in front to shed first. On GCP a
+Terraform precondition checks the same relationship against Cloud Run's
+per-instance concurrency; that check does not run for this chart, which is
+exactly why this one exists.
+
+Stream slots are deliberately not counted: a streaming route releases its
+session before the response body starts, so it costs a slot and no connection.
+*/}}
+{{- define "ragnerock.apiGateFitsPool" -}}
+  {{- $capacity := add .Values.database.poolSize .Values.database.maxOverflow -}}
+  {{- if gt (int .Values.api.maxConcurrentRequests) (int $capacity) -}}
+    {{- fail (printf "api.maxConcurrentRequests is %d but one API pod can hold only %d connections (database.poolSize %d + maxOverflow %d). Every admitted request in this class holds one for most of its life, so the excess queues on poolTimeout instead of being shed with a Retry-After. Lower the gate or raise the pool -- and if you raise the pool, re-check database.maxConnections." (int .Values.api.maxConcurrentRequests) (int $capacity) (int .Values.database.poolSize) (int .Values.database.maxOverflow)) -}}
+  {{- end -}}
+{{- end -}}
+
+{{/*
+Cloud SQL connection budget.
+
+Every service here is a single process with one synchronous engine, so its
+worst case is replicas x (poolSize + maxOverflow). Summed across the chart that
+number has to stay under what the server will actually hand out, or overload
+surfaces as `FATAL: remaining connection slots are reserved` on whichever
+service happens to ask next -- not necessarily the one that caused it.
+
+Inert unless `database.maxConnections` is set, because a chart installed
+against someone else's Postgres cannot know the ceiling. Setting it replaces
+the hand-maintained arithmetic that used to live in a comment.
+*/}}
+{{- define "ragnerock.connectionBudget" -}}
+  {{- if .Values.database.maxConnections -}}
+    {{- $workerPool := int (include "ragnerock.workerPoolSize" .) -}}
+    {{- $workerOverflow := int (include "ragnerock.workerMaxOverflow" .) -}}
+    {{- $workerConns := add $workerPool $workerOverflow -}}
+    {{- $demand := 0 -}}
+    {{- $demand = add $demand (mul (int (include "ragnerock.maxReplicas" .Values.api)) (add .Values.database.poolSize .Values.database.maxOverflow)) -}}
+    {{- $demand = add $demand (mul (int (include "ragnerock.maxReplicas" .Values.worker)) $workerConns) -}}
+    {{- $subtaskPool := int (include "ragnerock.subtaskWorkerPoolSize" .) -}}
+    {{- $subtaskOverflow := int (include "ragnerock.subtaskWorkerMaxOverflow" .) -}}
+    {{- $demand = add $demand (mul (int (include "ragnerock.maxReplicas" .Values.subtaskWorker)) (add $subtaskPool $subtaskOverflow)) -}}
+    {{- $demand = add $demand (mul (int (include "ragnerock.maxReplicas" .Values.dbService)) (add .Values.dbService.defaultDBPoolSize .Values.dbService.defaultDBMaxOverflow)) -}}
+    {{- $demand = add $demand (mul (int (include "ragnerock.maxReplicas" .Values.auditService)) (add .Values.auditService.database.poolSize .Values.auditService.database.maxOverflow)) -}}
+    {{- $demand = add $demand (mul (int (include "ragnerock.maxReplicas" .Values.callbackDelivery)) (add .Values.callbackDelivery.database.poolSize .Values.callbackDelivery.database.maxOverflow)) -}}
+    {{- $budget := sub (int .Values.database.maxConnections) (add (int .Values.database.reservedConnections) (int .Values.database.opsConnectionHeadroom)) -}}
+    {{- if gt $demand $budget -}}
+      {{- fail (printf "Worst-case DB connection demand is %d, over the %d available (database.maxConnections %d less %d reserved and %d for operators). Shrink pools or replica ceilings, or raise database.maxConnections." $demand $budget (int .Values.database.maxConnections) (int .Values.database.reservedConnections) (int .Values.database.opsConnectionHeadroom)) -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}

@@ -53,6 +53,8 @@ spec:
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-callback-delivery
             - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-callback-delivery-db
+            - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-api-url
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-worker

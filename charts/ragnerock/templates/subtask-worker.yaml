@@ -65,6 +65,10 @@ spec:
                 name: {{ include "ragnerock.fullname" . }}-worker
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-subtask-worker
+            # Last of the DB maps on purpose: overrides the shared pool geometry
+            # with this deployment's own.
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-subtask-worker-db
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-model-service
             - configMapRef:

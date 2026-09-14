@@ -28,9 +28,23 @@ database:
   password: ""
   # -- Use a pre-existing secret (must provide key `DB_PASSWORD`) instead of generating one. When set, `password` is ignored.
   existingSecret: ""
-  poolSize: 20
-  maxOverflow: 40
+  # -- Connections one API pod keeps open. The default is the figure the
+  # §4.1 connection budget is computed from; `api.maxConcurrentRequests` is
+  # sized against it and the chart refuses to render a gate that exceeds it
+  poolSize: 12
+  maxOverflow: 6
   poolTimeout: 10
+  # -- Server-side connection ceiling, for the chart's own budget check. Empty
+  # leaves the check off, which is right when the chart is installed against a
+  # Postgres whose limit it cannot know. Set it and the chart refuses to render
+  # a fleet whose worst-case pools exceed it.
+  maxConnections: ""
+  # -- Slots Postgres reserves for superusers and reserved roles, subtracted
+  # from the budget above
+  reservedConnections: 13
+  # -- Slots held back for operators: psql, migrations, backups and any
+  # per-tenant BYODB engines, which have no pool row of their own
+  opsConnectionHeadroom: 27
 
 # -- LLM authentication configuration
 llm:
@@ -122,8 +136,6 @@ queue:
   auditQueueName: "ragnerock-audit"
   # -- Queue the audit-service enqueues its own /audit/export-run tasks onto
   auditExportQueueName: "audit-export-runs"
-  maxDispatchesPerSecond: 500
-  maxConcurrentDispatches: 500
   queuePoolSize: 100
   port: 8123
   # -- Deployment resoruce contraints (i.e. requests/limits)
@@ -236,6 +248,22 @@ model:
   geminiTruncationRetries: 1
   # -- Provider calls the model-service will have in flight at once
   maxConcurrentProviderCalls: 50
+  # -- How long a request waits for a provider-call slot before the gate sheds
+  # it with 503 + Retry-After
+  providerCallWaitSeconds: 30
+  # -- Retry-After sent on a provider-call shed
+  providerCallRetryAfterSeconds: 5
+  # -- Concurrent POSTs to model-service /annotate from one client process
+  maxConcurrentAnnotateCalls: 50
+  # -- Seconds a client-side /annotate call waits for one of those slots before
+  # failing in-band. The failure is classified retryable, so reaching it costs a
+  # redelivery rather than a failed row
+  annotateWaitSeconds: 120
+  # -- Annotation targets in flight at once across every subtask one worker
+  # process is serving. The per-row limiters (web tools, agent tools, the
+  # /annotate gate) are sized against this, not against
+  # maxConcurrentSubtasks x maxConcurrentAnnotations
+  maxConcurrentAnnotationTargets: 50
   # -- Agent attempts when no fallback chain is configured
   agentNoChainMaxAttempts: 4
   # -- Annotator attempts when no fallback chain is configured
@@ -267,10 +295,24 @@ api:
   service:
     type: ClusterIP
     port: 8080
-  # -- In-flight requests one API pod accepts before it starts shedding
-  maxConcurrentRequests: 128
+  # -- In-flight ordinary requests one API pod accepts before it starts
+  # shedding. Sized to `database.poolSize + maxOverflow`, because a request in
+  # this class holds a connection for most of its life. On Kubernetes there is
+  # no platform concurrency behind it, so this gate is the ONLY bound -- which
+  # is why the chart checks it against the pool rather than trusting it
+  maxConcurrentRequests: 18
+  # -- Concurrent streaming requests (SSE, NDJSON, MCP waiters) one pod
+  # admits. A separate class: a stream holds a request slot for minutes and a
+  # DB connection for almost none of it, and every logged-in browser tab holds
+  # two permanently
+  maxConcurrentStreams: 40
   # -- Seconds a request waits for capacity before it is rejected
   capacityWaitSeconds: 5.0
+  # -- Retry-After sent with a shed 503, honoured by the frontend's reconnect
+  capacityRetryAfterSeconds: 2
+  # -- Concurrent HTTP connections to db-service, bounding the source so a
+  # spike queues here rather than arriving as load db-service has to shed
+  dbServiceMaxConnections: 40
   # -- Threads serving blocking DB work off the event loop
   dbThreadpoolSize: 64
   operatorSample:
@@ -318,6 +360,17 @@ callbackDelivery:
   service:
     type: ClusterIP
     port: 8080
+  database:
+    # -- Persistent DB connections held by the pool. SQLAlchemy's own default,
+    # named explicitly so the connection budget sums a visible number
+    poolSize: 5
+    # -- Extra connections allowed beyond poolSize
+    maxOverflow: 10
+    # -- Seconds a request waits for a connection before failing
+    poolTimeout: 5
+    # -- Retry-After sent on the 503 that pool exhaustion produces. No admission
+    # gate sits in front of this pool, so exhaustion is the overload path.
+    capacityRetryAfterSeconds: 2
   # -- Deployment resoruce contraints (i.e. requests/limits)
   resources: {}
   # -- Optional horizontal pod autoscaler. Requires CPU/memory requests to be
@@ -573,6 +626,21 @@ dbService:
     port: 8080
     # -- Maximum number of rows accepted in a single batch write
   batchLimit: 10000
+  # -- Concurrent requests against the DEFAULT data DB one pod admits. Empty
+  # derives it from the default pool's capacity, since every admitted request
+  # can hold at most one of its connections
+  maxConcurrentRequests: ""
+  # -- Concurrent BYODB requests one pod admits. A separate class because a
+  # customer query runs for seconds to minutes while internal traffic is
+  # milliseconds; empty derives it from the conservative BYODB pool
+  maxConcurrentExternalRequests: ""
+  # -- Seconds a request waits for a capacity slot before being shed
+  capacityWaitSeconds: 2.0
+  # -- Retry-After sent with a shed or POOL_EXHAUSTED 503
+  capacityRetryAfterSeconds: 2
+  # -- Seconds a request waits for a DB connection before the app returns 503
+  # POOL_EXHAUSTED. At least capacityWaitSeconds, so the gate sheds first
+  poolTimeout: 5
   # -- Per-customer-DB rate limit: token bucket capacity (the default data DB is exempt)
   rateLimitMaxTokens: 100
   # -- Per-customer-DB rate limit: token refill rate (tokens per second)
@@ -730,6 +798,12 @@ maintenance:
   annotations: {}
 
 limits:
+  # -- Ids per request to a db-service '*-by-ids' endpoint, and the ceiling
+  # those endpoints enforce -- one value, because the client's chunk size and
+  # the server's limit are one decision. A URL byte budget: each id costs 41
+  # bytes of request line, so 200 is about 8.2 KB, half the smallest limit in
+  # the path.
+  dbIdsPerRequest: 200
   concurrency:
     maxConcurrentSubtasks: 50
     maxConcurrentAnnotations: 10
@@ -744,8 +818,13 @@ limits:
   batches:
     embedding: 100
     annotation: 50
-    tabularAnnotation: 200
-    defaultRow: 50
+    # -- Items per annotation subtask when the operator carries tools
+    toolOperatorSubtask: 10
+    # -- Size ROW subtasks from settings rather than from the operator's
+    # batch_size (which is rows per LLM call, not rows per subtask)
+    rowSubtaskGrainEnabled: true
+    # -- Ceiling on the elapsed user-tool time one subtask may spend
+    subtaskToolElapsedCeilingSeconds: 900
   subtask:
     maxAttempts: 3
     failureThreshold: 0.05
@@ -754,9 +833,15 @@ limits:
   job:
     # -- Extra delay past the subtask stale threshold before the job watchdog reconciles
     watchdogSlackMinutes: 5
+  # -- Largest upstream row count an LLM aggregation node may drain into one request
+  aggregationMaxUpstreamRows: 10000
   codeOperator:
     # -- Wall-clock ceiling for a code operator's execution, in seconds
     timeoutSeconds: 30
+    # -- Largest time limit an element-scope (Row/Page/Paragraph/Sentence) code operator may declare, in seconds
+    maxTimeoutSeconds: 30
+    # -- Largest time limit a Sheet- or Document-scope code operator may declare, in seconds
+    maxTimeoutSecondsSheet: 300
 
 # -- Ragnerock provided license key
 license: ""
@@ -827,8 +912,8 @@ endpoints:
     keepaliveSeconds: 15
     # -- JSON-RPC request-body ceiling, in bytes. Bounds base64 file inputs
     maxBodyBytes: 16777216
-    # -- Concurrent waiting calls one API instance will hold before answering `processing` immediately
-    maxWaiters: 32
+    # -- Concurrent waiting calls one API instance will hold before answering `processing` immediately. Keep at or below half of `api.maxConcurrentStreams`: every logged-in browser tab holds two stream slots
+    maxWaiters: 16
 
 ingest:
   staleTimeoutSeconds: 3600
@@ -1051,6 +1136,9 @@ agentTools:
   callTimeoutMaxSeconds: 120
   # -- Total tool wall clock per subtask or notebook turn
   buildTimeBudgetSeconds: 600
+  # -- Each row's carve-out of its subtask's tool wall clock; a row that
+  # exhausts it fails rather than answering without its tools
+  rowTimeBudgetSeconds: 360
   # -- How long a call waits for the concurrency semaphore before failing in-band
   busyWaitSeconds: 5
   # -- Connect timeout, so unreachable hosts fail fast
@@ -1125,6 +1213,13 @@ fallback:
   perProviderAttempts: 2
 
 # -- Workflow resources bound into operator runs and rendered into prompts.
+jobScope:
+  # -- Read the DocumentJobScope fan-in ledger for job completion, advancement,
+  # the failure threshold and API progress. The scope row is planned and its
+  # counter written regardless; with this off those readers count
+  # DocumentSubtask rows instead. Safe to flip either way with jobs in flight.
+  accountingEnabled: true
+
 workflowResources:
   # -- Ceiling on a value resource's serialized inline value, in bytes
   valueMaxBytes: 262144
@@ -1136,6 +1231,8 @@ workflowResources:
   codeMaxRows: 100000
   # -- Ceiling on all code operator resources for one run, in bytes
   codeTotalMaxBytes: 40000000
+  # -- Byte budget for the worker's per-process cache of materialized code resources
+  codeCacheMaxBytes: 256000000
 
 workbench:
   # -- Kill switch for the workbench auto-iterate loop. Disabled, the chat and
@@ -1162,15 +1259,58 @@ workbench:
 workers:
   # -- Seconds a task waits for local capacity before it is deferred
   capacityWaitSeconds: 5.0
+  # -- Retry-After sent with a shed or pool-exhausted 503; the queue honours
+  # it as backoff, so a saturated instance gets a delayed redelivery rather
+  # than an immediate one that finds it just as full
+  capacityRetryAfterSeconds: 5
+  # -- Concurrent HTTP connections to db-service, bounding the source
+  dbServiceMaxConnections: 40
+  # -- Requests one pod is allowed to serve at once, as configured on the
+  # platform. Caps the derived DB pool at what can actually arrive; empty
+  # leaves the derivation to the concurrency semaphores alone
+  maxInstanceRequestConcurrency: ""
   # -- Threads serving blocking DB work off the event loop
   dbThreadpoolSize: 80
   # -- Concurrent job phase-advances a worker process may run
   maxConcurrentJobAdvances: 10
+  # -- Concurrent spawn continuations a worker process may run. A node whose
+  # subtasks take longer than `spawn.timeBudgetSeconds` to publish continues on
+  # a later delivery; those get their own pool so one large job's paging cannot
+  # queue behind every other job's phase advances.
+  maxConcurrentSpawns: 5
   # -- Characters per chunk when a document is split for embedding
   maxChunkChars: 6000
+  # -- Concurrent Cloud Tasks publishes during a subtask spawn
+  subtaskPublishConcurrency: 32
+  # -- Minutes after a subtask's publish past which reconciliation republishes it
+  subtaskEnqueueStaleMinutes: 15
+  # -- Subtask rows per multi-row INSERT when a plan is persisted. The plan
+  # still commits in one transaction; this bounds each statement in it.
+  subtaskInsertChunkRows: 5000
+  spawn:
+    # -- Subtasks published per page of a spawn
+    pageSize: 1000
+    # -- Wall clock one spawn delivery may spend publishing before handing the
+    # rest to a continuation. Must stay well under the queue's dispatch
+    # deadline, or the delivery is killed mid-page instead of stopping cleanly.
+    timeBudgetSeconds: 300
+    # -- Seconds a claimed-but-unfinished plan may sit before another delivery
+    # takes it over, so a planner that died cannot hang the node forever
+    planningStaleSeconds: 900
+  tabularIngest:
+    # -- Rows per db-service insert request when ingesting a tabular document
+    rowInsertChunkRows: 1000
+    # -- Byte ceiling per tabular row-insert request (binds first on a wide sheet)
+    rowInsertChunkBytes: 8000000
+    # -- Tabular row references per enumeration page (db-service caps it at 10,000)
+    rowRefsPageSize: 10000
+    # -- Rows a single parsed sheet may hold before the parse fails explicitly
+    maxRowsPerSheet: 100000
   database:
     # -- Seconds a statement waits on a row lock before erroring
     lockTimeoutSeconds: 30
+    # -- Milliseconds a subtask completion may wait on the job row's lock before warning
+    completionLockSlowMs: 1000
     # -- Seconds a checkout waits for a free pooled connection
     poolTimeout: 10
     # -- Connections kept spare on top of the derived pool size, for non-request work
@@ -1178,6 +1318,14 @@ workers:
     # -- Explicit connection pool size. Derived from the concurrency limits plus
     # `poolHeadroom` when null, mirroring the worker's own in-process derivation.
     poolSize: ~
+    # -- The SUBTASK worker's own pool size, when it should differ from the
+    # plain worker's. Both deployments run one image and share this ConfigMap,
+    # but not the work: at concurrency 1 the plain worker never serves a
+    # subtask, so a pool sized for `maxConcurrentSubtasks` is one it holds open
+    # for nothing. Null falls back to `poolSize`.
+    subtaskPoolSize: ~
+    # -- The subtask worker's own overflow; null falls back to `maxOverflow`.
+    subtaskMaxOverflow: ~
     # -- Explicit overflow above the pool size. Falls back to `poolHeadroom` when null.
     maxOverflow: ~
   # -- Periodic DB sweep that re-enqueues jobs whose queue deliveries were
@@ -1307,8 +1455,12 @@ db:
 # -- Client-side knobs used by callers of python-service (API and workers).
 # The sandbox's own configuration lives under `pythonService.sandbox`.
 python:
-  # -- Items per chunk when a batch execution is split across requests
-  batchChunkItems: 16
+  # -- Upper bound on items per chunk; the count used is derived from the operator's time limit
+  batchChunkItemsMax: 200
+  # -- Chunks of one batch dispatched concurrently
+  chunkConcurrency: 2
+  # -- Concurrent python-service requests one worker process may have in flight
+  maxInflight: 4
   # -- Seconds added to the execution budget to form the HTTP read timeout
   timeoutMarginSeconds: 60.0
   # -- Attempts per execution request before giving up
@@ -1325,6 +1477,17 @@ auditService:
   service:
     type: ClusterIP
     port: 8080
+  database:
+    # -- Persistent DB connections held by the pool. SQLAlchemy's own default,
+    # named explicitly so the connection budget sums a visible number
+    poolSize: 5
+    # -- Extra connections allowed beyond poolSize
+    maxOverflow: 10
+    # -- Seconds a request waits for a connection before failing
+    poolTimeout: 5
+    # -- Retry-After sent on the 503 that pool exhaustion produces. No admission
+    # gate sits in front of this pool, so exhaustion is the overload path.
+    capacityRetryAfterSeconds: 2
   # -- Months of partitions `/audit/maintain` keeps ahead of ingest on each daily run
   partitionPrecreateMonths: 3
   export:
@@ -1374,10 +1537,12 @@ pythonService:
   service:
     type: ClusterIP
     port: 8080
+  # -- Request timeout the service is deployed with; its clients size their chunking against it
+  requestTimeoutSeconds: 600
   # -- Sandbox limits the code-execution service applies to user code
   sandbox:
     # -- Wall-clock ceiling applied to every execution, in seconds
-    maxTimeout: 30
+    maxTimeout: 300
     # -- stdout/stderr capture cap, in bytes
     maxOutputBytes: 1000000
     # -- Per-result size ceiling, in bytes
@@ -1386,8 +1551,13 @@ pythonService:
     maxRequestBytes: 48000000
     # -- Extra wall-clock allowed for subprocess spawn and the first heavy import
     batchStartupGraceSeconds: 15.0
-    # -- CPU-seconds backstop behind the wall-clock timeout
+    # -- CPU-seconds backstop behind the wall-clock timeout; a floor, scaled by the execution's wall budget
     rlimitCPUSeconds: 60
+    # -- CPU-seconds the backstop allows per second of wall budget (the instance's core count)
+    rlimitCPUPerWallSecond: 2
+    # -- CPU-seconds of slack above the scaled backstop, for the startup CPU
+    # boost. Not a per-execution budget; the wall clock is.
+    rlimitCPUHeadroomSeconds: 30
     # -- Per-UID process cap (must not starve numpy threads)
     rlimitNProc: 512
     # -- Largest file the child may write, in bytes

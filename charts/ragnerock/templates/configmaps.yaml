@@ -18,10 +18,22 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: {{ include "ragnerock.fullname" . }}-core
+  {{- include "ragnerock.apiGateFitsPool" . }}
+  {{- include "ragnerock.connectionBudget" . }}
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
   ANNOTATION_TOOL_MAX_ITERATIONS: "{{ include "ragnerock.number" .Values.agent.annotationToolMaxIterations }}"
+  MAX_CONCURRENT_ANNOTATE_CALLS: "{{ include "ragnerock.number" .Values.model.maxConcurrentAnnotateCalls }}"
+  MODEL_SERVICE_ANNOTATE_WAIT_SECONDS: "{{ include "ragnerock.number" .Values.model.annotateWaitSeconds }}"
+  MAX_CONCURRENT_ANNOTATION_TARGETS: "{{ include "ragnerock.number" .Values.model.maxConcurrentAnnotationTargets }}"
+  # Both the clients' chunk size and the ceiling db-service enforces on every
+  # '*-by-ids' route, so the two cannot disagree -- which is why it lives HERE,
+  # in the ConfigMap every deployment mounts, and not in `-db-conn`, which
+  # db-service does not. Rendering it from two values was two numbers for one
+  # decision: the clients read one and the server enforced the other, and
+  # raising either alone 422s every by-ids call.
+  DB_IDS_PER_REQUEST: "{{ include "ragnerock.number" .Values.limits.dbIdsPerRequest }}"
   MAX_FALLBACK_DEPTH: "{{ include "ragnerock.number" .Values.fallback.maxDepth }}"
   MAX_FALLBACK_CHAIN_CIPHERTEXT_BYTES: "{{ include "ragnerock.number" .Values.fallback.maxChainCiphertextBytes }}"
   MEMORY_TOOLS_ENABLED: "{{ .Values.memory.toolsEnabled }}"
@@ -61,6 +73,7 @@ data:
   AGENT_TOOL_CALL_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.agentTools.callTimeoutSeconds }}"
   AGENT_TOOL_CALL_TIMEOUT_MAX_SECONDS: "{{ include "ragnerock.number" .Values.agentTools.callTimeoutMaxSeconds }}"
   AGENT_TOOL_BUILD_TIME_BUDGET_SECONDS: "{{ include "ragnerock.number" .Values.agentTools.buildTimeBudgetSeconds }}"
+  AGENT_TOOL_ROW_TIME_BUDGET_SECONDS: "{{ include "ragnerock.number" .Values.agentTools.rowTimeBudgetSeconds }}"
   AGENT_TOOL_BUSY_WAIT_SECONDS: "{{ include "ragnerock.number" .Values.agentTools.busyWaitSeconds }}"
   AGENT_TOOL_CONNECT_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.agentTools.connectTimeoutSeconds }}"
   AGENT_TOOL_DISCOVERY_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.agentTools.discoveryTimeoutSeconds }}"
@@ -110,6 +123,12 @@ data:
   WEB_SEARCH_RETRY_ATTEMPTS: "{{ include "ragnerock.number" .Values.webTools.searchRetryAttempts }}"
   WEB_SEARCH_BRAVE_URL: {{ .Values.webTools.searchBraveUrl | quote }}
   RESOURCE_VALUE_MAX_BYTES: "{{ include "ragnerock.number" .Values.workflowResources.valueMaxBytes }}"
+  # DocumentJobScope read switch (big-job-improvements design). The scope row
+  # is always planned and its counter always written; this decides only whether
+  # completion, advancement, the failure threshold and the API read the ledger
+  # or fall back to counting subtask rows, so it is safe to flip either way
+  # with jobs in flight. Every core-running service carries it, as in Terraform.
+  JOB_SCOPE_ACCOUNTING_ENABLED: "{{ .Values.jobScope.accountingEnabled }}"
   TABULAR_LIST_PAGE_SIZE: "{{ include "ragnerock.number" .Values.tabular.listPageSize }}"
   TABULAR_PROMPT_MAX_COLUMNS: "{{ include "ragnerock.number" .Values.tabular.promptMaxColumns }}"
   TABULAR_PROMPT_MAX_SOURCES: "{{ include "ragnerock.number" .Values.tabular.promptMaxSources }}"
@@ -188,7 +207,10 @@ data:
   DB_POOL_TIMEOUT: "{{ include "ragnerock.number" .Values.database.poolTimeout }}"
   # Per-pod request-capacity shedding and the event-loop offload threadpool.
   MAX_CONCURRENT_REQUESTS: "{{ include "ragnerock.number" .Values.api.maxConcurrentRequests }}"
+  MAX_CONCURRENT_STREAMS: "{{ include "ragnerock.number" .Values.api.maxConcurrentStreams }}"
   CAPACITY_WAIT_SECONDS: "{{ include "ragnerock.number" .Values.api.capacityWaitSeconds }}"
+  CAPACITY_RETRY_AFTER_SECONDS: "{{ include "ragnerock.number" .Values.api.capacityRetryAfterSeconds }}"
+  DB_SERVICE_MAX_CONNECTIONS: "{{ include "ragnerock.number" .Values.api.dbServiceMaxConnections }}"
   DB_THREADPOOL_SIZE: "{{ include "ragnerock.number" .Values.api.dbThreadpoolSize }}"
   # Fixed geometry rather than a tunable: the isolated health server has to sit
   # on a port other than the main app port (8080).
@@ -225,6 +247,8 @@ data:
   # production run it stands in for.
   OPERATOR_SAMPLE_MAX_FILE_BYTES: "{{ include "ragnerock.number" .Values.api.operatorSample.maxFileBytes }}"
   OPERATOR_SAMPLE_PARSE_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.api.operatorSample.parseTimeoutSeconds }}"
+  CODE_OPERATOR_MAX_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.limits.codeOperator.maxTimeoutSeconds }}"
+  CODE_OPERATOR_MAX_TIMEOUT_SECONDS_SHEET: "{{ include "ragnerock.number" .Values.limits.codeOperator.maxTimeoutSecondsSheet }}"
   CODE_OPERATOR_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.limits.codeOperator.timeoutSeconds }}"
   # Workflow workbench (chat, try-it-out, auto mode) — API-only: the workers
   # never serve a workbench session. The auto caps bound one autonomous
@@ -325,6 +349,11 @@ data:
   DEFAULT_DB_POOL_SIZE: "{{ include "ragnerock.number" .Values.dbService.defaultDBPoolSize }}"
   DEFAULT_DB_MAX_OVERFLOW: "{{ include "ragnerock.number" .Values.dbService.defaultDBMaxOverflow }}"
   REQUEST_THREADPOOL_SIZE: "{{ include "ragnerock.number" .Values.dbService.requestThreadpoolSize }}"
+  MAX_CONCURRENT_REQUESTS: "{{ .Values.dbService.maxConcurrentRequests | default "" }}"
+  MAX_CONCURRENT_EXTERNAL_REQUESTS: "{{ .Values.dbService.maxConcurrentExternalRequests | default "" }}"
+  CAPACITY_WAIT_SECONDS: "{{ include "ragnerock.number" .Values.dbService.capacityWaitSeconds }}"
+  CAPACITY_RETRY_AFTER_SECONDS: "{{ include "ragnerock.number" .Values.dbService.capacityRetryAfterSeconds }}"
+  DB_POOL_TIMEOUT: "{{ include "ragnerock.number" .Values.dbService.poolTimeout }}"
   SNOWFLAKE_STATEMENT_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.dbService.snowflakeStatementTimeoutSeconds }}"
   SNOWFLAKE_LOCK_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.dbService.snowflakeLockTimeoutSeconds }}"
   SNOWFLAKE_INSERT_PAGE_SIZE: "{{ include "ragnerock.number" .Values.dbService.snowflakeInsertPageSize }}"
@@ -567,6 +596,22 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
+  name: {{ include "ragnerock.fullname" . }}-subtask-worker-db
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  # Mounted by the subtask-worker deployment ONLY, after the shared limits map,
+  # so it wins there and the plain worker keeps the shared pool. The two are
+  # different numbers on purpose: at concurrency 1 the plain worker never serves
+  # a subtask, so a pool sized for MAX_CONCURRENT_SUBTASKS is one it holds open
+  # for nothing. The -subtask-worker map next door cannot carry this, because the
+  # plain worker mounts that one too (it needs SUBTASK_WORKER_URL to publish).
+  DB_POOL_SIZE: "{{ include "ragnerock.subtaskWorkerPoolSize" . }}"
+  DB_MAX_OVERFLOW: "{{ include "ragnerock.subtaskWorkerMaxOverflow" . }}"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
   name: {{ include "ragnerock.fullname" . }}-model-service
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
@@ -585,6 +630,8 @@ data:
   GEMINI_THINKING_LEVEL: {{ .Values.model.geminiThinkingLevel | quote }}
   GEMINI_TRUNCATION_RETRIES: "{{ include "ragnerock.number" .Values.model.geminiTruncationRetries }}"
   MAX_CONCURRENT_PROVIDER_CALLS: "{{ include "ragnerock.number" .Values.model.maxConcurrentProviderCalls }}"
+  PROVIDER_CALL_WAIT_SECONDS: "{{ include "ragnerock.number" .Values.model.providerCallWaitSeconds }}"
+  PROVIDER_CALL_RETRY_AFTER_SECONDS: "{{ include "ragnerock.number" .Values.model.providerCallRetryAfterSeconds }}"
   # Retry shaping for a provider with no fallback chain behind it, and the
   # budgets the model-service spends working through one that has.
   AGENT_NO_CHAIN_MAX_ATTEMPTS: "{{ include "ragnerock.number" .Values.model.agentNoChainMaxAttempts }}"
@@ -616,8 +663,6 @@ data:
   CLOUD_TASKS_JOB_QUEUE_NAME: "{{ .Values.queue.jobQueueName }}"
   CLOUD_TASKS_SUBTASK_QUEUE_NAME: "{{ .Values.queue.subtaskQueueName }}"
   CLOUD_TASKS_CALLBACK_QUEUE: "{{ .Values.queue.callbackQueueName }}"
-  CLOUD_TASKS_MAX_DISPATCHES_PER_SECOND: "{{ include "ragnerock.number" .Values.queue.maxDispatchesPerSecond }}"
-  CLOUD_TASKS_MAX_CONCURRENT_DISPATCHES: "{{ include "ragnerock.number" .Values.queue.maxConcurrentDispatches }}"
   QUEUE_POOL_SIZE: "{{ include "ragnerock.number" .Values.queue.queuePoolSize }}"
   CLOUD_TASKS_ENDPOINT: {{ include "ragnerock.fullname" . }}-queue:{{ include "ragnerock.number" .Values.queue.port }}
   CLOUD_TASKS_PROJECT_ID: local
@@ -638,12 +683,15 @@ data:
   MAX_CONCURRENT_SAMPLE_PARSES: "{{ include "ragnerock.number" .Values.limits.concurrency.maxConcurrentSampleParses }}"
   EMBEDDING_BATCH_SIZE: "{{ include "ragnerock.number" .Values.limits.batches.embedding }}"
   ANNOTATION_BATCH_SIZE: "{{ include "ragnerock.number" .Values.limits.batches.annotation }}"
-  TABULAR_ANNOTATION_BATCH_SIZE: "{{ include "ragnerock.number" .Values.limits.batches.tabularAnnotation }}"
-  DEFAULT_ROW_BATCH_SIZE: "{{ include "ragnerock.number" .Values.limits.batches.defaultRow }}"
+  TOOL_OPERATOR_SUBTASK_SIZE: "{{ include "ragnerock.number" .Values.limits.batches.toolOperatorSubtask }}"
+  ROW_SUBTASK_GRAIN_ENABLED: "{{ .Values.limits.batches.rowSubtaskGrainEnabled }}"
+  SUBTASK_TOOL_ELAPSED_CEILING_SECONDS: "{{ include "ragnerock.number" .Values.limits.batches.subtaskToolElapsedCeilingSeconds }}"
   SUBTASK_MAX_ATTEMPTS: "{{ include "ragnerock.number" .Values.limits.subtask.maxAttempts }}"
   SUBTASK_FAILURE_THRESHOLD: "{{ include "ragnerock.number" .Values.limits.subtask.failureThreshold }}"
   SUBTASK_STALE_THRESHOLD_MINUTES: "{{ include "ragnerock.number" .Values.limits.subtask.staleThresholdMinutes }}"
   JOB_WATCHDOG_SLACK_MINUTES: "{{ include "ragnerock.number" .Values.limits.job.watchdogSlackMinutes }}"
+  CODE_OPERATOR_MAX_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.limits.codeOperator.maxTimeoutSeconds }}"
+  CODE_OPERATOR_MAX_TIMEOUT_SECONDS_SHEET: "{{ include "ragnerock.number" .Values.limits.codeOperator.maxTimeoutSecondsSheet }}"
   CODE_OPERATOR_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.limits.codeOperator.timeoutSeconds }}"
 ---
 # Runtime geometry shared by the worker and subtask-worker: delivery-capacity
@@ -660,16 +708,30 @@ data:
   CAPACITY_WAIT_SECONDS: "{{ include "ragnerock.number" .Values.workers.capacityWaitSeconds }}"
   MAX_CONCURRENT_JOB_ADVANCES: "{{ include "ragnerock.number" .Values.workers.maxConcurrentJobAdvances }}"
   MAX_CHUNK_CHARS: "{{ include "ragnerock.number" .Values.workers.maxChunkChars }}"
-  # Pool sizing mirrors the worker's own in-process derivation (one connection
-  # per possible in-flight handler, plus headroom for non-request work), so an
-  # unset poolSize/maxOverflow lands on the same geometry the service would
-  # have picked for itself.
-  DB_POOL_SIZE: "{{ include "ragnerock.number" (.Values.workers.database.poolSize | default (add .Values.limits.concurrency.maxConcurrentSubtasks .Values.limits.concurrency.maxConcurrentJobs .Values.workers.maxConcurrentJobAdvances .Values.workers.database.poolHeadroom)) }}"
-  DB_MAX_OVERFLOW: "{{ include "ragnerock.number" (.Values.workers.database.maxOverflow | default .Values.workers.database.poolHeadroom) }}"
+  # Pool sizing mirrors the worker's own in-process derivation, through the
+  # same helper the connection budget sums -- so the number a worker receives
+  # and the number the budget checks cannot drift apart.
+  DB_POOL_SIZE: "{{ include "ragnerock.workerPoolSize" . }}"
+  DB_MAX_OVERFLOW: "{{ include "ragnerock.workerMaxOverflow" . }}"
   DB_POOL_TIMEOUT: "{{ include "ragnerock.number" .Values.workers.database.poolTimeout }}"
+  CAPACITY_RETRY_AFTER_SECONDS: "{{ include "ragnerock.number" .Values.workers.capacityRetryAfterSeconds }}"
+  DB_SERVICE_MAX_CONNECTIONS: "{{ include "ragnerock.number" .Values.workers.dbServiceMaxConnections }}"
+  MAX_INSTANCE_REQUEST_CONCURRENCY: "{{ .Values.workers.maxInstanceRequestConcurrency | default "" }}"
   DB_POOL_HEADROOM: "{{ include "ragnerock.number" .Values.workers.database.poolHeadroom }}"
   DB_THREADPOOL_SIZE: "{{ include "ragnerock.number" .Values.workers.dbThreadpoolSize }}"
   DB_LOCK_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.workers.database.lockTimeoutSeconds }}"
+  COMPLETION_LOCK_SLOW_MS: "{{ include "ragnerock.number" .Values.workers.database.completionLockSlowMs }}"
+  TABULAR_ROW_INSERT_CHUNK_ROWS: "{{ include "ragnerock.number" .Values.workers.tabularIngest.rowInsertChunkRows }}"
+  TABULAR_ROW_INSERT_CHUNK_BYTES: "{{ include "ragnerock.number" .Values.workers.tabularIngest.rowInsertChunkBytes }}"
+  SUBTASK_PUBLISH_CONCURRENCY: "{{ include "ragnerock.number" .Values.workers.subtaskPublishConcurrency }}"
+  SUBTASK_ENQUEUE_STALE_MINUTES: "{{ include "ragnerock.number" .Values.workers.subtaskEnqueueStaleMinutes }}"
+  SUBTASK_INSERT_CHUNK_ROWS: "{{ include "ragnerock.number" .Values.workers.subtaskInsertChunkRows }}"
+  MAX_CONCURRENT_SPAWNS: "{{ include "ragnerock.number" .Values.workers.maxConcurrentSpawns }}"
+  SPAWN_PAGE_SIZE: "{{ include "ragnerock.number" .Values.workers.spawn.pageSize }}"
+  SPAWN_TIME_BUDGET_SECONDS: "{{ include "ragnerock.number" .Values.workers.spawn.timeBudgetSeconds }}"
+  SPAWN_PLANNING_STALE_SECONDS: "{{ include "ragnerock.number" .Values.workers.spawn.planningStaleSeconds }}"
+  ROW_REFS_PAGE_SIZE: "{{ include "ragnerock.number" .Values.workers.tabularIngest.rowRefsPageSize }}"
+  MAX_ROWS_PER_SHEET: "{{ include "ragnerock.number" .Values.workers.tabularIngest.maxRowsPerSheet }}"
   # Fixed geometry rather than a tunable: the isolated health server has to sit
   # on a port other than the main app port (8080).
   HEALTH_PORT: "8081"
@@ -679,9 +741,14 @@ data:
   JOB_RECONCILE_NOT_STARTED_AFTER_SECONDS: "{{ include "ragnerock.number" .Values.workers.reconcile.notStartedAfterSeconds }}"
   JOB_RECONCILE_IN_PROGRESS_AFTER_SECONDS: "{{ include "ragnerock.number" .Values.workers.reconcile.inProgressAfterSeconds }}"
   RESOURCE_CONTEXT_MAX_CHARS: "{{ include "ragnerock.number" .Values.workflowResources.contextMaxChars }}"
+  AGGREGATION_MAX_UPSTREAM_ROWS: "{{ include "ragnerock.number" .Values.limits.aggregationMaxUpstreamRows }}"
+  CODE_RESOURCE_CACHE_MAX_BYTES: "{{ include "ragnerock.number" .Values.workflowResources.codeCacheMaxBytes }}"
   CODE_RESOURCE_MAX_BYTES: "{{ include "ragnerock.number" .Values.workflowResources.codeMaxBytes }}"
   CODE_RESOURCE_MAX_ROWS: "{{ include "ragnerock.number" .Values.workflowResources.codeMaxRows }}"
   CODE_RESOURCE_TOTAL_MAX_BYTES: "{{ include "ragnerock.number" .Values.workflowResources.codeTotalMaxBytes }}"
+  # Worker-only: python-service serves one request per instance, so its
+  # capacity absorbs the sum of every worker's concurrent calls.
+  PYTHON_SERVICE_MAX_INFLIGHT: "{{ include "ragnerock.number" .Values.python.maxInflight }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -732,6 +799,22 @@ data:
   CALLBACK_ALLOWED_HOSTS: "ragnerock-api:8080"
   CALLBACK_HTTP_ALLOWED: "true"
 ---
+# The callback-delivery service's OWN settings, separate from the map above:
+# that one carries the service's URL and is mounted by everything that calls
+# it, so anything added there lands in half the fleet.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-callback-delivery-db
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  # See the audit-service map: explicit so the budget sums a visible number.
+  DB_POOL_SIZE: "{{ include "ragnerock.number" .Values.callbackDelivery.database.poolSize }}"
+  DB_MAX_OVERFLOW: "{{ include "ragnerock.number" .Values.callbackDelivery.database.maxOverflow }}"
+  DB_POOL_TIMEOUT: "{{ include "ragnerock.number" .Values.callbackDelivery.database.poolTimeout }}"
+  CAPACITY_RETRY_AFTER_SECONDS: "{{ include "ragnerock.number" .Values.callbackDelivery.database.capacityRetryAfterSeconds }}"
+---
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -754,10 +837,16 @@ metadata:
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
-  PYTHON_SERVICE_BATCH_CHUNK_ITEMS: "{{ include "ragnerock.number" .Values.python.batchChunkItems }}"
+  PYTHON_SERVICE_BATCH_CHUNK_ITEMS_MAX: "{{ include "ragnerock.number" .Values.python.batchChunkItemsMax }}"
+  # Deliberately the SERVICE's own grace and request timeout, not separate
+  # client values: the chunk size is derived from them, so a client that read a
+  # different number would size chunks the service cannot honour.
+  PYTHON_SERVICE_BATCH_STARTUP_GRACE_SECONDS: "{{ include "ragnerock.number" .Values.pythonService.sandbox.batchStartupGraceSeconds }}"
+  PYTHON_SERVICE_CHUNK_CONCURRENCY: "{{ include "ragnerock.number" .Values.python.chunkConcurrency }}"
   PYTHON_SERVICE_HTTP_TIMEOUT_MARGIN_SECONDS: "{{ include "ragnerock.number" .Values.python.timeoutMarginSeconds }}"
   PYTHON_SERVICE_MAX_ATTEMPTS: "{{ include "ragnerock.number" .Values.python.maxAttempts }}"
   PYTHON_SERVICE_MAX_REQUEST_BYTES: "{{ include "ragnerock.number" .Values.python.maxRequestBytes }}"
+  PYTHON_SERVICE_REQUEST_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.pythonService.requestTimeoutSeconds }}"
   PYTHON_SERVICE_URL: "http://{{ include "ragnerock.fullname" . }}-python-service:{{ include "ragnerock.number" .Values.pythonService.service.port }}"
 ---
 # python-service's own sandbox configuration (packages/python-service
@@ -775,7 +864,13 @@ data:
   MAX_RESULT_BYTES: "{{ include "ragnerock.number" .Values.pythonService.sandbox.maxResultBytes }}"
   MAX_REQUEST_BYTES: "{{ include "ragnerock.number" .Values.pythonService.sandbox.maxRequestBytes }}"
   BATCH_STARTUP_GRACE_SECONDS: "{{ include "ragnerock.number" .Values.pythonService.sandbox.batchStartupGraceSeconds }}"
+  # The client's read-timeout slack, mirrored so the sandbox knows how far
+  # past a request's budget it may run before the caller gives up. Same value
+  # as the callers' PYTHON_SERVICE_HTTP_TIMEOUT_MARGIN_SECONDS.
+  HTTP_TIMEOUT_MARGIN_SECONDS: "{{ include "ragnerock.number" .Values.python.timeoutMarginSeconds }}"
   RLIMIT_CPU_SECONDS: "{{ include "ragnerock.number" .Values.pythonService.sandbox.rlimitCPUSeconds }}"
+  RLIMIT_CPU_PER_WALL_SECOND: "{{ include "ragnerock.number" .Values.pythonService.sandbox.rlimitCPUPerWallSecond }}"
+  RLIMIT_CPU_HEADROOM_SECONDS: "{{ include "ragnerock.number" .Values.pythonService.sandbox.rlimitCPUHeadroomSeconds }}"
   RLIMIT_NPROC: "{{ include "ragnerock.number" .Values.pythonService.sandbox.rlimitNProc }}"
   RLIMIT_FSIZE_BYTES: "{{ include "ragnerock.number" .Values.pythonService.sandbox.rlimitFSizeBytes }}"
   RLIMIT_NOFILE: "{{ include "ragnerock.number" .Values.pythonService.sandbox.rlimitNoFile }}"
@@ -792,6 +887,13 @@ metadata:
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
+  # Named explicitly rather than left to SQLAlchemy's implicit 5 + 10: the
+  # connection budget sums every service's geometry, and a library default is
+  # a number nobody deploying can see.
+  DB_POOL_SIZE: "{{ include "ragnerock.number" .Values.auditService.database.poolSize }}"
+  DB_MAX_OVERFLOW: "{{ include "ragnerock.number" .Values.auditService.database.maxOverflow }}"
+  DB_POOL_TIMEOUT: "{{ include "ragnerock.number" .Values.auditService.database.poolTimeout }}"
+  CAPACITY_RETRY_AFTER_SECONDS: "{{ include "ragnerock.number" .Values.auditService.database.capacityRetryAfterSeconds }}"
   AUDIT_PROMPT_PREVIEW_MAX_CHARS: "{{ include "ragnerock.number" .Values.audit.promptPreviewMaxChars }}"
   AUDIT_ERROR_MESSAGE_MAX_CHARS: "{{ include "ragnerock.number" .Values.audit.errorMessageMaxChars }}"
   AUDIT_PARTITION_PRECREATE_MONTHS: "{{ include "ragnerock.number" .Values.auditService.partitionPrecreateMonths }}"
@@ -808,5 +910,3 @@ data:
   CLOUD_TASKS_ENABLED: "true"
   CLOUD_TASKS_PROJECT_ID: local
   CLOUD_TASKS_ENDPOINT: {{ include "ragnerock.fullname" . }}-queue:{{ include "ragnerock.number" .Values.queue.port }}
-  CLOUD_TASKS_MAX_DISPATCHES_PER_SECOND: "{{ include "ragnerock.number" .Values.queue.maxDispatchesPerSecond }}"
-  CLOUD_TASKS_MAX_CONCURRENT_DISPATCHES: "{{ include "ragnerock.number" .Values.queue.maxConcurrentDispatches }}"
