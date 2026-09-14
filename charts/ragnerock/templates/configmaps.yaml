@@ -123,12 +123,6 @@ data:
   WEB_SEARCH_RETRY_ATTEMPTS: "{{ include "ragnerock.number" .Values.webTools.searchRetryAttempts }}"
   WEB_SEARCH_BRAVE_URL: {{ .Values.webTools.searchBraveUrl | quote }}
   RESOURCE_VALUE_MAX_BYTES: "{{ include "ragnerock.number" .Values.workflowResources.valueMaxBytes }}"
-  # DocumentJobScope read switch (big-job-improvements design). The scope row
-  # is always planned and its counter always written; this decides only whether
-  # completion, advancement, the failure threshold and the API read the ledger
-  # or fall back to counting subtask rows, so it is safe to flip either way
-  # with jobs in flight. Every core-running service carries it, as in Terraform.
-  JOB_SCOPE_ACCOUNTING_ENABLED: "{{ .Values.jobScope.accountingEnabled }}"
   TABULAR_LIST_PAGE_SIZE: "{{ include "ragnerock.number" .Values.tabular.listPageSize }}"
   TABULAR_PROMPT_MAX_COLUMNS: "{{ include "ragnerock.number" .Values.tabular.promptMaxColumns }}"
   TABULAR_PROMPT_MAX_SOURCES: "{{ include "ragnerock.number" .Values.tabular.promptMaxSources }}"
@@ -874,6 +868,8 @@ data:
   RLIMIT_NPROC: "{{ include "ragnerock.number" .Values.pythonService.sandbox.rlimitNProc }}"
   RLIMIT_FSIZE_BYTES: "{{ include "ragnerock.number" .Values.pythonService.sandbox.rlimitFSizeBytes }}"
   RLIMIT_NOFILE: "{{ include "ragnerock.number" .Values.pythonService.sandbox.rlimitNoFile }}"
+  NATIVE_THREADS: "{{ include "ragnerock.number" .Values.pythonService.sandbox.nativeThreads }}"
+  BUSY_RETRY_AFTER_SECONDS: "{{ include "ragnerock.number" .Values.pythonService.sandbox.busyRetryAfterSeconds }}"
   RECYCLE_AFTER_N_EXECUTIONS: "{{ include "ragnerock.number" .Values.pythonService.sandbox.recycleAfterNExecutions }}"
   SANDBOX_ENFORCEMENT: "{{ .Values.pythonService.sandbox.enforcement }}"
 ---

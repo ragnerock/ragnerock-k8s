@@ -14,3 +14,14 @@ The frontend and API are externally accessible at
 
   - API:      {{ .Values.api.url }}
   - Frontend: {{ .Values.frontend.url }}
+{{- if not .Values.pythonService.autoscaling.enabled }}
+{{- $pythonDemand := mul (add .Values.worker.replicaCount .Values.subtaskWorker.replicaCount) .Values.python.maxInflight }}
+{{- if lt (int .Values.pythonService.replicaCount) (int $pythonDemand) }}
+
+WARNING: python-service runs one execution per pod, but the workers can send
+up to {{ $pythonDemand }} at once ((worker + subtaskWorker replicas) x python.maxInflight)
+to {{ .Values.pythonService.replicaCount }} pod(s). Extra requests get a 503 and are retried, and code
+operators fail once the retries run out. Raise pythonService.replicaCount or
+enable pythonService.autoscaling.
+{{- end }}
+{{- end }}

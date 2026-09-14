@@ -1213,13 +1213,6 @@ fallback:
   perProviderAttempts: 2
 
 # -- Workflow resources bound into operator runs and rendered into prompts.
-jobScope:
-  # -- Read the DocumentJobScope fan-in ledger for job completion, advancement,
-  # the failure threshold and API progress. The scope row is planned and its
-  # counter written regardless; with this off those readers count
-  # DocumentSubtask rows instead. Safe to flip either way with jobs in flight.
-  accountingEnabled: true
-
 workflowResources:
   # -- Ceiling on a value resource's serialized inline value, in bytes
   valueMaxBytes: 262144
@@ -1529,6 +1522,7 @@ auditService:
   annotations: {}
 
 pythonService:
+  # -- Each pod runs one execution at a time and turns away the rest with a 503, so size this to the workers' total `python.maxInflight`
   replicaCount: 1
   image:
     name: python-service
@@ -1558,16 +1552,34 @@ pythonService:
     # -- CPU-seconds of slack above the scaled backstop, for the startup CPU
     # boost. Not a per-execution budget; the wall clock is.
     rlimitCPUHeadroomSeconds: 30
-    # -- Per-UID process cap (must not starve numpy threads)
+    # -- Process and thread cap for the service's UID, counted across the whole node (must not starve numpy threads)
     rlimitNProc: 512
     # -- Largest file the child may write, in bytes
     rlimitFSizeBytes: 64000000
     # -- Open file descriptor cap
     rlimitNoFile: 256
+    # -- Threads per native pool (OpenMP, OpenBLAS, MKL, numexpr) in user code; match the pod's CPU limit
+    nativeThreads: 2
     # -- Exit cleanly after this many executions; <= 0 disables recycling
     recycleAfterNExecutions: 100
     # -- `on` requires the Linux sandbox mechanisms; `off` is a local-dev escape hatch only
     enforcement: "on"
+    # -- Retry-After, in seconds, on the 503 a pod returns while it is already running an execution
+    busyRetryAfterSeconds: 1
+  # -- Mount the Kubernetes API token. User code can read it, so leave this off unless something needs it
+  automountServiceAccountToken: false
+  # -- Pod security context. The UID/GID are the image's `pysandbox` user; sharing a UID with other workloads shares their RLIMIT_NPROC budget
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1774
+    runAsGroup: 1338
+  # -- Container security context
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: ["ALL"]
+  # -- Prefer scheduling replicas on different nodes, since replicas on one node share a process budget
+  spreadAcrossNodes: true
   # -- Deployment resoruce contraints (i.e. requests/limits)
   resources: {}
   # -- Optional horizontal pod autoscaler. Requires CPU/memory requests to be

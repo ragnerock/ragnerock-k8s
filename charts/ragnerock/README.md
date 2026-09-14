@@ -1,6 +1,6 @@
 # ragnerock
 
-![Version: 1.5.0](https://img.shields.io/badge/Version-1.5.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v2026.08.28](https://img.shields.io/badge/AppVersion-v2026.08.28-informational?style=flat-square)
+![Version: 1.6.0](https://img.shields.io/badge/Version-1.6.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v2026.09.14-2](https://img.shields.io/badge/AppVersion-v2026.09.14--2-informational?style=flat-square)
 
 Ragnerock research intelligence platform
 
@@ -307,8 +307,6 @@ Ragnerock research intelligence platform
 | iam | object | `{"permissionsCacheTTL":60}` | Identity and access management |
 | iam.permissionsCacheTTL | int | `60` | Seconds a resolved IAM permission set is cached in-process |
 | ingest.staleTimeoutSeconds | int | `3600` |  |
-| jobScope | object | `{"accountingEnabled":true}` | Workflow resources bound into operator runs and rendered into prompts. |
-| jobScope.accountingEnabled | bool | `true` | Read the DocumentJobScope fan-in ledger for job completion, advancement, the failure threshold and API progress. The scope row is planned and its counter written regardless; with this off those readers count DocumentSubtask rows instead. Safe to flip either way with jobs in flight. |
 | license | string | `""` | Ragnerock provided license key |
 | licenseCheck.enabled | bool | `true` | Enable license enforcement. Turning this off skips both the startup check and the periodic re-check; intended for air-gapped evaluation, not for production. |
 | licenseCheck.graceSeconds | int | `259200` | How long a service may keep serving without a successful validation before it stops (default: 3 days) |
@@ -473,33 +471,39 @@ Ragnerock research intelligence platform
 | python.timeoutMarginSeconds | float | `60` | Seconds added to the execution budget to form the HTTP read timeout |
 | pythonService.affinity | object | `{}` | Pod affinity rules (overrides `global.affinity`) |
 | pythonService.annotations | object | `{}` | Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence) |
+| pythonService.automountServiceAccountToken | bool | `false` | Mount the Kubernetes API token. User code can read it, so leave this off unless something needs it |
 | pythonService.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
 | pythonService.autoscaling.targetCPUUtilizationPercentage | int | `80` | Target average CPU utilization (% of requests). Set to null to disable. |
 | pythonService.autoscaling.targetMemoryUtilizationPercentage | int | `80` | Target average memory utilization (% of requests). Set to null to disable. |
 | pythonService.image.name | string | `"python-service"` |  |
 | pythonService.image.tag | string | `""` | Overwrites global value if set |
-| pythonService.replicaCount | int | `1` |  |
+| pythonService.podSecurityContext | object | `{"runAsGroup":1338,"runAsNonRoot":true,"runAsUser":1774}` | Pod security context. The UID/GID are the image's `pysandbox` user; sharing a UID with other workloads shares their RLIMIT_NPROC budget |
+| pythonService.replicaCount | int | `1` | Each pod runs one execution at a time and turns away the rest with a 503, so size this to the workers' total `python.maxInflight` |
 | pythonService.requestTimeoutSeconds | int | `600` | Request timeout the service is deployed with; its clients size their chunking against it |
 | pythonService.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
-| pythonService.sandbox | object | `{"batchStartupGraceSeconds":15,"enforcement":"on","maxOutputBytes":1000000,"maxRequestBytes":48000000,"maxResultBytes":8000000,"maxTimeout":300,"recycleAfterNExecutions":100,"rlimitCPUHeadroomSeconds":30,"rlimitCPUPerWallSecond":2,"rlimitCPUSeconds":60,"rlimitFSizeBytes":64000000,"rlimitNProc":512,"rlimitNoFile":256}` | Sandbox limits the code-execution service applies to user code |
+| pythonService.sandbox | object | `{"batchStartupGraceSeconds":15,"busyRetryAfterSeconds":1,"enforcement":"on","maxOutputBytes":1000000,"maxRequestBytes":48000000,"maxResultBytes":8000000,"maxTimeout":300,"nativeThreads":2,"recycleAfterNExecutions":100,"rlimitCPUHeadroomSeconds":30,"rlimitCPUPerWallSecond":2,"rlimitCPUSeconds":60,"rlimitFSizeBytes":64000000,"rlimitNProc":512,"rlimitNoFile":256}` | Sandbox limits the code-execution service applies to user code |
 | pythonService.sandbox.batchStartupGraceSeconds | float | `15` | Extra wall-clock allowed for subprocess spawn and the first heavy import |
+| pythonService.sandbox.busyRetryAfterSeconds | int | `1` | Retry-After, in seconds, on the 503 a pod returns while it is already running an execution |
 | pythonService.sandbox.enforcement | string | `"on"` | `on` requires the Linux sandbox mechanisms; `off` is a local-dev escape hatch only |
 | pythonService.sandbox.maxOutputBytes | int | `1000000` | stdout/stderr capture cap, in bytes |
 | pythonService.sandbox.maxRequestBytes | int | `48000000` | Request payload ceiling enforced on receipt, in bytes |
 | pythonService.sandbox.maxResultBytes | int | `8000000` | Per-result size ceiling, in bytes |
 | pythonService.sandbox.maxTimeout | int | `300` | Wall-clock ceiling applied to every execution, in seconds |
+| pythonService.sandbox.nativeThreads | int | `2` | Threads per native pool (OpenMP, OpenBLAS, MKL, numexpr) in user code; match the pod's CPU limit |
 | pythonService.sandbox.recycleAfterNExecutions | int | `100` | Exit cleanly after this many executions; <= 0 disables recycling |
 | pythonService.sandbox.rlimitCPUHeadroomSeconds | int | `30` | CPU-seconds of slack above the scaled backstop, for the startup CPU boost. Not a per-execution budget; the wall clock is. |
 | pythonService.sandbox.rlimitCPUPerWallSecond | int | `2` | CPU-seconds the backstop allows per second of wall budget (the instance's core count) |
 | pythonService.sandbox.rlimitCPUSeconds | int | `60` | CPU-seconds backstop behind the wall-clock timeout; a floor, scaled by the execution's wall budget |
 | pythonService.sandbox.rlimitFSizeBytes | int | `64000000` | Largest file the child may write, in bytes |
-| pythonService.sandbox.rlimitNProc | int | `512` | Per-UID process cap (must not starve numpy threads) |
+| pythonService.sandbox.rlimitNProc | int | `512` | Process and thread cap for the service's UID, counted across the whole node (must not starve numpy threads) |
 | pythonService.sandbox.rlimitNoFile | int | `256` | Open file descriptor cap |
+| pythonService.securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]}}` | Container security context |
 | pythonService.service.port | int | `8080` |  |
 | pythonService.service.type | string | `"ClusterIP"` |  |
 | pythonService.serviceAccount.annotations | object | `{}` | Annotations to add to the created service account (e.g. for workload identity) |
 | pythonService.serviceAccount.create | bool | `false` | Create a service account for this deployment's pods |
 | pythonService.serviceAccount.name | string | `""` | Service account name to use; if empty and `create` is true a name is generated |
+| pythonService.spreadAcrossNodes | bool | `true` | Prefer scheduling replicas on different nodes, since replicas on one node share a process budget |
 | pythonService.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | pythonService.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
 | pythonService.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
@@ -676,6 +680,7 @@ Ragnerock research intelligence platform
 | workers.tabularIngest.rowInsertChunkBytes | int | `8000000` | Byte ceiling per tabular row-insert request (binds first on a wide sheet) |
 | workers.tabularIngest.rowInsertChunkRows | int | `1000` | Rows per db-service insert request when ingesting a tabular document |
 | workers.tabularIngest.rowRefsPageSize | int | `10000` | Tabular row references per enumeration page (db-service caps it at 10,000) |
+| workflowResources | object | `{"codeCacheMaxBytes":256000000,"codeMaxBytes":20000000,"codeMaxRows":100000,"codeTotalMaxBytes":40000000,"contextMaxChars":200000,"valueMaxBytes":262144}` | Workflow resources bound into operator runs and rendered into prompts. |
 | workflowResources.codeCacheMaxBytes | int | `256000000` | Byte budget for the worker's per-process cache of materialized code resources |
 | workflowResources.codeMaxBytes | int | `20000000` | Ceiling on a single code operator's returned resource, in bytes |
 | workflowResources.codeMaxRows | int | `100000` | Ceiling on the rows a single code operator may return |

@@ -26,9 +26,27 @@ spec:
 {{- with (include "ragnerock.serviceAccountName" (dict "context" . "config" .Values.pythonService.serviceAccount "component" "python-service")) }}
       serviceAccountName: {{ . }}
 {{- end }}
+      # User code can read any file the pod can, so the Kubernetes API token
+      # stays out unless an install explicitly needs it.
+      automountServiceAccountToken: {{ .Values.pythonService.automountServiceAccountToken }}
+{{- with .Values.pythonService.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+{{- end }}
 {{- with .Values.global.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
+{{- end }}
+{{- if .Values.pythonService.spreadAcrossNodes }}
+      # RLIMIT_NPROC is counted per UID across the whole node, so replicas
+      # sharing a node share one budget. Prefer, but don't require, one node each.
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              {{- include "ragnerock.selectorLabels" (dict "context" . "component" "python-service") | nindent 14 }}
 {{- end }}
 {{- with .Values.pythonService.tolerations | default .Values.global.tolerations }}
       tolerations:
@@ -42,6 +60,10 @@ spec:
         - name: python-service
           image: {{ include "ragnerock.image" (dict "global" .Values.global "image" .Values.pythonService.image "chart" .Chart) }}
           imagePullPolicy: {{ .Values.global.image.pullPolicy }}
+{{- with .Values.pythonService.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+{{- end }}
           ports:
             - name: http
               containerPort: 8080

@@ -1,25 +1,25 @@
 {{- if .Values.maintenance.enabled }}
   {{/*
   The chart's periodic maintenance job.
-
+  
   Both routes it fires are internal, scheduler-guarded endpoints that on GCP
   are driven by Cloud Scheduler. A self-hosted install has no Cloud Scheduler,
   so until this existed neither ran: compat execution history grew without
   bound, and an ephemeral endpoint's uncollected results were retained forever.
-
+  
   The guard (`require_scheduler_caller`) verifies a Google OIDC token minted by
   a specific service account, which is a GCP mechanism a Kubernetes CronJob has
   no way to produce. It is a no-op while `CALLBACK_AUTH_ENABLED` is false —
   which is what the chart relies on, and which is the API's own default because
   the chart never sets that variable.
-
+  
   So on Kubernetes these routes are protected by network isolation, not by a
   credential: they are reachable only from inside the cluster, and the chart
   ships no ingress. An operator who sets `CALLBACK_AUTH_ENABLED=true` through
   `api.extraEnv` will break this job — it has no token to send — and should
   disable it (`maintenance.enabled: false`) and drive the two routes some other
   way. `values.yaml` says the same beside the switch.
-
+  
   Python's urllib rather than curl: the runtime images deliberately carry no
   curl, and every other in-cluster HTTP check in this repo is written the same
   way.
