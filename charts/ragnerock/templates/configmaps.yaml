@@ -34,6 +34,10 @@ data:
   # decision: the clients read one and the server enforced the other, and
   # raising either alone 422s every by-ids call.
   DB_IDS_PER_REQUEST: "{{ include "ragnerock.number" .Values.limits.dbIdsPerRequest }}"
+  # Postgres failover resilience, read by core.db.failover in every service
+  # that opens an engine.
+  DB_CONNECT_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.database.connectTimeoutSeconds }}"
+  DB_READ_ONLY_POOL_RESET_INTERVAL_SECONDS: "{{ include "ragnerock.number" .Values.database.readOnlyPoolResetIntervalSeconds }}"
   MAX_FALLBACK_DEPTH: "{{ include "ragnerock.number" .Values.fallback.maxDepth }}"
   MAX_FALLBACK_CHAIN_CIPHERTEXT_BYTES: "{{ include "ragnerock.number" .Values.fallback.maxChainCiphertextBytes }}"
   MEMORY_TOOLS_ENABLED: "{{ .Values.memory.toolsEnabled }}"
@@ -348,6 +352,8 @@ data:
   CAPACITY_WAIT_SECONDS: "{{ include "ragnerock.number" .Values.dbService.capacityWaitSeconds }}"
   CAPACITY_RETRY_AFTER_SECONDS: "{{ include "ragnerock.number" .Values.dbService.capacityRetryAfterSeconds }}"
   DB_POOL_TIMEOUT: "{{ include "ragnerock.number" .Values.dbService.poolTimeout }}"
+  DEFAULT_DB_STARTUP_RETRY_INITIAL_SECONDS: "{{ include "ragnerock.number" .Values.dbService.defaultDBStartupRetryInitialSeconds }}"
+  DEFAULT_DB_STARTUP_RETRY_MAX_SECONDS: "{{ include "ragnerock.number" .Values.dbService.defaultDBStartupRetryMaxSeconds }}"
   SNOWFLAKE_STATEMENT_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.dbService.snowflakeStatementTimeoutSeconds }}"
   SNOWFLAKE_LOCK_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.dbService.snowflakeLockTimeoutSeconds }}"
   SNOWFLAKE_INSERT_PAGE_SIZE: "{{ include "ragnerock.number" .Values.dbService.snowflakeInsertPageSize }}"

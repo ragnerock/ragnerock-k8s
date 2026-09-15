@@ -1,10 +1,11 @@
 {{- /*
-Optional PodDisruptionBudgets for the worker deployments.
+Optional PodDisruptionBudgets for the worker and db-service deployments.
 Each component is rendered only when its `podDisruptionBudget.enabled` is true.
 */ -}}
 {{- $components := dict
 "worker" .Values.worker
 "subtask-worker" .Values.subtaskWorker
+"db-service" .Values.dbService
 }}
 {{- range $component, $values := $components }}
   {{- if and $values.podDisruptionBudget $values.podDisruptionBudget.enabled }}

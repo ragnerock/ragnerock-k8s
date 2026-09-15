@@ -1,6 +1,6 @@
 # ragnerock
 
-![Version: 1.6.0](https://img.shields.io/badge/Version-1.6.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v2026.09.14-2](https://img.shields.io/badge/AppVersion-v2026.09.14--2-informational?style=flat-square)
+![Version: 1.6.1](https://img.shields.io/badge/Version-1.6.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v2026.09.15](https://img.shields.io/badge/AppVersion-v2026.09.15-informational?style=flat-square)
 
 Ragnerock research intelligence platform
 
@@ -81,7 +81,7 @@ Ragnerock research intelligence platform
 | api.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
 | api.autoscaling.targetCPUUtilizationPercentage | int | `80` | Target average CPU utilization (% of requests). Set to null to disable. |
 | api.autoscaling.targetMemoryUtilizationPercentage | int | `80` | Target average memory utilization (% of requests). Set to null to disable. |
-| api.capacityRetryAfterSeconds | int | `2` | Retry-After sent with a shed 503, honoured by the frontend's reconnect |
+| api.capacityRetryAfterSeconds | int | `2` | Retry-After sent with a shed 503, honoured by the frontend's reconnect, and with the 503 for a database connection lost to a failover |
 | api.capacityWaitSeconds | float | `5` | Seconds a request waits for capacity before it is rejected |
 | api.dbServiceMaxConnections | int | `40` | Concurrent HTTP connections to db-service, bounding the source so a spike queues here rather than arriving as load db-service has to shed |
 | api.dbThreadpoolSize | int | `64` | Threads serving blocking DB work off the event loop |
@@ -124,7 +124,7 @@ Ragnerock research intelligence platform
 | auditService.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
 | auditService.autoscaling.targetCPUUtilizationPercentage | int | `80` | Target average CPU utilization (% of requests). Set to null to disable. |
 | auditService.autoscaling.targetMemoryUtilizationPercentage | int | `80` | Target average memory utilization (% of requests). Set to null to disable. |
-| auditService.database.capacityRetryAfterSeconds | int | `2` | Retry-After sent on the 503 that pool exhaustion produces. No admission gate sits in front of this pool, so exhaustion is the overload path. |
+| auditService.database.capacityRetryAfterSeconds | int | `2` | Retry-After sent on the 503 that pool exhaustion produces. No admission gate sits in front of this pool, so exhaustion is the overload path. Also sent with the 503 for a database connection lost to a failover |
 | auditService.database.maxOverflow | int | `10` | Extra connections allowed beyond poolSize |
 | auditService.database.poolSize | int | `5` | Persistent DB connections held by the pool. SQLAlchemy's own default, named explicitly so the connection budget sums a visible number |
 | auditService.database.poolTimeout | int | `5` | Seconds a request waits for a connection before failing |
@@ -155,7 +155,7 @@ Ragnerock research intelligence platform
 | callbackDelivery.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
 | callbackDelivery.autoscaling.targetCPUUtilizationPercentage | int | `80` | Target average CPU utilization (% of requests). Set to null to disable. |
 | callbackDelivery.autoscaling.targetMemoryUtilizationPercentage | int | `80` | Target average memory utilization (% of requests). Set to null to disable. |
-| callbackDelivery.database.capacityRetryAfterSeconds | int | `2` | Retry-After sent on the 503 that pool exhaustion produces. No admission gate sits in front of this pool, so exhaustion is the overload path. |
+| callbackDelivery.database.capacityRetryAfterSeconds | int | `2` | Retry-After sent on the 503 that pool exhaustion produces. No admission gate sits in front of this pool, so exhaustion is the overload path. Also sent with the 503 for a database connection lost to a failover |
 | callbackDelivery.database.maxOverflow | int | `10` | Extra connections allowed beyond poolSize |
 | callbackDelivery.database.poolSize | int | `5` | Persistent DB connections held by the pool. SQLAlchemy's own default, named explicitly so the connection budget sums a visible number |
 | callbackDelivery.database.poolTimeout | int | `5` | Seconds a request waits for a connection before failing |
@@ -192,11 +192,13 @@ Ragnerock research intelligence platform
 | dataIngestor.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | dataIngestor.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
 | dataIngestor.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
-| database | object | `{"existingSecret":"","host":"","maxConnections":"","maxOverflow":6,"name":"ragnerock","opsConnectionHeadroom":27,"password":"","poolSize":12,"poolTimeout":10,"port":5432,"reservedConnections":13,"user":"ragnerock"}` | Database configuration |
+| database | object | `{"connectTimeoutSeconds":5,"existingSecret":"","host":"","maxConnections":"","maxOverflow":6,"name":"ragnerock","opsConnectionHeadroom":27,"password":"","poolSize":12,"poolTimeout":10,"port":5432,"readOnlyPoolResetIntervalSeconds":5,"reservedConnections":13,"user":"ragnerock"}` | Database configuration |
+| database.connectTimeoutSeconds | int | `5` | Seconds every service waits to open a Postgres connection. Bounds how long a host resolving to an unresponsive address (a DNS flap during a failover) can stall startup or a request |
 | database.existingSecret | string | `""` | Use a pre-existing secret (must provide key `DB_PASSWORD`) instead of generating one. When set, `password` is ignored. |
 | database.maxConnections | string | `""` | Server-side connection ceiling, for the chart's own budget check. Empty leaves the check off, which is right when the chart is installed against a Postgres whose limit it cannot know. Set it and the chart refuses to render a fleet whose worst-case pools exceed it. |
 | database.opsConnectionHeadroom | int | `27` | Slots held back for operators: psql, migrations, backups and any per-tenant BYODB engines, which have no pool row of their own |
 | database.poolSize | int | `12` | Connections one API pod keeps open. The default is the figure the §4.1 connection budget is computed from; `api.maxConcurrentRequests` is sized against it and the chart refuses to render a gate that exceeds it |
+| database.readOnlyPoolResetIntervalSeconds | float | `5` | Minimum seconds between two connection pool resets when Postgres refuses writes as read-only, so a host still pointing at a standby does not open a new connection per request |
 | database.reservedConnections | int | `13` | Slots Postgres reserves for superusers and reserved roles, subtracted from the budget above |
 | db.timeout.connect | float | `10` |  |
 | db.timeout.pool | float | `10` |  |
@@ -209,15 +211,18 @@ Ragnerock research intelligence platform
 | dbService.autoscaling.targetCPUUtilizationPercentage | int | `80` | Target average CPU utilization (% of requests). Set to null to disable. |
 | dbService.autoscaling.targetMemoryUtilizationPercentage | int | `80` | Target average memory utilization (% of requests). Set to null to disable. |
 | dbService.batchLimit | int | `10000` |  |
-| dbService.capacityRetryAfterSeconds | int | `2` | Retry-After sent with a shed or POOL_EXHAUSTED 503 |
+| dbService.capacityRetryAfterSeconds | int | `2` | Retry-After sent with a shed, POOL_EXHAUSTED, or CONNECTION_FAILED 503 |
 | dbService.capacityWaitSeconds | float | `2` | Seconds a request waits for a capacity slot before being shed |
 | dbService.connectionFailureThreshold | int | `5` | Consecutive connection failures before a config is flagged for deactivation |
 | dbService.defaultDBMaxOverflow | int | `20` | Overflow above the pool size for a customer database that does not specify one |
 | dbService.defaultDBPoolSize | int | `20` | Connection pool size for a customer database that does not specify one |
+| dbService.defaultDBStartupRetryInitialSeconds | float | `1` | Seconds before the first retry when the default data DB is unreachable or read-only at startup. The pod stays up and unready while it retries |
+| dbService.defaultDBStartupRetryMaxSeconds | float | `30` | Cap on the doubling delay between those startup retries (seconds) |
 | dbService.image.name | string | `"db-service"` |  |
 | dbService.image.tag | string | `""` | Overwrites global value if set |
 | dbService.maxConcurrentExternalRequests | string | `""` | Concurrent BYODB requests one pod admits. A separate class because a customer query runs for seconds to minutes while internal traffic is milliseconds; empty derives it from the conservative BYODB pool |
 | dbService.maxConcurrentRequests | string | `""` | Concurrent requests against the DEFAULT data DB one pod admits. Empty derives it from the default pool's capacity, since every admitted request can hold at most one of its connections |
+| dbService.podDisruptionBudget | object | `{"enabled":true,"maxUnavailable":1,"minAvailable":null}` | Pod disruption budget, on by default because every other service calls db-service synchronously. Set exactly one of `minAvailable`/`maxUnavailable`; the other must be null. Both accept an integer or a percentage string (e.g. `"50%"`). The default `maxUnavailable: 1` never blocks a node drain, so it only keeps db-service up through one when `replicaCount` is 2 or more. |
 | dbService.poolTimeout | int | `5` | Seconds a request waits for a DB connection before the app returns 503 POOL_EXHAUSTED. At least capacityWaitSeconds, so the gate sheds first |
 | dbService.rateLimitMaxTokens | int | `100` | Per-customer-DB rate limit: token bucket capacity (the default data DB is exempt) |
 | dbService.rateLimitRefillRate | float | `20` | Per-customer-DB rate limit: token refill rate (tokens per second) |
@@ -648,7 +653,7 @@ Ragnerock research intelligence platform
 | worker.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
 | worker.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
 | workers | object | `{"capacityRetryAfterSeconds":5,"capacityWaitSeconds":5,"database":{"completionLockSlowMs":1000,"lockTimeoutSeconds":30,"maxOverflow":null,"poolHeadroom":5,"poolSize":null,"poolTimeout":10,"subtaskMaxOverflow":null,"subtaskPoolSize":null},"dbServiceMaxConnections":40,"dbThreadpoolSize":80,"maxChunkChars":6000,"maxConcurrentJobAdvances":10,"maxConcurrentSpawns":5,"maxInstanceRequestConcurrency":"","reconcile":{"batchSize":100,"enabled":true,"inProgressAfterSeconds":2700,"intervalSeconds":300,"notStartedAfterSeconds":900},"spawn":{"pageSize":1000,"planningStaleSeconds":900,"timeBudgetSeconds":300},"subtaskEnqueueStaleMinutes":15,"subtaskInsertChunkRows":5000,"subtaskPublishConcurrency":32,"tabularIngest":{"maxRowsPerSheet":100000,"rowInsertChunkBytes":8000000,"rowInsertChunkRows":1000,"rowRefsPageSize":10000}}` | Settings shared by the worker and subtask-worker deployments. Both run the same job-processing code, so they are tuned together. |
-| workers.capacityRetryAfterSeconds | int | `5` | Retry-After sent with a shed or pool-exhausted 503; the queue honours it as backoff, so a saturated instance gets a delayed redelivery rather than an immediate one that finds it just as full |
+| workers.capacityRetryAfterSeconds | int | `5` | Retry-After sent with a shed, pool-exhausted, or lost-connection 503; the queue honours it as backoff, so a saturated instance gets a delayed redelivery rather than an immediate one that finds it just as full |
 | workers.capacityWaitSeconds | float | `5` | Seconds a task waits for local capacity before it is deferred |
 | workers.database.completionLockSlowMs | int | `1000` | Milliseconds a subtask completion may wait on the job row's lock before warning |
 | workers.database.lockTimeoutSeconds | int | `30` | Seconds a statement waits on a row lock before erroring |
