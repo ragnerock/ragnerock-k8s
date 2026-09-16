@@ -464,6 +464,20 @@ subtaskWorker:
   image:
     name: worker
     tag: ""
+  # -- This deployment's own ceiling on annotation targets in flight per
+  # process, when it should differ from `model.maxConcurrentAnnotationTargets`.
+  # The fleet's rows-in-flight lever: the pool is derived from subtasks, not
+  # targets, so it provisions no database connections; a memory or
+  # message-board tool call still takes a pooled connection while it runs, so
+  # the pool's peak demand rises with it, and a pool timeout there is a
+  # transient row failure redelivered like any other overload. Null falls
+  # back to the shared value
+  maxConcurrentAnnotationTargets: ~
+  # -- This deployment's own per-process limiter for web tool calls, when it
+  # should differ from `webTools.maxConcurrentCalls`. Raise it with
+  # `maxConcurrentAnnotationTargets` to keep the ratio the annotation queue
+  # wait is sized against. Null falls back to the shared value
+  webToolMaxConcurrentCalls: ~
   service:
     type: ClusterIP
     port: 8080
@@ -1163,8 +1177,13 @@ agentTools:
   # -- Each row's carve-out of its subtask's tool wall clock; a row that
   # exhausts it fails rather than answering without its tools
   rowTimeBudgetSeconds: 360
-  # -- How long a call waits for the concurrency semaphore before failing in-band
+  # -- How long a notebook call waits for a concurrency semaphore before
+  # failing in-band; a person is waiting on that path
   busyWaitSeconds: 5
+  # -- How long an annotation call waits for the same semaphores. A refused
+  # call there is a failed row, so it queues; a row that still starves past
+  # this is classified retryable and costs a redelivery
+  annotationQueueWaitSeconds: 120
   # -- Connect timeout, so unreachable hosts fail fast
   connectTimeoutSeconds: 5
   # -- Timeout for an MCP tools/list call at save or refresh

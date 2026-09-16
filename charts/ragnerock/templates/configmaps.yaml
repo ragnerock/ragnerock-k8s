@@ -79,6 +79,7 @@ data:
   AGENT_TOOL_BUILD_TIME_BUDGET_SECONDS: "{{ include "ragnerock.number" .Values.agentTools.buildTimeBudgetSeconds }}"
   AGENT_TOOL_ROW_TIME_BUDGET_SECONDS: "{{ include "ragnerock.number" .Values.agentTools.rowTimeBudgetSeconds }}"
   AGENT_TOOL_BUSY_WAIT_SECONDS: "{{ include "ragnerock.number" .Values.agentTools.busyWaitSeconds }}"
+  AGENT_TOOL_ANNOTATION_QUEUE_WAIT_SECONDS: "{{ include "ragnerock.number" .Values.agentTools.annotationQueueWaitSeconds }}"
   AGENT_TOOL_CONNECT_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.agentTools.connectTimeoutSeconds }}"
   AGENT_TOOL_DISCOVERY_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.agentTools.discoveryTimeoutSeconds }}"
   AGENT_TOOL_RESPONSE_MAX_BYTES: "{{ include "ragnerock.number" .Values.agentTools.responseMaxBytes }}"
@@ -608,6 +609,20 @@ data:
   # plain worker mounts that one too (it needs SUBTASK_WORKER_URL to publish).
   DB_POOL_SIZE: "{{ include "ragnerock.subtaskWorkerPoolSize" . }}"
   DB_MAX_OVERFLOW: "{{ include "ragnerock.subtaskWorkerMaxOverflow" . }}"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-subtask-worker-limits
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  # Mounted by the subtask-worker deployment ONLY, after the shared core map,
+  # so this deployment's rows-in-flight geometry wins there and the plain
+  # worker keeps the shared values. The -subtask-worker map cannot carry
+  # these, because the plain worker mounts that one too.
+  MAX_CONCURRENT_ANNOTATION_TARGETS: "{{ include "ragnerock.subtaskWorkerAnnotationTargets" . }}"
+  WEB_TOOL_MAX_CONCURRENT_CALLS: "{{ include "ragnerock.subtaskWorkerWebToolCalls" . }}"
 ---
 apiVersion: v1
 kind: ConfigMap

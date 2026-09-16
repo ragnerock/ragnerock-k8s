@@ -298,6 +298,28 @@ what every existing install already renders.
 {{- end -}}
 
 {{/*
+The subtask worker's annotation-target ceiling, falling back to the shared one.
+*/}}
+{{- define "ragnerock.subtaskWorkerAnnotationTargets" -}}
+  {{- if .Values.subtaskWorker.maxConcurrentAnnotationTargets -}}
+{{- .Values.subtaskWorker.maxConcurrentAnnotationTargets -}}
+  {{- else -}}
+{{- include "ragnerock.number" .Values.model.maxConcurrentAnnotationTargets -}}
+  {{- end -}}
+{{- end -}}
+
+{{/*
+The subtask worker's web-call limiter, falling back to the shared one.
+*/}}
+{{- define "ragnerock.subtaskWorkerWebToolCalls" -}}
+  {{- if .Values.subtaskWorker.webToolMaxConcurrentCalls -}}
+{{- .Values.subtaskWorker.webToolMaxConcurrentCalls -}}
+  {{- else -}}
+{{- include "ragnerock.number" .Values.webTools.maxConcurrentCalls -}}
+  {{- end -}}
+{{- end -}}
+
+{{/*
 The subtask worker's overflow, falling back to the shared one.
 */}}
 {{- define "ragnerock.subtaskWorkerMaxOverflow" -}}

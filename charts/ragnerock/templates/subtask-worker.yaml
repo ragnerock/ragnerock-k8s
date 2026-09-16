@@ -69,6 +69,10 @@ spec:
             # with this deployment's own.
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-subtask-worker-db
+            # After the shared core map for the same reason: this deployment's
+            # own rows-in-flight ceiling and web limiter.
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-subtask-worker-limits
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-model-service
             - configMapRef:
