@@ -256,6 +256,10 @@ model:
   geminiTruncationRetries: 1
   # -- Provider calls the model-service will have in flight at once
   maxConcurrentProviderCalls: 50
+  # -- Most windows one over-limit embedding input is split into; text past the last window is not embedded
+  embeddingMaxWindowsPerInput: 64
+  # -- Provider requests one embedding call runs at once
+  embeddingMaxConcurrentBatches: 8
   # -- How long a request waits for a provider-call slot before the gate sheds
   # it with 503 + Retry-After
   providerCallWaitSeconds: 30
@@ -324,6 +328,8 @@ api:
   dbServiceMaxConnections: 40
   # -- Threads serving blocking DB work off the event loop
   dbThreadpoolSize: 64
+  # -- Longest search query accepted, in characters. Queries are embedded (and on the tools route sent to an LLM), so this bounds the provider cost of one search
+  searchQueryMaxChars: 4000
   operatorSample:
     # -- Max workbench attachment size accepted by the parse-sample endpoint. The file rides to the worker as base64 JSON (~4/3 the size), so keep it at or below 20 MiB
     maxFileBytes: 20971520
@@ -1314,8 +1320,10 @@ workers:
   # a later delivery; those get their own pool so one large job's paging cannot
   # queue behind every other job's phase advances.
   maxConcurrentSpawns: 5
-  # -- Characters per chunk when a document is split for embedding
-  maxChunkChars: 6000
+  # -- Preferred maximum tokens per chunk when a document is split for embedding. Chunks are also capped by the embedding provider's own limit, whichever is smaller.
+  maxChunkTokens: 1500
+  # -- Threads for chunking parsed pages. Chunking is CPU work, so more threads than CPUs only adds contention
+  chunkThreadpoolSize: 2
   # -- Concurrent Cloud Tasks publishes during a subtask spawn
   subtaskPublishConcurrency: 32
   # -- Minutes after a subtask's publish past which reconciliation republishes it

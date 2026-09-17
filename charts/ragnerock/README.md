@@ -1,6 +1,6 @@
 # ragnerock
 
-![Version: 1.6.2](https://img.shields.io/badge/Version-1.6.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v2026.09.16](https://img.shields.io/badge/AppVersion-v2026.09.16-informational?style=flat-square)
+![Version: 1.6.1](https://img.shields.io/badge/Version-1.6.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v2026.09.15](https://img.shields.io/badge/AppVersion-v2026.09.15-informational?style=flat-square)
 
 Ragnerock research intelligence platform
 
@@ -94,6 +94,7 @@ Ragnerock research intelligence platform
 | api.operatorSample.parseTimeoutSeconds | int | `300` | API-side read timeout on the synchronous worker parse call, in seconds. Whole-document OCR of a large PDF via an external backend takes minutes |
 | api.replicaCount | int | `1` |  |
 | api.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
+| api.searchQueryMaxChars | int | `4000` | Longest search query accepted, in characters. Queries are embedded (and on the tools route sent to an LLM), so this bounds the provider cost of one search |
 | api.service.port | int | `8080` |  |
 | api.service.type | string | `"ClusterIP"` |  |
 | api.serviceAccount.annotations | object | `{}` | Annotations to add to the created service account (e.g. for workload identity) |
@@ -428,6 +429,8 @@ Ragnerock research intelligence platform
 | model.anthropicThinkingBudgetHigh | int | `16384` | Anthropic thinking token budget for the HIGH effort tier |
 | model.anthropicThinkingBudgetLow | int | `4096` | Anthropic thinking token budget for the LOW effort tier |
 | model.anthropicThinkingBudgetMedium | int | `8192` | Anthropic thinking token budget for the MEDIUM effort tier |
+| model.embeddingMaxConcurrentBatches | int | `8` | Provider requests one embedding call runs at once |
+| model.embeddingMaxWindowsPerInput | int | `64` | Most windows one over-limit embedding input is split into; text past the last window is not embedded |
 | model.geminiMaxOutputTokens | int | `16384` | Output-token ceiling for the default Gemini provider |
 | model.geminiModelName | string | `"gemini-3-flash-preview"` |  |
 | model.geminiThinkingBudgetHigh | int | `24576` | Gemini thinking token budget for the HIGH effort tier |
@@ -655,9 +658,10 @@ Ragnerock research intelligence platform
 | worker.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | worker.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
 | worker.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
-| workers | object | `{"capacityRetryAfterSeconds":5,"capacityWaitSeconds":5,"database":{"completionLockSlowMs":1000,"lockTimeoutSeconds":30,"maxOverflow":null,"poolHeadroom":5,"poolSize":null,"poolTimeout":10,"subtaskMaxOverflow":null,"subtaskPoolSize":null},"dbServiceMaxConnections":40,"dbThreadpoolSize":80,"maxChunkChars":6000,"maxConcurrentJobAdvances":10,"maxConcurrentSpawns":5,"maxInstanceRequestConcurrency":"","reconcile":{"batchSize":100,"enabled":true,"inProgressAfterSeconds":2700,"intervalSeconds":300,"notStartedAfterSeconds":900},"spawn":{"pageSize":1000,"planningStaleSeconds":900,"timeBudgetSeconds":300},"subtaskEnqueueStaleMinutes":15,"subtaskInsertChunkRows":5000,"subtaskPublishConcurrency":32,"tabularIngest":{"maxRowsPerSheet":100000,"rowInsertChunkBytes":8000000,"rowInsertChunkRows":1000,"rowRefsPageSize":10000}}` | Settings shared by the worker and subtask-worker deployments. Both run the same job-processing code, so they are tuned together. |
+| workers | object | `{"capacityRetryAfterSeconds":5,"capacityWaitSeconds":5,"chunkThreadpoolSize":2,"database":{"completionLockSlowMs":1000,"lockTimeoutSeconds":30,"maxOverflow":null,"poolHeadroom":5,"poolSize":null,"poolTimeout":10,"subtaskMaxOverflow":null,"subtaskPoolSize":null},"dbServiceMaxConnections":40,"dbThreadpoolSize":80,"maxChunkTokens":1500,"maxConcurrentJobAdvances":10,"maxConcurrentSpawns":5,"maxInstanceRequestConcurrency":"","reconcile":{"batchSize":100,"enabled":true,"inProgressAfterSeconds":2700,"intervalSeconds":300,"notStartedAfterSeconds":900},"spawn":{"pageSize":1000,"planningStaleSeconds":900,"timeBudgetSeconds":300},"subtaskEnqueueStaleMinutes":15,"subtaskInsertChunkRows":5000,"subtaskPublishConcurrency":32,"tabularIngest":{"maxRowsPerSheet":100000,"rowInsertChunkBytes":8000000,"rowInsertChunkRows":1000,"rowRefsPageSize":10000}}` | Settings shared by the worker and subtask-worker deployments. Both run the same job-processing code, so they are tuned together. |
 | workers.capacityRetryAfterSeconds | int | `5` | Retry-After sent with a shed, pool-exhausted, or lost-connection 503; the queue honours it as backoff, so a saturated instance gets a delayed redelivery rather than an immediate one that finds it just as full |
 | workers.capacityWaitSeconds | float | `5` | Seconds a task waits for local capacity before it is deferred |
+| workers.chunkThreadpoolSize | int | `2` | Threads for chunking parsed pages. Chunking is CPU work, so more threads than CPUs only adds contention |
 | workers.database.completionLockSlowMs | int | `1000` | Milliseconds a subtask completion may wait on the job row's lock before warning |
 | workers.database.lockTimeoutSeconds | int | `30` | Seconds a statement waits on a row lock before erroring |
 | workers.database.maxOverflow | string | `nil` | Explicit overflow above the pool size. Falls back to `poolHeadroom` when null. |
@@ -668,7 +672,7 @@ Ragnerock research intelligence platform
 | workers.database.subtaskPoolSize | string | `nil` | The SUBTASK worker's own pool size, when it should differ from the plain worker's. Both deployments run one image and share this ConfigMap, but not the work: at concurrency 1 the plain worker never serves a subtask, so a pool sized for `maxConcurrentSubtasks` is one it holds open for nothing. Null falls back to `poolSize`. |
 | workers.dbServiceMaxConnections | int | `40` | Concurrent HTTP connections to db-service, bounding the source |
 | workers.dbThreadpoolSize | int | `80` | Threads serving blocking DB work off the event loop |
-| workers.maxChunkChars | int | `6000` | Characters per chunk when a document is split for embedding |
+| workers.maxChunkTokens | int | `1500` | Preferred maximum tokens per chunk when a document is split for embedding. Chunks are also capped by the embedding provider's own limit, whichever is smaller. |
 | workers.maxConcurrentJobAdvances | int | `10` | Concurrent job phase-advances a worker process may run |
 | workers.maxConcurrentSpawns | int | `5` | Concurrent spawn continuations a worker process may run. A node whose subtasks take longer than `spawn.timeBudgetSeconds` to publish continues on a later delivery; those get their own pool so one large job's paging cannot queue behind every other job's phase advances. |
 | workers.maxInstanceRequestConcurrency | string | `""` | Requests one pod is allowed to serve at once, as configured on the platform. Caps the derived DB pool at what can actually arrive; empty leaves the derivation to the concurrency semaphores alone |

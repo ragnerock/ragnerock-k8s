@@ -211,6 +211,7 @@ data:
   CAPACITY_RETRY_AFTER_SECONDS: "{{ include "ragnerock.number" .Values.api.capacityRetryAfterSeconds }}"
   DB_SERVICE_MAX_CONNECTIONS: "{{ include "ragnerock.number" .Values.api.dbServiceMaxConnections }}"
   DB_THREADPOOL_SIZE: "{{ include "ragnerock.number" .Values.api.dbThreadpoolSize }}"
+  SEARCH_QUERY_MAX_CHARS: "{{ include "ragnerock.number" .Values.api.searchQueryMaxChars }}"
   # Fixed geometry rather than a tunable: the isolated health server has to sit
   # on a port other than the main app port (8080).
   HEALTH_PORT: "8081"
@@ -645,6 +646,8 @@ data:
   GEMINI_THINKING_LEVEL: {{ .Values.model.geminiThinkingLevel | quote }}
   GEMINI_TRUNCATION_RETRIES: "{{ include "ragnerock.number" .Values.model.geminiTruncationRetries }}"
   MAX_CONCURRENT_PROVIDER_CALLS: "{{ include "ragnerock.number" .Values.model.maxConcurrentProviderCalls }}"
+  EMBEDDING_MAX_WINDOWS_PER_INPUT: "{{ include "ragnerock.number" .Values.model.embeddingMaxWindowsPerInput }}"
+  EMBEDDING_MAX_CONCURRENT_BATCHES: "{{ include "ragnerock.number" .Values.model.embeddingMaxConcurrentBatches }}"
   PROVIDER_CALL_WAIT_SECONDS: "{{ include "ragnerock.number" .Values.model.providerCallWaitSeconds }}"
   PROVIDER_CALL_RETRY_AFTER_SECONDS: "{{ include "ragnerock.number" .Values.model.providerCallRetryAfterSeconds }}"
   # Retry shaping for a provider with no fallback chain behind it, and the
@@ -722,7 +725,8 @@ metadata:
 data:
   CAPACITY_WAIT_SECONDS: "{{ include "ragnerock.number" .Values.workers.capacityWaitSeconds }}"
   MAX_CONCURRENT_JOB_ADVANCES: "{{ include "ragnerock.number" .Values.workers.maxConcurrentJobAdvances }}"
-  MAX_CHUNK_CHARS: "{{ include "ragnerock.number" .Values.workers.maxChunkChars }}"
+  MAX_CHUNK_TOKENS: "{{ include "ragnerock.number" .Values.workers.maxChunkTokens }}"
+  CHUNK_THREADPOOL_SIZE: "{{ include "ragnerock.number" .Values.workers.chunkThreadpoolSize }}"
   # Pool sizing mirrors the worker's own in-process derivation, through the
   # same helper the connection budget sums -- so the number a worker receives
   # and the number the budget checks cannot drift apart.
