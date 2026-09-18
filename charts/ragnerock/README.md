@@ -1,6 +1,6 @@
 # ragnerock
 
-![Version: 1.6.1](https://img.shields.io/badge/Version-1.6.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v2026.09.15](https://img.shields.io/badge/AppVersion-v2026.09.15-informational?style=flat-square)
+![Version: 1.6.2](https://img.shields.io/badge/Version-1.6.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v2026.09.16](https://img.shields.io/badge/AppVersion-v2026.09.16-informational?style=flat-square)
 
 Ragnerock research intelligence platform
 
@@ -226,6 +226,9 @@ Ragnerock research intelligence platform
 | dbService.maxConcurrentRequests | string | `""` | Concurrent requests against the DEFAULT data DB one pod admits. Empty derives it from the default pool's capacity, since every admitted request can hold at most one of its connections |
 | dbService.podDisruptionBudget | object | `{"enabled":true,"maxUnavailable":1,"minAvailable":null}` | Pod disruption budget, on by default because every other service calls db-service synchronously. Set exactly one of `minAvailable`/`maxUnavailable`; the other must be null. Both accept an integer or a percentage string (e.g. `"50%"`). The default `maxUnavailable: 1` never blocks a node drain, so it only keeps db-service up through one when `replicaCount` is 2 or more. |
 | dbService.poolTimeout | int | `5` | Seconds a request waits for a DB connection before the app returns 503 POOL_EXHAUSTED. At least capacityWaitSeconds, so the gate sheds first |
+| dbService.queryDefaultTimeoutSeconds | int | `120` | Statement timeout (seconds) for a document query whose request carries none |
+| dbService.querySlowLogThresholdMs | int | `5000` | A document query slower than this (ms) is logged with its shape and timings, never the SQL; 0 disables |
+| dbService.queryWorkMem | string | `"64MB"` | Postgres work_mem for a document query's transaction (a number with a kB/MB/GB unit); the annotation pivot spills to disk at the cluster default |
 | dbService.rateLimitMaxTokens | int | `100` | Per-customer-DB rate limit: token bucket capacity (the default data DB is exempt) |
 | dbService.rateLimitRefillRate | float | `20` | Per-customer-DB rate limit: token refill rate (tokens per second) |
 | dbService.replicaCount | int | `1` |  |
@@ -471,6 +474,16 @@ Ragnerock research intelligence platform
 | otel.existingSecret | string | `""` | Use a pre-existing secret (must provide key `OTEL_EXPORTER_OTLP_HEADERS`) instead of generating one. When set, `authHeader` is ignored. |
 | otel.serviceNamespace | string | `"ragnerock"` | OTEL service namespace |
 | otel.servicePrefix | string | `""` | Optional prefix for otel service names. E.g., setting servicePrefix to `foobar` changes api -> foobarapi |
+| pull | object | `{"fetchBackoffBaseSeconds":2,"fetchBackoffCapSeconds":30,"fetchMaxBytes":33554432,"fetchTimeoutSeconds":60,"maxFetchRetries":10,"maxResourcesPerWorkflow":10,"phaseTimeBudgetSeconds":900,"testFetchMaxBytes":4194304,"toolCallArgumentsMaxBytes":16384}` | Pull inputs: the bounds on what a workflow may fetch for itself on each run, and the workers' budget for fetching it. |
+| pull.fetchBackoffBaseSeconds | float | `2` | Workers: first backoff between attempts of one resource's fetch, in seconds, doubling per attempt. |
+| pull.fetchBackoffCapSeconds | float | `30` | Workers: ceiling on that backoff, in seconds. |
+| pull.fetchMaxBytes | int | `33554432` | Per-fetch body cap, in bytes. A pull stores the payload as a document, so this is what a document may weigh, not what fits a context window. |
+| pull.fetchTimeoutSeconds | int | `60` | Per-attempt wall clock on one fetch, in seconds; the agent-tool call ceiling and the route or tool's own ceiling still apply. |
+| pull.maxFetchRetries | int | `10` | Retries per pull resource within one delivery. Bounds the multiplier on calls to somebody else's server. |
+| pull.maxResourcesPerWorkflow | int | `10` | Pull-sourced resources per workflow; each is an external call on every run. |
+| pull.phaseTimeBudgetSeconds | int | `900` | Workers: wall clock for a run's FETCHING phase, in seconds, across all of its pull resources. |
+| pull.testFetchMaxBytes | int | `4194304` | Body cap for the resource editor's Test fetch, in bytes. |
+| pull.toolCallArgumentsMaxBytes | int | `16384` | Save-time cap on a tool_call source's rendered arguments, in bytes. |
 | python | object | `{"batchChunkItemsMax":200,"chunkConcurrency":2,"maxAttempts":4,"maxInflight":4,"maxRequestBytes":48000000,"timeoutMarginSeconds":60}` | Client-side knobs used by callers of python-service (API and workers). The sandbox's own configuration lives under `pythonService.sandbox`. |
 | python.batchChunkItemsMax | int | `200` | Upper bound on items per chunk; the count used is derived from the operator's time limit |
 | python.chunkConcurrency | int | `2` | Chunks of one batch dispatched concurrently |
@@ -516,6 +529,9 @@ Ragnerock research intelligence platform
 | pythonService.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | pythonService.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
 | pythonService.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
+| query | object | `{"assistQueryTimeoutSeconds":30,"metadataCacheTTLSeconds":10}` | Document-query layer (API and worker) |
+| query.assistQueryTimeoutSeconds | int | `30` | Statement timeout (seconds) for the query-assist sub-agent's probe queries |
+| query.metadataCacheTTLSeconds | int | `10` | Seconds the query-layer metadata (annotation schemas, agents, datasets) is cached per project in-process; 0 disables |
 | queue | object | `{"affinity":{},"annotations":{},"auditExportQueueName":"audit-export-runs","auditQueueName":"ragnerock-audit","autoscaling":{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80},"callbackQueueName":"ragnerock-callbacks","jobQueueName":"ragnerock-document-jobs","port":8123,"queuePoolSize":100,"resources":{},"serviceAccount":{"annotations":{},"create":false,"name":""},"subtaskQueueName":"ragnerock-subtask-jobs","tolerations":[],"volumeMounts":[],"volumes":[]}` | Cloudtask configuration for use with in-cluster emulator |
 | queue.affinity | object | `{}` | Pod affinity rules for the queue deployment (overrides `global.affinity`) |
 | queue.annotations | object | `{}` | Annotations added to the queue deployment's metadata (merged with `global.annotations`; per-service keys take precedence) |
@@ -563,12 +579,25 @@ Ragnerock research intelligence platform
 | rateLimits.queryExecutePerMinute | int | `120` |  |
 | rateLimits.queryValidatePerMinute | int | `60` |  |
 | rateLimits.requestsPerMinute | int | `600` |  |
+| rateLimits.schedulePreviewPerMinute | int | `60` | Per-user limit on the schedule editor's next-three-fires preview, a keystroke-driven route |
 | rateLimits.searchPerMinute | int | `60` |  |
 | rateLimits.toolsPerMinute | int | `60` |  |
 | rateLimits.webSearchProbesPerMinute | int | `30` | Per-user limit on the admin page's search-provider Test button — an admin-driven, BILLED query against the workspace's own key |
 | rateLimits.windowMinutes | int | `1` |  |
 | rateLimits.workbenchPerMinute | int | `10` |  |
 | rateLimits.workflowTestConditionPerMinute | int | `120` |  |
+| schedules | object | `{"claimTtlSeconds":120,"enabled":true,"localTickSeconds":60,"maxConsecutiveFailures":5,"maxLookbackSeconds":7776000,"maxPerProject":50,"maxWindowIntervals":7,"minIntervalSeconds":300,"tickClaimBatchSize":20,"tickSource":"inprocess","tickTimeBudgetSeconds":35}` | Scheduled runs: the ops kill switch, who drives the tick, and the save-time, window, failure, and lease bounds. |
+| schedules.claimTtlSeconds | int | `120` | Seconds a tick's lease on a claimed row lasts. The lease, not the row lock, keeps the next tick off a row this one is still working on. |
+| schedules.enabled | bool | `true` | Let workflows run themselves on a crontab. Off: schedule edits are refused with the deployment-level reason and, under `inprocess`, the ticker is not started at all (no heartbeat, readiness lag `null`). |
+| schedules.localTickSeconds | int | `60` | How often each API replica ticks, in seconds. |
+| schedules.maxConsecutiveFailures | int | `5` | Failed fires, failed runs, and overlap skips in a row before a schedule pauses itself and tells its owner. |
+| schedules.maxLookbackSeconds | int | `7776000` | The widest history one fire may declare it needs, in seconds. A lookback is exempt from the window cap, so it is the one number an author can use to ask for an unbounded pull. |
+| schedules.maxPerProject | int | `50` | Enabled schedules per project. |
+| schedules.maxWindowIntervals | int | `7` | How many of its own periods one fire's window may span before it is cut and flagged. Bounds what dormancy accumulates; never narrows a declared lookback. |
+| schedules.minIntervalSeconds | int | `300` | Save-time floor on how often a schedule may fire, in seconds. A schedule is unattended recurring egress and spend. |
+| schedules.tickClaimBatchSize | int | `20` | Due rows leased per claim statement within one tick. |
+| schedules.tickSource | string | `"inprocess"` | Who drives the tick. Pods run continuously, so `inprocess` is right for Kubernetes; `external` means something POSTs /api/jobs/internal/schedule-tick and the lifespan starts nothing. |
+| schedules.tickTimeBudgetSeconds | int | `35` | Wall clock for one tick, in seconds: the only cap on how much it does, and what spreads a burst of due schedules across minutes. |
 | skills | object | `{"bodyMaxChars":32000,"descriptionMaxChars":512,"enabled":true,"loadMaxCalls":10,"maxPerOperator":10}` | Agent skills: the ops kill switch, the size caps that bound catalog and body token cost, and the per-run load budget. |
 | skills.bodyMaxChars | int | `32000` | Maximum instruction-body length in characters |
 | skills.descriptionMaxChars | int | `512` | Maximum description length in characters (bounds catalog token cost) |

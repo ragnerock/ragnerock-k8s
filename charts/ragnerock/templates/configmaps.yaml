@@ -98,6 +98,23 @@ data:
   # Terraform. The fetch blocklist is seeded with this release's own service
   # hostnames — a model-chosen URL must not be able to point back at the
   # deployment — plus whatever public names the operator adds.
+  # Scheduled runs and pull inputs: the kill switch and the bounds every
+  # core-running service reads from core.settings. Who drives the tick and
+  # how much one tick does are API-only and live in the -api map.
+  SCHEDULES_ENABLED: "{{ .Values.schedules.enabled }}"
+  SCHEDULE_MIN_INTERVAL_SECONDS: "{{ include "ragnerock.number" .Values.schedules.minIntervalSeconds }}"
+  SCHEDULE_MAX_PER_PROJECT: "{{ include "ragnerock.number" .Values.schedules.maxPerProject }}"
+  SCHEDULE_MAX_WINDOW_INTERVALS: "{{ include "ragnerock.number" .Values.schedules.maxWindowIntervals }}"
+  SCHEDULE_MAX_LOOKBACK_SECONDS: "{{ include "ragnerock.number" .Values.schedules.maxLookbackSeconds }}"
+  SCHEDULE_MAX_CONSECUTIVE_FAILURES: "{{ include "ragnerock.number" .Values.schedules.maxConsecutiveFailures }}"
+  SCHEDULE_CLAIM_TTL_SECONDS: "{{ include "ragnerock.number" .Values.schedules.claimTtlSeconds }}"
+  PULL_MAX_RESOURCES_PER_WORKFLOW: "{{ include "ragnerock.number" .Values.pull.maxResourcesPerWorkflow }}"
+  PULL_MAX_FETCH_RETRIES: "{{ include "ragnerock.number" .Values.pull.maxFetchRetries }}"
+  PULL_TOOL_CALL_ARGUMENTS_MAX_BYTES: "{{ include "ragnerock.number" .Values.pull.toolCallArgumentsMaxBytes }}"
+  PULL_FETCH_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.pull.fetchTimeoutSeconds }}"
+  PULL_FETCH_MAX_BYTES: "{{ include "ragnerock.number" .Values.pull.fetchMaxBytes }}"
+  PULL_TEST_FETCH_MAX_BYTES: "{{ include "ragnerock.number" .Values.pull.testFetchMaxBytes }}"
+
   WEB_TOOLS_ENABLED: "{{ .Values.webTools.enabled }}"
   WEB_TOOL_PRIVATE_EGRESS_ALLOWLIST: "{{ .Values.webTools.privateEgressAllowlist }}"
   WEB_FETCH_ALLOW_HTTP: "{{ .Values.webTools.fetchAllowHttp }}"
@@ -150,6 +167,12 @@ data:
   LIVE_LOG_MAX_ROWS: "{{ include "ragnerock.number" .Values.liveLog.buffer.maxRows }}"
   LIVE_LOG_MAX_AGE_SECONDS: "{{ include "ragnerock.number" .Values.liveLog.buffer.maxAgeSeconds }}"
   LIVE_LOG_TRIM_INTERVAL_SECONDS: "{{ include "ragnerock.number" .Values.liveLog.buffer.trimIntervalSeconds }}"
+  # Document-query metadata cache and query-assist probe timeout. Only the
+  # API and the workers read them, but they live in core.settings, and every
+  # core-running service carries them for settings parity as it does in
+  # Terraform.
+  QUERY_METADATA_CACHE_TTL_SECONDS: "{{ include "ragnerock.number" .Values.query.metadataCacheTTLSeconds }}"
+  QUERY_ASSIST_QUERY_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.query.assistQueryTimeoutSeconds }}"
 ---
 # License validation. Every licensed service reads these: the startup check
 # refuses to serve without a valid license, and the periodic monitor
@@ -261,6 +284,14 @@ data:
   WORKBENCH_RUN_RESULT_MAX_CHARS_PER_NODE: "{{ include "ragnerock.number" .Values.workbench.runResultMaxCharsPerNode }}"
   WORKBENCH_SNAPSHOT_RETENTION: "{{ include "ragnerock.number" .Values.workbench.snapshotRetention }}"
   WORKBENCH_DEBUG_SESSION_RETENTION: "{{ include "ragnerock.number" .Values.workbench.debugSessionRetention }}"
+  # The schedule tick, which only the API drives. Pods run continuously, so
+  # every API replica runs the in-process ticker and the chart ships no
+  # CronJob: the claim partitions with SKIP LOCKED, so N replicas ticking is
+  # safe and the row cap makes it cheap.
+  SCHEDULE_TICK_SOURCE: "{{ .Values.schedules.tickSource }}"
+  SCHEDULE_LOCAL_TICK_SECONDS: "{{ include "ragnerock.number" .Values.schedules.localTickSeconds }}"
+  SCHEDULE_TICK_CLAIM_BATCH_SIZE: "{{ include "ragnerock.number" .Values.schedules.tickClaimBatchSize }}"
+  SCHEDULE_TICK_TIME_BUDGET_SECONDS: "{{ include "ragnerock.number" .Values.schedules.tickTimeBudgetSeconds }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -289,6 +320,7 @@ data:
   RATE_LIMIT_TOOLS_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.toolsPerMinute }}"
   RATE_LIMIT_AGENT_TOOL_PROBES_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.agentToolProbesPerMinute }}"
   RATE_LIMIT_WEB_SEARCH_PROBES_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.webSearchProbesPerMinute }}"
+  RATE_LIMIT_SCHEDULE_PREVIEW_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.schedulePreviewPerMinute }}"
   RATE_LIMIT_ANNOTATION_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.annotationPerMinute }}"
   RATE_LIMIT_DEBUG_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.debugPerMinute }}"
   RATE_LIMIT_WORKBENCH_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.workbenchPerMinute }}"
@@ -359,6 +391,9 @@ data:
   SNOWFLAKE_STATEMENT_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.dbService.snowflakeStatementTimeoutSeconds }}"
   SNOWFLAKE_LOCK_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.dbService.snowflakeLockTimeoutSeconds }}"
   SNOWFLAKE_INSERT_PAGE_SIZE: "{{ include "ragnerock.number" .Values.dbService.snowflakeInsertPageSize }}"
+  QUERY_WORK_MEM: {{ .Values.dbService.queryWorkMem | quote }}
+  QUERY_DEFAULT_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.dbService.queryDefaultTimeoutSeconds }}"
+  QUERY_SLOW_LOG_THRESHOLD_MS: "{{ include "ragnerock.number" .Values.dbService.querySlowLogThresholdMs }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -768,6 +803,10 @@ data:
   # Worker-only: python-service serves one request per instance, so its
   # capacity absorbs the sum of every worker's concurrent calls.
   PYTHON_SERVICE_MAX_INFLIGHT: "{{ include "ragnerock.number" .Values.python.maxInflight }}"
+  # The FETCHING phase's budget and retry backoff, read only by the workers.
+  PULL_PHASE_TIME_BUDGET_SECONDS: "{{ include "ragnerock.number" .Values.pull.phaseTimeBudgetSeconds }}"
+  PULL_FETCH_BACKOFF_BASE_SECONDS: "{{ include "ragnerock.number" .Values.pull.fetchBackoffBaseSeconds }}"
+  PULL_FETCH_BACKOFF_CAP_SECONDS: "{{ include "ragnerock.number" .Values.pull.fetchBackoffCapSeconds }}"
 ---
 apiVersion: v1
 kind: ConfigMap

@@ -218,6 +218,9 @@ rateLimits:
   # -- Per-user limit on the admin page's search-provider Test button — an
   # admin-driven, BILLED query against the workspace's own key
   webSearchProbesPerMinute: 30
+  # -- Per-user limit on the schedule editor's next-three-fires preview, a
+  # keystroke-driven route
+  schedulePreviewPerMinute: 60
   annotationPerMinute: 120
   debugPerMinute: 20
   workbenchPerMinute: 10
@@ -244,6 +247,13 @@ rateLimits:
 iam:
   # -- Seconds a resolved IAM permission set is cached in-process
   permissionsCacheTTL: 60
+
+# -- Document-query layer (API and worker)
+query:
+  # -- Seconds the query-layer metadata (annotation schemas, agents, datasets) is cached per project in-process; 0 disables
+  metadataCacheTTLSeconds: 10
+  # -- Statement timeout (seconds) for the query-assist sub-agent's probe queries
+  assistQueryTimeoutSeconds: 30
 
 model:
   geminiModelName: "gemini-3-flash-preview"
@@ -694,6 +704,12 @@ dbService:
   snowflakeLockTimeoutSeconds: 30
   # -- Rows per multi-row INSERT when SQLAlchemy pages an executemany batch on Snowflake
   snowflakeInsertPageSize: 1000
+  # -- Postgres work_mem for a document query's transaction (a number with a kB/MB/GB unit); the annotation pivot spills to disk at the cluster default
+  queryWorkMem: "64MB"
+  # -- Statement timeout (seconds) for a document query whose request carries none
+  queryDefaultTimeoutSeconds: 120
+  # -- A document query slower than this (ms) is logged with its shape and timings, never the SQL; 0 disables
+  querySlowLogThresholdMs: 5000
   # -- Deployment resoruce contraints (i.e. requests/limits)
   resources: {}
   # -- Optional horizontal pod autoscaler. Requires CPU/memory requests to be
@@ -1057,6 +1073,72 @@ skills:
   maxPerOperator: 10
   # -- load_skill calls allowed in a single run
   loadMaxCalls: 10
+
+# -- Scheduled runs: the ops kill switch, who drives the tick, and the
+# save-time, window, failure, and lease bounds.
+schedules:
+  # -- Let workflows run themselves on a crontab. Off: schedule edits are
+  # refused with the deployment-level reason and, under `inprocess`, the
+  # ticker is not started at all (no heartbeat, readiness lag `null`).
+  enabled: true
+  # -- Who drives the tick. Pods run continuously, so `inprocess` is right for
+  # Kubernetes; `external` means something POSTs
+  # /api/jobs/internal/schedule-tick and the lifespan starts nothing.
+  tickSource: inprocess
+  # -- How often each API replica ticks, in seconds.
+  localTickSeconds: 60
+  # -- Due rows leased per claim statement within one tick.
+  tickClaimBatchSize: 20
+  # -- Wall clock for one tick, in seconds: the only cap on how much it does,
+  # and what spreads a burst of due schedules across minutes.
+  tickTimeBudgetSeconds: 35
+  # -- Seconds a tick's lease on a claimed row lasts. The lease, not the row
+  # lock, keeps the next tick off a row this one is still working on.
+  claimTtlSeconds: 120
+  # -- Save-time floor on how often a schedule may fire, in seconds. A
+  # schedule is unattended recurring egress and spend.
+  minIntervalSeconds: 300
+  # -- Enabled schedules per project.
+  maxPerProject: 50
+  # -- How many of its own periods one fire's window may span before it is
+  # cut and flagged. Bounds what dormancy accumulates; never narrows a
+  # declared lookback.
+  maxWindowIntervals: 7
+  # -- The widest history one fire may declare it needs, in seconds. A
+  # lookback is exempt from the window cap, so it is the one number an author
+  # can use to ask for an unbounded pull.
+  maxLookbackSeconds: 7776000
+  # -- Failed fires, failed runs, and overlap skips in a row before a schedule
+  # pauses itself and tells its owner.
+  maxConsecutiveFailures: 5
+
+# -- Pull inputs: the bounds on what a workflow may fetch for itself on each
+# run, and the workers' budget for fetching it.
+pull:
+  # -- Pull-sourced resources per workflow; each is an external call on every
+  # run.
+  maxResourcesPerWorkflow: 10
+  # -- Retries per pull resource within one delivery. Bounds the multiplier on
+  # calls to somebody else's server.
+  maxFetchRetries: 10
+  # -- Save-time cap on a tool_call source's rendered arguments, in bytes.
+  toolCallArgumentsMaxBytes: 16384
+  # -- Per-attempt wall clock on one fetch, in seconds; the agent-tool call
+  # ceiling and the route or tool's own ceiling still apply.
+  fetchTimeoutSeconds: 60
+  # -- Per-fetch body cap, in bytes. A pull stores the payload as a document,
+  # so this is what a document may weigh, not what fits a context window.
+  fetchMaxBytes: 33554432
+  # -- Body cap for the resource editor's Test fetch, in bytes.
+  testFetchMaxBytes: 4194304
+  # -- Workers: wall clock for a run's FETCHING phase, in seconds, across all
+  # of its pull resources.
+  phaseTimeBudgetSeconds: 900
+  # -- Workers: first backoff between attempts of one resource's fetch, in
+  # seconds, doubling per attempt.
+  fetchBackoffBaseSeconds: 2.0
+  # -- Workers: ceiling on that backoff, in seconds.
+  fetchBackoffCapSeconds: 30.0
 
 # -- Web access: the ops kill switch plus the egress, size, and budget bounds
 # for the web_search and web_fetch tools agents reach the open web with.
