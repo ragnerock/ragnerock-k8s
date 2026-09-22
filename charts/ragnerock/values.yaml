@@ -209,6 +209,9 @@ rateLimits:
   agentPerMinute: 20
   notebookCodeFeedbackPerMinute: 40
   notebookCompactionPerMinute: 10
+  # -- Per-user limit on server-side notebook cell runs; each holds a
+  # python-service instance for the cell's whole wall-clock budget
+  notebookCellExecutePerMinute: 60
   documentUploadPerMinute: 60
   searchPerMinute: 60
   ingestTriggerPerMinute: 20
@@ -223,9 +226,12 @@ rateLimits:
   schedulePreviewPerMinute: 60
   annotationPerMinute: 120
   debugPerMinute: 20
+  pydanticSchemaImportPerMinute: 30
   workbenchPerMinute: 10
   workflowTestConditionPerMinute: 120
   configValidatePerMinute: 20
+  # -- Per-user limit on embedding document tests, each of which embeds up to thousands of a document's chunks or rows
+  embeddingDocumentTestPerMinute: 4
   adminMutationPerMinute: 40
   iamMutationPerMinute: 60
   apiTokenPerMinute: 30
@@ -256,10 +262,10 @@ query:
   assistQueryTimeoutSeconds: 30
 
 model:
-  geminiModelName: "gemini-3-flash-preview"
+  geminiModelName: "gemini-3.8-flash"
   httpTimeoutSeconds: 180
   # -- Output-token ceiling for the default Gemini provider
-  geminiMaxOutputTokens: 16384
+  geminiMaxOutputTokens: 32768
   # -- Gemini thinking budget: `LOW`, `MEDIUM`, or `HIGH`
   geminiThinkingLevel: "LOW"
   # -- Retries when a Gemini response comes back truncated
@@ -270,6 +276,26 @@ model:
   embeddingMaxWindowsPerInput: 64
   # -- Provider requests one embedding call runs at once
   embeddingMaxConcurrentBatches: 8
+  # -- Inputs sent to the embedding provider per request when testing embedding settings against a document
+  embeddingDocumentTestBatchSize: 32
+  # -- Failed inputs after which an embedding document test stops trying more
+  embeddingDocumentTestMaxFailures: 20
+  # -- Most findings an embedding document test lists per check
+  embeddingDocumentTestMaxDetails: 100
+  # -- Characters of a provider error message kept in an embedding document test finding
+  embeddingDocumentTestMessageMaxChars: 1000
+  # -- Longest an embedding document test may run before the model-service ends it, in seconds. Kept under the API's read timeout between events plus its heartbeats so the model-service ends the run before the API gives up on it
+  embeddingDocumentTestMaxSeconds: 240
+  # -- Longest one provider request of an embedding document test may take, in seconds. A slower request becomes a finding instead of holding the run until the overall limit
+  embeddingDocumentTestBatchTimeoutSeconds: 60
+  # -- Seconds between progress events while an embedding document test waits on a provider request, so a slow request does not look like a dead connection
+  embeddingDocumentTestHeartbeatSeconds: 10
+  # -- Most inputs one embedding document test request may carry; a request with more is refused before anything is embedded
+  embeddingDocumentTestRequestMaxItems: 5000
+  # -- Most text one embedding document test request may carry, in UTF-8 bytes. Kept under Cloud Run's 32 MiB request limit
+  embeddingDocumentTestRequestMaxTextBytes: 25165824
+  # -- Embedding document tests one account may have running at once on one model-service instance
+  embeddingDocumentTestMaxConcurrentPerAccount: 2
   # -- How long a request waits for a provider-call slot before the gate sheds
   # it with 503 + Retry-After
   providerCallWaitSeconds: 30
@@ -340,6 +366,26 @@ api:
   dbThreadpoolSize: 64
   # -- Longest search query accepted, in characters. Queries are embedded (and on the tools route sent to an LLM), so this bounds the provider cost of one search
   searchQueryMaxChars: 4000
+  # -- Largest Pydantic source paste a schema import accepts, in characters. Parsing is static (no code runs), but each request parses arbitrary pasted Python
+  pydanticSchemaImportMaxChars: 100000
+  # -- How long a passing AI-settings validation lets a save of the same settings skip re-testing, in seconds
+  validationTokenTtlSeconds: 900
+  # -- Read timeout between events of a streamed validation run, in seconds. One test can take a reasoning model most of a minute on large inputs
+  validationStreamReadTimeoutSeconds: 120
+  # -- Chunks or rows an embedding document test covers by default, from the start of the document
+  embeddingDocumentTestMaxItems: 200
+  # -- Most chunks or rows an embedding document test covers when the whole document is tested
+  embeddingDocumentTestMaxItemsEntire: 5000
+  # -- Chunks or rows read from the data store per request while loading a document for an embedding document test
+  embeddingDocumentTestPageSize: 500
+  # -- Characters of a failing input's text shown when an embedding document test is asked for excerpts
+  embeddingDocumentTestExcerptChars: 200
+  # -- Most text one embedding document test sends, in UTF-8 bytes, whatever the item count. Kept under the model-service's request limit and Cloud Run's 32 MiB request limit
+  embeddingDocumentTestMaxBytes: 20971520
+  # -- Embedding document tests one account may have running at once on one API pod. Counted per pod, so an account's ceiling is this times the number of pods; the rate limit bounds it across pods
+  embeddingDocumentTestMaxConcurrentPerAccount: 2
+  # -- Retry-After sent, in seconds, when an account is already running its share of embedding document tests
+  embeddingDocumentTestRetryAfterSeconds: 30
   operatorSample:
     # -- Max workbench attachment size accepted by the parse-sample endpoint. The file rides to the worker as base64 JSON (~4/3 the size), so keep it at or below 20 MiB
     maxFileBytes: 20971520
@@ -864,6 +910,8 @@ limits:
   # bytes of request line, so 200 is about 8.2 KB, half the smallest limit in
   # the path.
   dbIdsPerRequest: 200
+  # -- Most inbox notifications one notification-node subtask may create. The rest collapse into a single summary, so a row-scoped node over a large sheet cannot flood the run user's inbox
+  notificationNodeMaxPerSubtask: 50
   concurrency:
     maxConcurrentSubtasks: 50
     maxConcurrentAnnotations: 10
@@ -1021,8 +1069,6 @@ tools:
 
 # -- Notebook agent rollout flags and the compaction-call timeout.
 notebook:
-  # -- Rollout flag: persist a real CODE cell for each sandbox execution so the UI and next turn's history see sandbox runs like kernel runs
-  sandboxCodeCells: false
   # -- Rollout flag: capture a full history snapshot on the first iteration of every notebook turn so the audit record is exactly replayable
   auditTurnSnapshot: false
   # -- Wall-clock bound (seconds) on the one-shot notebook-compaction summarization call
@@ -1467,6 +1513,19 @@ workers:
     notStartedAfterSeconds: 900
     # -- Seconds a job may sit in progress before the sweep re-enqueues it
     inProgressAfterSeconds: 2700
+  # -- Periodic sweep of notebook sandbox session state: idle purge plus
+  # collection of state objects no session references any more.
+  codeSession:
+    # -- Run the session-state sweep. Off means no state cleanup at all, so objects accumulate until it is turned back on
+    sweepEnabled: true
+    # -- Seconds between sweeps
+    sweepIntervalSeconds: 3600
+    # -- Idle sessions purged per sweep
+    sweepBatchSize: 200
+    # -- Days a session may go untouched before the sweep ends it
+    ttlDays: 30
+    # -- Age below which an unreferenced state object is left alone, protecting an in-flight load or save from collection mid-turn
+    sweepGraceHours: 24
 
 audit:
   batchMaxBytes: 819200 # 800 * 1024
@@ -1677,6 +1736,14 @@ pythonService:
     maxResultBytes: 8000000
     # -- Request payload ceiling enforced on receipt, in bytes
     maxRequestBytes: 48000000
+    # -- Ceiling on one notebook session's serialized state, in bytes
+    maxStateBytes: 20000000
+    # -- Per-variable ceiling within a state capture, in bytes; a single oversized object is dropped and reported rather than failing the cell
+    maxStateVariableBytes: 20000000
+    # -- Extra wall-clock beyond a stateful cell's own budget for serializing its session state, in seconds
+    stateGraceSeconds: 10.0
+    # -- Combined response ceiling in bytes, sized under the ingress body cap so an oversized capture fails with a real message rather than a truncated connection
+    maxResponseBytes: 30000000
     # -- Extra wall-clock allowed for subprocess spawn and the first heavy import
     batchStartupGraceSeconds: 15.0
     # -- CPU-seconds backstop behind the wall-clock timeout; a floor, scaled by the execution's wall budget

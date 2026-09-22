@@ -1,6 +1,6 @@
 # ragnerock
 
-![Version: 1.6.2](https://img.shields.io/badge/Version-1.6.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v2026.09.16](https://img.shields.io/badge/AppVersion-v2026.09.16-informational?style=flat-square)
+![Version: 1.7.0](https://img.shields.io/badge/Version-1.7.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v2026.09.21](https://img.shields.io/badge/AppVersion-v2026.09.21-informational?style=flat-square)
 
 Ragnerock research intelligence platform
 
@@ -86,12 +86,20 @@ Ragnerock research intelligence platform
 | api.capacityWaitSeconds | float | `5` | Seconds a request waits for capacity before it is rejected |
 | api.dbServiceMaxConnections | int | `40` | Concurrent HTTP connections to db-service, bounding the source so a spike queues here rather than arriving as load db-service has to shed |
 | api.dbThreadpoolSize | int | `64` | Threads serving blocking DB work off the event loop |
+| api.embeddingDocumentTestExcerptChars | int | `200` | Characters of a failing input's text shown when an embedding document test is asked for excerpts |
+| api.embeddingDocumentTestMaxBytes | int | `20971520` | Most text one embedding document test sends, in UTF-8 bytes, whatever the item count. Kept under the model-service's request limit and Cloud Run's 32 MiB request limit |
+| api.embeddingDocumentTestMaxConcurrentPerAccount | int | `2` | Embedding document tests one account may have running at once on one API pod. Counted per pod, so an account's ceiling is this times the number of pods; the rate limit bounds it across pods |
+| api.embeddingDocumentTestMaxItems | int | `200` | Chunks or rows an embedding document test covers by default, from the start of the document |
+| api.embeddingDocumentTestMaxItemsEntire | int | `5000` | Most chunks or rows an embedding document test covers when the whole document is tested |
+| api.embeddingDocumentTestPageSize | int | `500` | Chunks or rows read from the data store per request while loading a document for an embedding document test |
+| api.embeddingDocumentTestRetryAfterSeconds | int | `30` | Retry-After sent, in seconds, when an account is already running its share of embedding document tests |
 | api.image.name | string | `"api"` |  |
 | api.image.tag | string | `""` |  |
 | api.maxConcurrentRequests | int | `18` | In-flight ordinary requests one API pod accepts before it starts shedding. Sized to `database.poolSize + maxOverflow`, because a request in this class holds a connection for most of its life. On Kubernetes there is no platform concurrency behind it, so this gate is the ONLY bound -- which is why the chart checks it against the pool rather than trusting it |
 | api.maxConcurrentStreams | int | `40` | Concurrent streaming requests (SSE, NDJSON, MCP waiters) one pod admits. A separate class: a stream holds a request slot for minutes and a DB connection for almost none of it, and every logged-in browser tab holds two permanently |
 | api.operatorSample.maxFileBytes | int | `20971520` | Max workbench attachment size accepted by the parse-sample endpoint. The file rides to the worker as base64 JSON (~4/3 the size), so keep it at or below 20 MiB |
 | api.operatorSample.parseTimeoutSeconds | int | `300` | API-side read timeout on the synchronous worker parse call, in seconds. Whole-document OCR of a large PDF via an external backend takes minutes |
+| api.pydanticSchemaImportMaxChars | int | `100000` | Largest Pydantic source paste a schema import accepts, in characters. Parsing is static (no code runs), but each request parses arbitrary pasted Python |
 | api.replicaCount | int | `1` |  |
 | api.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
 | api.searchQueryMaxChars | int | `4000` | Longest search query accepted, in characters. Queries are embedded (and on the tools route sent to an LLM), so this bounds the provider cost of one search |
@@ -102,6 +110,8 @@ Ragnerock research intelligence platform
 | api.serviceAccount.name | string | `""` | Service account name to use; if empty and `create` is true a name is generated |
 | api.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | api.url | string | `""` |  |
+| api.validationStreamReadTimeoutSeconds | int | `120` | Read timeout between events of a streamed validation run, in seconds. One test can take a reasoning model most of a minute on large inputs |
+| api.validationTokenTtlSeconds | int | `900` | How long a passing AI-settings validation lets a save of the same settings skip re-testing, in seconds |
 | api.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
 | api.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
 | audit.batchMaxBytes | int | `819200` |  |
@@ -341,6 +351,7 @@ Ragnerock research intelligence platform
 | limits.concurrency.maxConcurrentSubtasks | int | `50` |  |
 | limits.dbIdsPerRequest | int | `200` | Ids per request to a db-service '*-by-ids' endpoint, and the ceiling those endpoints enforce -- one value, because the client's chunk size and the server's limit are one decision. A URL byte budget: each id costs 41 bytes of request line, so 200 is about 8.2 KB, half the smallest limit in the path. |
 | limits.job.watchdogSlackMinutes | int | `5` | Extra delay past the subtask stale threshold before the job watchdog reconciles |
+| limits.notificationNodeMaxPerSubtask | int | `50` | Most inbox notifications one notification-node subtask may create. The rest collapse into a single summary, so a row-scoped node over a large sheet cannot flood the run user's inbox |
 | limits.subtask.failureThreshold | float | `0.05` |  |
 | limits.subtask.maxAttempts | int | `3` |  |
 | limits.subtask.staleThresholdMinutes | int | `35` | Minutes without a heartbeat before an in-flight subtask may be re-claimed |
@@ -432,10 +443,20 @@ Ragnerock research intelligence platform
 | model.anthropicThinkingBudgetHigh | int | `16384` | Anthropic thinking token budget for the HIGH effort tier |
 | model.anthropicThinkingBudgetLow | int | `4096` | Anthropic thinking token budget for the LOW effort tier |
 | model.anthropicThinkingBudgetMedium | int | `8192` | Anthropic thinking token budget for the MEDIUM effort tier |
+| model.embeddingDocumentTestBatchSize | int | `32` | Inputs sent to the embedding provider per request when testing embedding settings against a document |
+| model.embeddingDocumentTestBatchTimeoutSeconds | int | `60` | Longest one provider request of an embedding document test may take, in seconds. A slower request becomes a finding instead of holding the run until the overall limit |
+| model.embeddingDocumentTestHeartbeatSeconds | int | `10` | Seconds between progress events while an embedding document test waits on a provider request, so a slow request does not look like a dead connection |
+| model.embeddingDocumentTestMaxConcurrentPerAccount | int | `2` | Embedding document tests one account may have running at once on one model-service instance |
+| model.embeddingDocumentTestMaxDetails | int | `100` | Most findings an embedding document test lists per check |
+| model.embeddingDocumentTestMaxFailures | int | `20` | Failed inputs after which an embedding document test stops trying more |
+| model.embeddingDocumentTestMaxSeconds | int | `240` | Longest an embedding document test may run before the model-service ends it, in seconds. Kept under the API's read timeout between events plus its heartbeats so the model-service ends the run before the API gives up on it |
+| model.embeddingDocumentTestMessageMaxChars | int | `1000` | Characters of a provider error message kept in an embedding document test finding |
+| model.embeddingDocumentTestRequestMaxItems | int | `5000` | Most inputs one embedding document test request may carry; a request with more is refused before anything is embedded |
+| model.embeddingDocumentTestRequestMaxTextBytes | int | `25165824` | Most text one embedding document test request may carry, in UTF-8 bytes. Kept under Cloud Run's 32 MiB request limit |
 | model.embeddingMaxConcurrentBatches | int | `8` | Provider requests one embedding call runs at once |
 | model.embeddingMaxWindowsPerInput | int | `64` | Most windows one over-limit embedding input is split into; text past the last window is not embedded |
-| model.geminiMaxOutputTokens | int | `16384` | Output-token ceiling for the default Gemini provider |
-| model.geminiModelName | string | `"gemini-3-flash-preview"` |  |
+| model.geminiMaxOutputTokens | int | `32768` | Output-token ceiling for the default Gemini provider |
+| model.geminiModelName | string | `"gemini-3.8-flash"` |  |
 | model.geminiThinkingBudgetHigh | int | `24576` | Gemini thinking token budget for the HIGH effort tier |
 | model.geminiThinkingBudgetLow | int | `1024` | Gemini thinking token budget for the LOW effort tier |
 | model.geminiThinkingBudgetMedium | int | `8192` | Gemini thinking token budget for the MEDIUM effort tier |
@@ -466,10 +487,9 @@ Ragnerock research intelligence platform
 | modelService.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
 | modelService.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
 | nameOverride | string | `nil` |  |
-| notebook | object | `{"auditTurnSnapshot":false,"compactionTimeoutSeconds":120,"sandboxCodeCells":false}` | Notebook agent rollout flags and the compaction-call timeout. |
+| notebook | object | `{"auditTurnSnapshot":false,"compactionTimeoutSeconds":120}` | Notebook agent rollout flags and the compaction-call timeout. |
 | notebook.auditTurnSnapshot | bool | `false` | Rollout flag: capture a full history snapshot on the first iteration of every notebook turn so the audit record is exactly replayable |
 | notebook.compactionTimeoutSeconds | int | `120` | Wall-clock bound (seconds) on the one-shot notebook-compaction summarization call |
-| notebook.sandboxCodeCells | bool | `false` | Rollout flag: persist a real CODE cell for each sandbox execution so the UI and next turn's history see sandbox runs like kernel runs |
 | otel | object | `{"authHeader":"","enabled":false,"existingSecret":"","exporterEndpoint":"","exporterInsecure":false,"exporterProtocol":"http/protobuf","serviceNamespace":"ragnerock","servicePrefix":""}` | Otel metrics/traces/logs export |
 | otel.existingSecret | string | `""` | Use a pre-existing secret (must provide key `OTEL_EXPORTER_OTLP_HEADERS`) instead of generating one. When set, `authHeader` is ignored. |
 | otel.serviceNamespace | string | `"ragnerock"` | OTEL service namespace |
@@ -503,13 +523,16 @@ Ragnerock research intelligence platform
 | pythonService.replicaCount | int | `1` | Each pod runs one execution at a time and turns away the rest with a 503, so size this to the workers' total `python.maxInflight` |
 | pythonService.requestTimeoutSeconds | int | `600` | Request timeout the service is deployed with; its clients size their chunking against it |
 | pythonService.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
-| pythonService.sandbox | object | `{"batchStartupGraceSeconds":15,"busyRetryAfterSeconds":1,"enforcement":"on","maxOutputBytes":1000000,"maxRequestBytes":48000000,"maxResultBytes":8000000,"maxTimeout":300,"nativeThreads":2,"recycleAfterNExecutions":100,"rlimitCPUHeadroomSeconds":30,"rlimitCPUPerWallSecond":2,"rlimitCPUSeconds":60,"rlimitFSizeBytes":64000000,"rlimitNProc":512,"rlimitNoFile":256}` | Sandbox limits the code-execution service applies to user code |
+| pythonService.sandbox | object | `{"batchStartupGraceSeconds":15,"busyRetryAfterSeconds":1,"enforcement":"on","maxOutputBytes":1000000,"maxRequestBytes":48000000,"maxResponseBytes":30000000,"maxResultBytes":8000000,"maxStateBytes":20000000,"maxStateVariableBytes":20000000,"maxTimeout":300,"nativeThreads":2,"recycleAfterNExecutions":100,"rlimitCPUHeadroomSeconds":30,"rlimitCPUPerWallSecond":2,"rlimitCPUSeconds":60,"rlimitFSizeBytes":64000000,"rlimitNProc":512,"rlimitNoFile":256,"stateGraceSeconds":10}` | Sandbox limits the code-execution service applies to user code |
 | pythonService.sandbox.batchStartupGraceSeconds | float | `15` | Extra wall-clock allowed for subprocess spawn and the first heavy import |
 | pythonService.sandbox.busyRetryAfterSeconds | int | `1` | Retry-After, in seconds, on the 503 a pod returns while it is already running an execution |
 | pythonService.sandbox.enforcement | string | `"on"` | `on` requires the Linux sandbox mechanisms; `off` is a local-dev escape hatch only |
 | pythonService.sandbox.maxOutputBytes | int | `1000000` | stdout/stderr capture cap, in bytes |
 | pythonService.sandbox.maxRequestBytes | int | `48000000` | Request payload ceiling enforced on receipt, in bytes |
+| pythonService.sandbox.maxResponseBytes | int | `30000000` | Combined response ceiling in bytes, sized under the ingress body cap so an oversized capture fails with a real message rather than a truncated connection |
 | pythonService.sandbox.maxResultBytes | int | `8000000` | Per-result size ceiling, in bytes |
+| pythonService.sandbox.maxStateBytes | int | `20000000` | Ceiling on one notebook session's serialized state, in bytes |
+| pythonService.sandbox.maxStateVariableBytes | int | `20000000` | Per-variable ceiling within a state capture, in bytes; a single oversized object is dropped and reported rather than failing the cell |
 | pythonService.sandbox.maxTimeout | int | `300` | Wall-clock ceiling applied to every execution, in seconds |
 | pythonService.sandbox.nativeThreads | int | `2` | Threads per native pool (OpenMP, OpenBLAS, MKL, numexpr) in user code; match the pod's CPU limit |
 | pythonService.sandbox.recycleAfterNExecutions | int | `100` | Exit cleanly after this many executions; <= 0 disables recycling |
@@ -519,6 +542,7 @@ Ragnerock research intelligence platform
 | pythonService.sandbox.rlimitFSizeBytes | int | `64000000` | Largest file the child may write, in bytes |
 | pythonService.sandbox.rlimitNProc | int | `512` | Process and thread cap for the service's UID, counted across the whole node (must not starve numpy threads) |
 | pythonService.sandbox.rlimitNoFile | int | `256` | Open file descriptor cap |
+| pythonService.sandbox.stateGraceSeconds | float | `10` | Extra wall-clock beyond a stateful cell's own budget for serializing its session state, in seconds |
 | pythonService.securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]}}` | Container security context |
 | pythonService.service.port | int | `8080` |  |
 | pythonService.service.type | string | `"ClusterIP"` |  |
@@ -565,16 +589,19 @@ Ragnerock research intelligence platform
 | rateLimits.debugPerMinute | int | `20` |  |
 | rateLimits.documentChunkCreatePerMinute | int | `600` |  |
 | rateLimits.documentUploadPerMinute | int | `60` |  |
+| rateLimits.embeddingDocumentTestPerMinute | int | `4` | Per-user limit on embedding document tests, each of which embeds up to thousands of a document's chunks or rows |
 | rateLimits.frontendEventsPerMinute | int | `600` |  |
 | rateLimits.iamMutationPerMinute | int | `60` |  |
 | rateLimits.ingestTriggerPerMinute | int | `20` |  |
 | rateLimits.liveLogClientPerMinute | int | `30` | Per-user limit on the browser log relay endpoint |
 | rateLimits.liveLogStreamPerMinute | int | `10` | Per-user limit on opening the live-log tail |
+| rateLimits.notebookCellExecutePerMinute | int | `60` | Per-user limit on server-side notebook cell runs; each holds a python-service instance for the cell's whole wall-clock budget |
 | rateLimits.notebookCodeFeedbackPerMinute | int | `40` |  |
 | rateLimits.notebookCompactionPerMinute | int | `10` |  |
 | rateLimits.notificationStreamPerMinute | int | `10` |  |
 | rateLimits.operatorParseSamplePerMinute | int | `10` | Per-user limit on workbench attachment parses. Each request can hold a synchronous worker OCR call for minutes, so the ceiling is deliberately low |
 | rateLimits.operatorTestPerMinute | int | `60` |  |
+| rateLimits.pydanticSchemaImportPerMinute | int | `30` |  |
 | rateLimits.queryAssistPerMinute | int | `30` |  |
 | rateLimits.queryExecutePerMinute | int | `120` |  |
 | rateLimits.queryValidatePerMinute | int | `60` |  |
@@ -687,10 +714,16 @@ Ragnerock research intelligence platform
 | worker.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | worker.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
 | worker.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
-| workers | object | `{"capacityRetryAfterSeconds":5,"capacityWaitSeconds":5,"chunkThreadpoolSize":2,"database":{"completionLockSlowMs":1000,"lockTimeoutSeconds":30,"maxOverflow":null,"poolHeadroom":5,"poolSize":null,"poolTimeout":10,"subtaskMaxOverflow":null,"subtaskPoolSize":null},"dbServiceMaxConnections":40,"dbThreadpoolSize":80,"maxChunkTokens":1500,"maxConcurrentJobAdvances":10,"maxConcurrentSpawns":5,"maxInstanceRequestConcurrency":"","reconcile":{"batchSize":100,"enabled":true,"inProgressAfterSeconds":2700,"intervalSeconds":300,"notStartedAfterSeconds":900},"spawn":{"pageSize":1000,"planningStaleSeconds":900,"timeBudgetSeconds":300},"subtaskEnqueueStaleMinutes":15,"subtaskInsertChunkRows":5000,"subtaskPublishConcurrency":32,"tabularIngest":{"maxRowsPerSheet":100000,"rowInsertChunkBytes":8000000,"rowInsertChunkRows":1000,"rowRefsPageSize":10000}}` | Settings shared by the worker and subtask-worker deployments. Both run the same job-processing code, so they are tuned together. |
+| workers | object | `{"capacityRetryAfterSeconds":5,"capacityWaitSeconds":5,"chunkThreadpoolSize":2,"codeSession":{"sweepBatchSize":200,"sweepEnabled":true,"sweepGraceHours":24,"sweepIntervalSeconds":3600,"ttlDays":30},"database":{"completionLockSlowMs":1000,"lockTimeoutSeconds":30,"maxOverflow":null,"poolHeadroom":5,"poolSize":null,"poolTimeout":10,"subtaskMaxOverflow":null,"subtaskPoolSize":null},"dbServiceMaxConnections":40,"dbThreadpoolSize":80,"maxChunkTokens":1500,"maxConcurrentJobAdvances":10,"maxConcurrentSpawns":5,"maxInstanceRequestConcurrency":"","reconcile":{"batchSize":100,"enabled":true,"inProgressAfterSeconds":2700,"intervalSeconds":300,"notStartedAfterSeconds":900},"spawn":{"pageSize":1000,"planningStaleSeconds":900,"timeBudgetSeconds":300},"subtaskEnqueueStaleMinutes":15,"subtaskInsertChunkRows":5000,"subtaskPublishConcurrency":32,"tabularIngest":{"maxRowsPerSheet":100000,"rowInsertChunkBytes":8000000,"rowInsertChunkRows":1000,"rowRefsPageSize":10000}}` | Settings shared by the worker and subtask-worker deployments. Both run the same job-processing code, so they are tuned together. |
 | workers.capacityRetryAfterSeconds | int | `5` | Retry-After sent with a shed, pool-exhausted, or lost-connection 503; the queue honours it as backoff, so a saturated instance gets a delayed redelivery rather than an immediate one that finds it just as full |
 | workers.capacityWaitSeconds | float | `5` | Seconds a task waits for local capacity before it is deferred |
 | workers.chunkThreadpoolSize | int | `2` | Threads for chunking parsed pages. Chunking is CPU work, so more threads than CPUs only adds contention |
+| workers.codeSession | object | `{"sweepBatchSize":200,"sweepEnabled":true,"sweepGraceHours":24,"sweepIntervalSeconds":3600,"ttlDays":30}` | Periodic sweep of notebook sandbox session state: idle purge plus collection of state objects no session references any more. |
+| workers.codeSession.sweepBatchSize | int | `200` | Idle sessions purged per sweep |
+| workers.codeSession.sweepEnabled | bool | `true` | Run the session-state sweep. Off means no state cleanup at all, so objects accumulate until it is turned back on |
+| workers.codeSession.sweepGraceHours | int | `24` | Age below which an unreferenced state object is left alone, protecting an in-flight load or save from collection mid-turn |
+| workers.codeSession.sweepIntervalSeconds | int | `3600` | Seconds between sweeps |
+| workers.codeSession.ttlDays | int | `30` | Days a session may go untouched before the sweep ends it |
 | workers.database.completionLockSlowMs | int | `1000` | Milliseconds a subtask completion may wait on the job row's lock before warning |
 | workers.database.lockTimeoutSeconds | int | `30` | Seconds a statement waits on a row lock before erroring |
 | workers.database.maxOverflow | string | `nil` | Explicit overflow above the pool size. Falls back to `poolHeadroom` when null. |

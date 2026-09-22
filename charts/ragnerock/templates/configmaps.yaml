@@ -23,6 +23,12 @@ metadata:
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
+  # The Ragnerock-hosted default generation model. model-service calls it and
+  # core freezes the same value into run provenance, so a split would log
+  # model_mismatch and drop the subtask cache -- which is why it lives HERE,
+  # in the ConfigMap every core-importing deployment mounts, rather than in
+  # `-model`, which only model-service mounts.
+  GEMINI_MODEL_NAME: {{ .Values.model.geminiModelName | quote }}
   ANNOTATION_TOOL_MAX_ITERATIONS: "{{ include "ragnerock.number" .Values.agent.annotationToolMaxIterations }}"
   MAX_CONCURRENT_ANNOTATE_CALLS: "{{ include "ragnerock.number" .Values.model.maxConcurrentAnnotateCalls }}"
   MODEL_SERVICE_ANNOTATE_WAIT_SECONDS: "{{ include "ragnerock.number" .Values.model.annotateWaitSeconds }}"
@@ -223,6 +229,7 @@ metadata:
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
+  APP_VERSION: {{ .Chart.AppVersion | quote }}
   API_SELF_URL: "http://{{ include "ragnerock.fullname" . }}-api:8080"
   DB_POOL_SIZE: "{{ include "ragnerock.number" .Values.database.poolSize }}"
   DB_MAX_OVERFLOW: "{{ include "ragnerock.number" .Values.database.maxOverflow }}"
@@ -235,6 +242,20 @@ data:
   DB_SERVICE_MAX_CONNECTIONS: "{{ include "ragnerock.number" .Values.api.dbServiceMaxConnections }}"
   DB_THREADPOOL_SIZE: "{{ include "ragnerock.number" .Values.api.dbThreadpoolSize }}"
   SEARCH_QUERY_MAX_CHARS: "{{ include "ragnerock.number" .Values.api.searchQueryMaxChars }}"
+  # Static parsing only, but a schema import parses arbitrary pasted Python,
+  # so the paste size is bounded (the rate is, in the rate-limits ConfigMap).
+  PYDANTIC_SCHEMA_IMPORT_MAX_CHARS: "{{ include "ragnerock.number" .Values.api.pydanticSchemaImportMaxChars }}"
+  # How long a passing AI-settings validation lets a save of the same settings
+  # skip re-testing, and the read timeout between events of a streamed run.
+  VALIDATION_TOKEN_TTL_SECONDS: "{{ include "ragnerock.number" .Values.api.validationTokenTtlSeconds }}"
+  VALIDATION_STREAM_READ_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.api.validationStreamReadTimeoutSeconds }}"
+  EMBEDDING_DOCUMENT_TEST_MAX_ITEMS: "{{ include "ragnerock.number" .Values.api.embeddingDocumentTestMaxItems }}"
+  EMBEDDING_DOCUMENT_TEST_MAX_ITEMS_ENTIRE: "{{ include "ragnerock.number" .Values.api.embeddingDocumentTestMaxItemsEntire }}"
+  EMBEDDING_DOCUMENT_TEST_PAGE_SIZE: "{{ include "ragnerock.number" .Values.api.embeddingDocumentTestPageSize }}"
+  EMBEDDING_DOCUMENT_TEST_EXCERPT_CHARS: "{{ include "ragnerock.number" .Values.api.embeddingDocumentTestExcerptChars }}"
+  EMBEDDING_DOCUMENT_TEST_MAX_BYTES: "{{ include "ragnerock.number" .Values.api.embeddingDocumentTestMaxBytes }}"
+  EMBEDDING_DOCUMENT_TEST_MAX_CONCURRENT_PER_ACCOUNT: "{{ include "ragnerock.number" .Values.api.embeddingDocumentTestMaxConcurrentPerAccount }}"
+  EMBEDDING_DOCUMENT_TEST_RETRY_AFTER_SECONDS: "{{ include "ragnerock.number" .Values.api.embeddingDocumentTestRetryAfterSeconds }}"
   # Fixed geometry rather than a tunable: the isolated health server has to sit
   # on a port other than the main app port (8080).
   HEALTH_PORT: "8081"
@@ -314,6 +335,7 @@ data:
   RATE_LIMIT_AGENT_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.agentPerMinute }}"
   RATE_LIMIT_NOTEBOOK_CODE_FEEDBACK_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.notebookCodeFeedbackPerMinute }}"
   RATE_LIMIT_NOTEBOOK_COMPACTION_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.notebookCompactionPerMinute }}"
+  RATE_LIMIT_NOTEBOOK_CELL_EXECUTE_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.notebookCellExecutePerMinute }}"
   RATE_LIMIT_DOCUMENT_UPLOAD_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.documentUploadPerMinute }}"
   RATE_LIMIT_SEARCH_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.searchPerMinute }}"
   RATE_LIMIT_INGEST_TRIGGER_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.ingestTriggerPerMinute }}"
@@ -323,9 +345,11 @@ data:
   RATE_LIMIT_SCHEDULE_PREVIEW_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.schedulePreviewPerMinute }}"
   RATE_LIMIT_ANNOTATION_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.annotationPerMinute }}"
   RATE_LIMIT_DEBUG_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.debugPerMinute }}"
+  RATE_LIMIT_PYDANTIC_SCHEMA_IMPORT_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.pydanticSchemaImportPerMinute }}"
   RATE_LIMIT_WORKBENCH_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.workbenchPerMinute }}"
   RATE_LIMIT_WORKFLOW_TEST_CONDITION_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.workflowTestConditionPerMinute }}"
   RATE_LIMIT_CONFIG_VALIDATE_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.configValidatePerMinute }}"
+  RATE_LIMIT_EMBEDDING_DOCUMENT_TEST_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.embeddingDocumentTestPerMinute }}"
   RATE_LIMIT_ADMIN_MUTATION_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.adminMutationPerMinute }}"
   RATE_LIMIT_IAM_MUTATION_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.iamMutationPerMinute }}"
   RATE_LIMIT_API_TOKEN_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.apiTokenPerMinute }}"
@@ -505,7 +529,6 @@ data:
   AGENT_CONTEXT_EVICTION_LOW_WATER_TOKENS: "{{ include "ragnerock.number" .Values.agent.contextEvictionLowWaterTokens }}"
   AGENT_CONTEXT_EVICTION_MIN_CHARS: "{{ include "ragnerock.number" .Values.agent.contextEvictionMinChars }}"
   AGENT_TOOL_RESULT_IMAGES: "{{ .Values.agent.toolResultImages }}"
-  NOTEBOOK_SANDBOX_CODE_CELLS: "{{ .Values.notebook.sandboxCodeCells }}"
   AUDIT_NOTEBOOK_TURN_SNAPSHOT: "{{ .Values.notebook.auditTurnSnapshot }}"
   NOTEBOOK_COMPACTION_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.notebook.compactionTimeoutSeconds }}"
 ---
@@ -676,13 +699,22 @@ metadata:
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
-  GEMINI_MODEL_NAME: {{ .Values.model.geminiModelName | quote }}
   GEMINI_MAX_OUTPUT_TOKENS: "{{ include "ragnerock.number" .Values.model.geminiMaxOutputTokens }}"
   GEMINI_THINKING_LEVEL: {{ .Values.model.geminiThinkingLevel | quote }}
   GEMINI_TRUNCATION_RETRIES: "{{ include "ragnerock.number" .Values.model.geminiTruncationRetries }}"
   MAX_CONCURRENT_PROVIDER_CALLS: "{{ include "ragnerock.number" .Values.model.maxConcurrentProviderCalls }}"
   EMBEDDING_MAX_WINDOWS_PER_INPUT: "{{ include "ragnerock.number" .Values.model.embeddingMaxWindowsPerInput }}"
   EMBEDDING_MAX_CONCURRENT_BATCHES: "{{ include "ragnerock.number" .Values.model.embeddingMaxConcurrentBatches }}"
+  EMBEDDING_DOCUMENT_TEST_BATCH_SIZE: "{{ include "ragnerock.number" .Values.model.embeddingDocumentTestBatchSize }}"
+  EMBEDDING_DOCUMENT_TEST_MAX_FAILURES: "{{ include "ragnerock.number" .Values.model.embeddingDocumentTestMaxFailures }}"
+  EMBEDDING_DOCUMENT_TEST_MAX_DETAILS: "{{ include "ragnerock.number" .Values.model.embeddingDocumentTestMaxDetails }}"
+  EMBEDDING_DOCUMENT_TEST_MESSAGE_MAX_CHARS: "{{ include "ragnerock.number" .Values.model.embeddingDocumentTestMessageMaxChars }}"
+  EMBEDDING_DOCUMENT_TEST_MAX_SECONDS: "{{ include "ragnerock.number" .Values.model.embeddingDocumentTestMaxSeconds }}"
+  EMBEDDING_DOCUMENT_TEST_BATCH_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.model.embeddingDocumentTestBatchTimeoutSeconds }}"
+  EMBEDDING_DOCUMENT_TEST_HEARTBEAT_SECONDS: "{{ include "ragnerock.number" .Values.model.embeddingDocumentTestHeartbeatSeconds }}"
+  EMBEDDING_DOCUMENT_TEST_REQUEST_MAX_ITEMS: "{{ include "ragnerock.number" .Values.model.embeddingDocumentTestRequestMaxItems }}"
+  EMBEDDING_DOCUMENT_TEST_REQUEST_MAX_TEXT_BYTES: "{{ include "ragnerock.number" .Values.model.embeddingDocumentTestRequestMaxTextBytes }}"
+  EMBEDDING_DOCUMENT_TEST_MAX_CONCURRENT_PER_ACCOUNT: "{{ include "ragnerock.number" .Values.model.embeddingDocumentTestMaxConcurrentPerAccount }}"
   PROVIDER_CALL_WAIT_SECONDS: "{{ include "ragnerock.number" .Values.model.providerCallWaitSeconds }}"
   PROVIDER_CALL_RETRY_AFTER_SECONDS: "{{ include "ragnerock.number" .Values.model.providerCallRetryAfterSeconds }}"
   # Retry shaping for a provider with no fallback chain behind it, and the
@@ -730,6 +762,7 @@ metadata:
 data:
   MAX_CONCURRENT_SUBTASKS: "{{ include "ragnerock.number" .Values.limits.concurrency.maxConcurrentSubtasks }}"
   MAX_CONCURRENT_ANNOTATIONS: "{{ include "ragnerock.number" .Values.limits.concurrency.maxConcurrentAnnotations }}"
+  NOTIFICATION_NODE_MAX_PER_SUBTASK: "{{ include "ragnerock.number" .Values.limits.notificationNodeMaxPerSubtask }}"
   MAX_CONCURRENT_JOBS: "{{ include "ragnerock.number" .Values.limits.concurrency.maxConcurrentJobs }}"
   # Only the job worker is targeted by the API's parse-sample calls; the
   # subtask-worker gets this for settings parity, as it does in Terraform.
@@ -794,6 +827,13 @@ data:
   JOB_RECONCILE_BATCH_SIZE: "{{ include "ragnerock.number" .Values.workers.reconcile.batchSize }}"
   JOB_RECONCILE_NOT_STARTED_AFTER_SECONDS: "{{ include "ragnerock.number" .Values.workers.reconcile.notStartedAfterSeconds }}"
   JOB_RECONCILE_IN_PROGRESS_AFTER_SECONDS: "{{ include "ragnerock.number" .Values.workers.reconcile.inProgressAfterSeconds }}"
+  # Notebook sandbox session-state sweep: idle purge plus orphan state-object
+  # collection. TTL and grace are core settings read by the worker.
+  CODE_SESSION_SWEEP_ENABLED: "{{ .Values.workers.codeSession.sweepEnabled }}"
+  CODE_SESSION_SWEEP_INTERVAL_SECONDS: "{{ include "ragnerock.number" .Values.workers.codeSession.sweepIntervalSeconds }}"
+  CODE_SESSION_SWEEP_BATCH_SIZE: "{{ include "ragnerock.number" .Values.workers.codeSession.sweepBatchSize }}"
+  CODE_SESSION_TTL_DAYS: "{{ include "ragnerock.number" .Values.workers.codeSession.ttlDays }}"
+  CODE_SESSION_SWEEP_GRACE_HOURS: "{{ include "ragnerock.number" .Values.workers.codeSession.sweepGraceHours }}"
   RESOURCE_CONTEXT_MAX_CHARS: "{{ include "ragnerock.number" .Values.workflowResources.contextMaxChars }}"
   AGGREGATION_MAX_UPSTREAM_ROWS: "{{ include "ragnerock.number" .Values.limits.aggregationMaxUpstreamRows }}"
   CODE_RESOURCE_CACHE_MAX_BYTES: "{{ include "ragnerock.number" .Values.workflowResources.codeCacheMaxBytes }}"
@@ -922,6 +962,10 @@ data:
   MAX_RESULT_BYTES: "{{ include "ragnerock.number" .Values.pythonService.sandbox.maxResultBytes }}"
   MAX_REQUEST_BYTES: "{{ include "ragnerock.number" .Values.pythonService.sandbox.maxRequestBytes }}"
   BATCH_STARTUP_GRACE_SECONDS: "{{ include "ragnerock.number" .Values.pythonService.sandbox.batchStartupGraceSeconds }}"
+  MAX_STATE_BYTES: "{{ include "ragnerock.number" .Values.pythonService.sandbox.maxStateBytes }}"
+  MAX_STATE_VARIABLE_BYTES: "{{ include "ragnerock.number" .Values.pythonService.sandbox.maxStateVariableBytes }}"
+  STATE_GRACE_SECONDS: "{{ include "ragnerock.number" .Values.pythonService.sandbox.stateGraceSeconds }}"
+  MAX_RESPONSE_BYTES: "{{ include "ragnerock.number" .Values.pythonService.sandbox.maxResponseBytes }}"
   # The client's read-timeout slack, mirrored so the sandbox knows how far
   # past a request's budget it may run before the caller gives up. Same value
   # as the callers' PYTHON_SERVICE_HTTP_TIMEOUT_MARGIN_SECONDS.
