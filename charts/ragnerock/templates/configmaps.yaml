@@ -89,6 +89,11 @@ data:
   AGENT_TOOL_CONNECT_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.agentTools.connectTimeoutSeconds }}"
   AGENT_TOOL_DISCOVERY_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.agentTools.discoveryTimeoutSeconds }}"
   AGENT_TOOL_RESPONSE_MAX_BYTES: "{{ include "ragnerock.number" .Values.agentTools.responseMaxBytes }}"
+  AGENT_TOOL_OAUTH_ENABLED: "{{ .Values.agentTools.oauthEnabled }}"
+  AGENT_TOOL_OAUTH_TOKEN_REQUEST_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.agentTools.oauthTokenRequestTimeoutSeconds }}"
+  AGENT_TOOL_OAUTH_REFRESH_SKEW_SECONDS: "{{ include "ragnerock.number" .Values.agentTools.oauthRefreshSkewSeconds }}"
+  AGENT_TOOL_OAUTH_REFRESH_LEASE_SECONDS: "{{ include "ragnerock.number" .Values.agentTools.oauthRefreshLeaseSeconds }}"
+  AGENT_TOOL_OAUTH_METADATA_MAX_BYTES: "{{ include "ragnerock.number" .Values.agentTools.oauthMetadataMaxBytes }}"
   AGENT_TOOL_RESULT_MAX_CHARS: "{{ include "ragnerock.number" .Values.agentTools.resultMaxChars }}"
   AGENT_TOOL_REQUEST_BODY_MAX_BYTES: "{{ include "ragnerock.number" .Values.agentTools.requestBodyMaxBytes }}"
   AGENT_TOOL_MAX_CALLS_PER_INVOCATION: "{{ include "ragnerock.number" .Values.agentTools.maxCallsPerInvocation }}"
@@ -142,6 +147,10 @@ data:
   WEB_TOOL_CACHE_MAX_BYTES: "{{ include "ragnerock.number" .Values.webTools.cacheMaxBytes }}"
   WEB_TOOL_USER_AGENT: "{{ .Values.webTools.userAgent }}"
   WEB_TOOL_AUDIT_RESULT_MAX_CHARS: "{{ include "ragnerock.number" .Values.webTools.auditResultMaxChars }}"
+  WEB_FETCH_SAVE_PAGES_ENABLED: "{{ .Values.webTools.savePagesEnabled }}"
+  WEB_FETCH_SAVE_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.webTools.saveTimeoutSeconds }}"
+  WEB_FETCH_SAVE_VERSION_SCAN_LIMIT: "{{ include "ragnerock.number" .Values.webTools.saveVersionScanLimit }}"
+  WEB_FETCH_SAVE_METADATA_MAX_CHARS: "{{ include "ragnerock.number" .Values.webTools.saveMetadataMaxChars }}"
   WEB_SEARCH_DEFAULT_RESULTS: "{{ include "ragnerock.number" .Values.webTools.searchDefaultResults }}"
   WEB_SEARCH_MAX_RESULTS: "{{ include "ragnerock.number" .Values.webTools.searchMaxResults }}"
   WEB_SEARCH_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.webTools.searchTimeoutSeconds }}"
@@ -249,6 +258,8 @@ data:
   # skip re-testing, and the read timeout between events of a streamed run.
   VALIDATION_TOKEN_TTL_SECONDS: "{{ include "ragnerock.number" .Values.api.validationTokenTtlSeconds }}"
   VALIDATION_STREAM_READ_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.api.validationStreamReadTimeoutSeconds }}"
+  # Documents one request may ask the last ingest change for.
+  DOCUMENT_INGEST_CHANGE_BATCH_LIMIT: "{{ include "ragnerock.number" .Values.api.documentIngestChangeBatchLimit }}"
   EMBEDDING_DOCUMENT_TEST_MAX_ITEMS: "{{ include "ragnerock.number" .Values.api.embeddingDocumentTestMaxItems }}"
   EMBEDDING_DOCUMENT_TEST_MAX_ITEMS_ENTIRE: "{{ include "ragnerock.number" .Values.api.embeddingDocumentTestMaxItemsEntire }}"
   EMBEDDING_DOCUMENT_TEST_PAGE_SIZE: "{{ include "ragnerock.number" .Values.api.embeddingDocumentTestPageSize }}"
@@ -276,12 +287,35 @@ data:
   ENDPOINTS_MCP_RESULT_MAX_BYTES: "{{ include "ragnerock.number" .Values.endpoints.mcp.resultMaxBytes }}"
   ENDPOINTS_MCP_ALLOW_URL_INPUTS: "{{ .Values.endpoints.mcp.allowUrlInputs }}"
   ENDPOINTS_MCP_URL_FETCH_BUDGET_SECONDS: "{{ include "ragnerock.number" .Values.endpoints.mcp.urlFetchBudgetSeconds }}"
+  # OAuth sign-in on MCP tools, the API's half. PUBLIC_API_URL is the address
+  # an authorization server fetches the client metadata document from, so it
+  # has to be reachable from outside the cluster; the chart ships no ingress,
+  # so whatever fronts the API is what must answer it.
+  PUBLIC_API_URL: {{ .Values.api.url }}
+  AGENT_TOOL_OAUTH_FLOW_TTL_SECONDS: "{{ include "ragnerock.number" .Values.agentTools.oauthFlowTtlSeconds }}"
+  AGENT_TOOL_OAUTH_START_DEADLINE_SECONDS: "{{ include "ragnerock.number" .Values.agentTools.oauthStartDeadlineSeconds }}"
+  OAUTH_CLIENT_METADATA_CACHE_SECONDS: "{{ include "ragnerock.number" .Values.agentTools.oauthClientMetadataCacheSeconds }}"
   ENDPOINTS_MCP_URL_CONNECT_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.endpoints.mcp.urlConnectTimeoutSeconds }}"
   ENDPOINTS_MCP_ALLOW_PRIVATE_URL_INPUTS: "{{ .Values.endpoints.mcp.allowPrivateUrlInputs }}"
   ENDPOINTS_MCP_POLL_SECONDS: "{{ include "ragnerock.number" .Values.endpoints.mcp.pollSeconds }}"
   ENDPOINTS_MCP_KEEPALIVE_SECONDS: "{{ include "ragnerock.number" .Values.endpoints.mcp.keepaliveSeconds }}"
   ENDPOINTS_MCP_MAX_BODY_BYTES: "{{ include "ragnerock.number" .Values.endpoints.mcp.maxBodyBytes }}"
   ENDPOINTS_MCP_MAX_WAITERS: "{{ include "ragnerock.number" .Values.endpoints.mcp.maxWaiters }}"
+  # OAuth for endpoint MCP, where Ragnerock is the authorization SERVER. The
+  # issuer is PUBLIC_API_URL above, so /.well-known/* on the API host must
+  # reach the API for any of this to work; the chart ships no ingress, so
+  # whatever fronts the API is what must route it.
+  ENDPOINTS_OAUTH_ENABLED: "{{ .Values.endpoints.oauth.enabled }}"
+  OAUTH_ACCESS_TOKEN_TTL_SECONDS: "{{ include "ragnerock.number" .Values.endpoints.oauth.accessTokenTtlSeconds }}"
+  OAUTH_REFRESH_TOKEN_TTL_DAYS: "{{ include "ragnerock.number" .Values.endpoints.oauth.refreshTokenTtlDays }}"
+  OAUTH_AUTHORIZATION_CODE_TTL_SECONDS: "{{ include "ragnerock.number" .Values.endpoints.oauth.authorizationCodeTtlSeconds }}"
+  OAUTH_DCR_MAX_PER_IP_PER_DAY: "{{ include "ragnerock.number" .Values.endpoints.oauth.dcrMaxPerIpPerDay }}"
+  OAUTH_DCR_MAX_PER_DAY_GLOBAL: "{{ include "ragnerock.number" .Values.endpoints.oauth.dcrMaxPerDayGlobal }}"
+  OAUTH_DCR_UNUSED_CLIENT_TTL_DAYS: "{{ include "ragnerock.number" .Values.endpoints.oauth.dcrUnusedClientTtlDays }}"
+  OAUTH_REGISTRATION_MAX_BODY_BYTES: "{{ include "ragnerock.number" .Values.endpoints.oauth.registrationMaxBodyBytes }}"
+  OAUTH_CIMD_CACHE_SECONDS: "{{ include "ragnerock.number" .Values.endpoints.oauth.cimdCacheSeconds }}"
+  OAUTH_CIMD_MAX_BYTES: "{{ include "ragnerock.number" .Values.endpoints.oauth.cimdMaxBytes }}"
+  OAUTH_CIMD_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.endpoints.oauth.cimdTimeoutSeconds }}"
   # GitOps apply, which only the API serves.
   GITOPS_MAX_MANIFEST_BYTES: "{{ include "ragnerock.number" .Values.gitops.maxManifestBytes }}"
   GITOPS_CODE_REVIEW_BUDGET_SECONDS: "{{ include "ragnerock.number" .Values.gitops.codeReviewBudgetSeconds }}"
@@ -341,6 +375,9 @@ data:
   RATE_LIMIT_INGEST_TRIGGER_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.ingestTriggerPerMinute }}"
   RATE_LIMIT_TOOLS_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.toolsPerMinute }}"
   RATE_LIMIT_AGENT_TOOL_PROBES_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.agentToolProbesPerMinute }}"
+  RATE_LIMIT_AGENT_TOOL_OAUTH_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.agentToolOauthPerMinute }}"
+  RATE_LIMIT_OAUTH_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.oauthPerMinute }}"
+  RATE_LIMIT_OAUTH_AUTHORIZE_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.oauthAuthorizePerMinute }}"
   RATE_LIMIT_WEB_SEARCH_PROBES_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.webSearchProbesPerMinute }}"
   RATE_LIMIT_SCHEDULE_PREVIEW_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.schedulePreviewPerMinute }}"
   RATE_LIMIT_ANNOTATION_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.annotationPerMinute }}"
@@ -381,6 +418,24 @@ metadata:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
   DATA_INGESTOR_URL: http://{{ include "ragnerock.fullname" . }}-data-ingestor:{{ include "ragnerock.number" .Values.dataIngestor.service.port }}
+---
+# Settings only the data-ingestor reads: where the API's internal ingest-run
+# routes are and the egress policy for what runs fetch. The API reads the same
+# egress allowlist through the `-ingest` map.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-data-ingestor-config
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  API_URL: "http://{{ include "ragnerock.fullname" . }}-api:{{ include "ragnerock.number" .Values.api.service.port }}"
+  # The API's internal routes are guarded by a Google OIDC check that is inert
+  # unless CALLBACK_AUTH_ENABLED is set, which this chart never does; they are
+  # protected by network isolation, so the data-ingestor sends no token.
+  API_AUTH_ENABLED: "false"
+  INGEST_PRIVATE_EGRESS_ALLOWLIST: "{{ .Values.ingest.privateEgressAllowlist }}"
+  SQL_INGEST_ALLOW_PRIVATE_HOSTS: "{{ .Values.ingest.sqlAllowPrivateHosts }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -774,6 +829,8 @@ data:
   SUBTASK_TOOL_ELAPSED_CEILING_SECONDS: "{{ include "ragnerock.number" .Values.limits.batches.subtaskToolElapsedCeilingSeconds }}"
   SUBTASK_MAX_ATTEMPTS: "{{ include "ragnerock.number" .Values.limits.subtask.maxAttempts }}"
   SUBTASK_FAILURE_THRESHOLD: "{{ include "ragnerock.number" .Values.limits.subtask.failureThreshold }}"
+  SUBTASK_HEARTBEAT_INTERVAL_SECONDS: "{{ include "ragnerock.number" .Values.limits.subtask.heartbeatIntervalSeconds }}"
+  SUBTASK_CLAIM_STALE_SECONDS: "{{ include "ragnerock.number" .Values.limits.subtask.claimStaleSeconds }}"
   SUBTASK_STALE_THRESHOLD_MINUTES: "{{ include "ragnerock.number" .Values.limits.subtask.staleThresholdMinutes }}"
   JOB_WATCHDOG_SLACK_MINUTES: "{{ include "ragnerock.number" .Values.limits.job.watchdogSlackMinutes }}"
   CODE_OPERATOR_MAX_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.limits.codeOperator.maxTimeoutSeconds }}"
@@ -860,7 +917,6 @@ data:
   DATA_INGESTOR_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-data-ingestor:{{ include "ragnerock.number" .Values.dataIngestor.service.port }}"
   DB_SERVICE_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-db-service:{{ include "ragnerock.number" .Values.dbService.service.port }}"
   MODEL_SERVICE_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-model-service:{{ include "ragnerock.number" .Values.modelService.service.port }}"
-  SCHEDULER_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-data-ingestor:{{ include "ragnerock.number" .Values.dataIngestor.service.port }}"
   SUBTASK_WORKER_SERVICE_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-subtask-worker:{{ include "ragnerock.number" .Values.subtaskWorker.service.port }}"
   WORKER_SERVICE_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-worker:{{ include "ragnerock.number" .Values.worker.service.port }}"
   AUDIT_SERVICE_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-audit-service:{{ include "ragnerock.number" .Values.auditService.service.port }}"
@@ -884,7 +940,11 @@ metadata:
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
-  INGEST_RUN_STALE_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.ingest.staleTimeoutSeconds }}"
+  INGEST_RUNS_QUEUE_NAME: "{{ .Values.queue.ingestRunsQueueName }}"
+  # The same list the data-ingestor enforces at execution; the API prechecks a
+  # SQL source's host against it when the source is saved or previewed.
+  INGEST_PRIVATE_EGRESS_ALLOWLIST: "{{ .Values.ingest.privateEgressAllowlist }}"
+  SQL_INGEST_ALLOW_PRIVATE_HOSTS: "{{ .Values.ingest.sqlAllowPrivateHosts }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -894,8 +954,6 @@ metadata:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
   CALLBACK_DELIVERY_URL: http://{{ include "ragnerock.fullname" . }}-callback-delivery:{{ include "ragnerock.number" .Values.callbackDelivery.service.port }}
-  CALLBACK_ALLOWED_HOSTS: "ragnerock-api:8080"
-  CALLBACK_HTTP_ALLOWED: "true"
 ---
 # The callback-delivery service's OWN settings, separate from the map above:
 # that one carries the service's URL and is mounted by everything that calls

@@ -144,6 +144,8 @@ queue:
   auditQueueName: "ragnerock-audit"
   # -- Queue the audit-service enqueues its own /audit/export-run tasks onto
   auditExportQueueName: "audit-export-runs"
+  # -- Queue the API sends ingest runs to the data-ingestor on
+  ingestRunsQueueName: "ingest-runs"
   queuePoolSize: 100
   port: 8123
   # -- Deployment resoruce contraints (i.e. requests/limits)
@@ -218,6 +220,17 @@ rateLimits:
   toolsPerMinute: 60
   # -- Agent-tool probes (REST route test, MCP discovery preview)
   agentToolProbesPerMinute: 30
+  # -- Per-user limit on starting a sign-in for an MCP tool; each start is a
+  # metadata fetch, an authorization-server fetch, and often a client
+  # registration at a third party
+  agentToolOauthPerMinute: 10
+  # -- Per-IP limit on the public OAuth routes, whose callers are authorization
+  # servers and carry no session
+  oauthPerMinute: 30
+  # -- Per-user limit on the signed-in OAuth routes (authorize, decision,
+  # grants); an authorize request can make the API fetch a client metadata
+  # document from a host the caller chose
+  oauthAuthorizePerMinute: 30
   # -- Per-user limit on the admin page's search-provider Test button — an
   # admin-driven, BILLED query against the workspace's own key
   webSearchProbesPerMinute: 30
@@ -372,6 +385,8 @@ api:
   validationTokenTtlSeconds: 900
   # -- Read timeout between events of a streamed validation run, in seconds. One test can take a reasoning model most of a minute on large inputs
   validationStreamReadTimeoutSeconds: 120
+  # -- Documents one request may ask the last ingest change for. Matches the document cap the dataset explorer fetches
+  documentIngestChangeBatchLimit: 1000
   # -- Chunks or rows an embedding document test covers by default, from the start of the document
   embeddingDocumentTestMaxItems: 200
   # -- Most chunks or rows an embedding document test covers when the whole document is tested
@@ -399,6 +414,12 @@ api:
   affinity: {}
   # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
   annotations: {}
+  # -- The address browsers and third parties reach the API at. Used for the
+  # frontend's `NEXT_PUBLIC_API_URL` and, as `PUBLIC_API_URL`, for the client
+  # metadata document an authorization server fetches while a user connects an
+  # MCP tool. The chart ships no ingress, so whatever fronts the API must let
+  # `/api/oauth/client-metadata` through unauthenticated for that path to work;
+  # leave this empty and sign-ins register a client dynamically instead
   url: ""
   # -- Optional horizontal pod autoscaler. Requires CPU/memory requests to be
   # set under `resources` for the targeted metrics to work. When enabled,
@@ -824,7 +845,9 @@ dataIngestor:
     name: ""
     # -- Annotations to add to the created service account (e.g. for workload identity)
     annotations: {}
-  # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
+  # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs).
+  # Ingest runs write their artifacts to the default blob storage (`/app/data`)
+  # and the worker reads them back, so mount the same shared volume you give `api` and `worker`.
   volumes: []
   # -- Container volume mounts (list of Kubernetes volumeMount specs)
   volumeMounts: []
@@ -834,6 +857,20 @@ dataIngestor:
   affinity: {}
   # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
   annotations: {}
+  # The data-ingestor connects to hosts your users choose: SQL source
+  # databases, S3-compatible endpoints and files linked from scraped pages.
+  # It checks every address before connecting, and this optional egress
+  # NetworkPolicy backs that check up at the network: the pods may reach DNS,
+  # the pods of this release (the API, the audit service, the worker) and
+  # public addresses, but not private, CGNAT or link-local ones. It needs a
+  # CNI that enforces NetworkPolicy.
+  networkPolicy:
+    # -- Create an egress NetworkPolicy for the data-ingestor pods. Off by default because in-cluster dependencies outside this release (an object store, a telemetry collector) need `extraEgress` entries first
+    enabled: false
+    # -- Private CIDRs the data-ingestor may still reach, such as a database on a private address. Pair each with an entry in `ingest.privateEgressAllowlist`, which the service checks before connecting
+    allowedPrivateCidrs: []
+    # -- Extra egress rules appended as written (a list of NetworkPolicyEgressRule), for example the namespace of an in-cluster object store or OTel collector
+    extraEgress: []
 
 migrations:
   image:
@@ -857,11 +894,12 @@ migrations:
 
 # Periodic maintenance, fired in-cluster. On GCP these routes are driven by
 # Cloud Scheduler; a self-hosted install has no equivalent, so without this
-# neither compat execution history nor uncollected ephemeral results are ever
-# cleaned up.
+# compat execution history and uncollected ephemeral results are never cleaned
+# up, and ingest runs whose execution was lost are never failed.
 maintenance:
   # -- Run the maintenance CronJob. Disable only if you fire the internal
-  # `/api/endpoints/internal/*` routes some other way.
+  # `/api/endpoints/internal/*`, `/ingest/internal/maintenance` and
+  # `/api/oauth/internal/prune` routes some other way.
   #
   # The job sends no credential. Those routes are guarded by a Google OIDC
   # check that a Kubernetes CronJob cannot satisfy, and that check is inert
@@ -869,15 +907,18 @@ maintenance:
   # other words they are protected by network isolation: reachable only from
   # inside the cluster, and the chart ships no ingress. If you turn
   # `CALLBACK_AUTH_ENABLED` on through `api.extraEnv`, this job starts
-  # failing every night; disable it here and drive the two routes yourself.
+  # failing every night; disable it here and drive the routes yourself.
   enabled: true
-  # -- Cron schedule (cluster timezone). Daily, off-peak by default.
+  # -- Cron schedule (cluster timezone). Daily, off-peak by default. An ingest
+  # run whose execution was lost keeps its source busy until this job fails it,
+  # so installs that ingest on a schedule may want it more often (every route is
+  # idempotent and bounded).
   schedule: "23 3 * * *"
   image:
     name: api
     tag: ""
-  # -- Per-route HTTP timeout. The prune route works in bounded batches and
-  # resumes at the next firing, so it never needs a long one.
+  # -- Per-route HTTP timeout. The prune and ingest maintenance routes work in
+  # bounded batches and resume at the next firing, so they never need a long one.
   timeoutSeconds: 300
   # -- Retries within one firing. The routes are idempotent and daily, so a
   # transient failure is better left to tomorrow's run than retried hard.
@@ -936,10 +977,14 @@ limits:
   subtask:
     maxAttempts: 3
     failureThreshold: 0.05
-    # -- Minutes without a heartbeat before an in-flight subtask may be re-claimed
+    # -- Seconds between claim heartbeats on an in-flight subtask
+    heartbeatIntervalSeconds: 30
+    # -- Seconds without a heartbeat before an in-flight subtask may be re-claimed; must be several times the interval and above the DB pool timeout
+    claimStaleSeconds: 300
+    # -- Fallback cutoff in minutes on started_at for subtasks claimed by a pre-heartbeat revision (rollout overlap only)
     staleThresholdMinutes: 35
   job:
-    # -- Extra delay past the subtask stale threshold before the job watchdog reconciles
+    # -- Extra delay past the subtask claim lease (claimStaleSeconds) before the job watchdog reconciles
     watchdogSlackMinutes: 5
   # -- Largest upstream row count an LLM aggregation node may drain into one request
   aggregationMaxUpstreamRows: 10000
@@ -1022,9 +1067,69 @@ endpoints:
     maxBodyBytes: 16777216
     # -- Concurrent waiting calls one API instance will hold before answering `processing` immediately. Keep at or below half of `api.maxConcurrentStreams`: every logged-in browser tab holds two stream slots
     maxWaiters: 16
+  oauth:
+    # -- Let a caller sign in to an endpoint MCP server instead of presenting a
+    # key. When false the well-known documents and every /api/oauth route
+    # answer 404 and existing tokens stop being accepted, so a host sees a
+    # deployment that never supported OAuth rather than one that advertises it
+    # and then refuses. Two install requirements, neither of which the chart
+    # can satisfy for you: `api.url` must be set, because it is the issuer
+    # every token is bound to; and **`/.well-known/*` on that host must reach
+    # the API**. The chart ships no ingress, so whatever fronts the API is what
+    # has to route those two paths — a client that cannot fetch them cannot
+    # start a sign-in at all, and sees a server with no OAuth rather than an
+    # error. API only
+    enabled: true
+    # -- Lifetime of an access token, in seconds. API only
+    accessTokenTtlSeconds: 3600
+    # -- Lifetime of a refresh token, in days. Sliding: every rotation issues a
+    # fresh expiry, so an app in regular use never expires and one idle this
+    # long does. API only
+    refreshTokenTtlDays: 30
+    # -- Lifetime of an authorization code, in seconds. A code crosses one
+    # redirect and is spent immediately. API only
+    authorizationCodeTtlSeconds: 120
+    # -- Dynamic client registrations one address may create per day. The MCP
+    # hosts register from shared egress addresses, so this is sized to survive
+    # a whole office behind one NAT. Keys on the client address the API sees,
+    # which is the left-most `X-Forwarded-For` entry: whatever fronts the API
+    # must set that header from the connection rather than pass a caller's own
+    # through, or a caller gets a fresh bucket per spoofed value. API only
+    dcrMaxPerIpPerDay: 20
+    # -- Dynamic client registrations the whole deployment accepts per day,
+    # whoever sends them: the bound that holds even where the edge passes
+    # `X-Forwarded-For` through. Legitimate use is a few a day. API only
+    dcrMaxPerDayGlobal: 5000
+    # -- How long a registration nobody ever consented to is kept before the
+    # maintenance CronJob's prune deletes it, in days. API only
+    dcrUnusedClientTtlDays: 30
+    # -- Largest client registration body accepted, in bytes. API only
+    registrationMaxBodyBytes: 16384
+    # -- How long a fetched client ID metadata document is cached, in seconds.
+    # API only
+    cimdCacheSeconds: 3600
+    # -- Byte cap on a client ID metadata document. This is the one outbound
+    # fetch the authorization server makes to a URL a stranger chose. API only
+    cimdMaxBytes: 65536
+    # -- Timeout on fetching a client ID metadata document, in seconds. API only
+    cimdTimeoutSeconds: 10
 
 ingest:
-  staleTimeoutSeconds: 3600
+  # -- Comma-separated hostnames, hostname suffixes (".corp.internal"), or CIDRs
+  # ingest sources (files linked from scraped pages, SQL source databases) may
+  # reach even though they resolve to private addresses. The data-ingestor
+  # enforces it at execution and the API prechecks SQL source hosts against it
+  # at save and preview. Empty means public addresses only; cloud metadata
+  # endpoints are always refused.
+  privateEgressAllowlist: ""
+  # -- Let SQL sources connect to databases on private addresses (RFC 1918,
+  # loopback, link-local, IPv6 unique local) without listing each host in
+  # `privateEgressAllowlist`. On by default because a self-hosted install
+  # usually ingests from databases on its own network. Applies to SQL sources
+  # only; cloud metadata endpoints are always refused. When
+  # `dataIngestor.networkPolicy.enabled` is also set, the NetworkPolicy lets the
+  # data-ingestor reach private ranges too.
+  sqlAllowPrivateHosts: true
 
 analysis:
   dataframeOpTimeout: 60
@@ -1249,6 +1354,21 @@ webTools:
   userAgent: "RagnerockBot/1 (+https://ragnerock.com/bot)"
   # -- Cap on the agent-visible text carried in a web tool's audit payload
   auditResultMaxChars: 8000
+  # -- File every page web_fetch reads as a document in the project's
+  # "Web pages" dataset. No parsing, chunking or embedding happens then:
+  # the page is visible and selectable, and a workflow run over it does the
+  # rest. False leaves web_fetch behaving exactly as it did before.
+  savePagesEnabled: true
+  # -- Wall clock for filing one fetched page. Nested inside
+  # `fetchTimeoutSeconds` and failing open, so a slow blob backend never
+  # costs the agent its page.
+  saveTimeoutSeconds: 10
+  # -- Stored versions of one URL examined for a byte-for-byte match before
+  # a new document is created
+  saveVersionScanLimit: 25
+  # -- Truncation bound on a metadata value the page archive writes,
+  # chiefly the page title
+  saveMetadataMaxChars: 256
   # -- Search results returned when the model names no count
   searchDefaultResults: 10
   # -- Ceiling a model-supplied result count is clamped to
@@ -1324,6 +1444,31 @@ agentTools:
   discoveryTimeoutSeconds: 20
   # -- Streamed read cap, counted in decoded bytes
   responseMaxBytes: 262144
+  # -- Allow an MCP tool to sign in to its server with OAuth. Set to false to
+  # refuse the editing routes, build nothing from connected rows, and hide the
+  # option in the panel
+  oauthEnabled: true
+  # -- Timeout for one OAuth metadata fetch, registration, or token request
+  oauthTokenRequestTimeoutSeconds: 10
+  # -- Refresh an access token proactively when it expires within this window;
+  # also the window inside which a second 401 is not retried
+  oauthRefreshSkewSeconds: 60
+  # -- Lease held by the process performing a refresh. Must exceed the token
+  # request timeout, or two processes could spend one refresh token
+  oauthRefreshLeaseSeconds: 30
+  # -- Cap on a fetched OAuth metadata or token-response body
+  oauthMetadataMaxBytes: 65536
+  # -- Life of a pending sign-in: long enough to sign in at the provider and
+  # approve a consent screen, short enough that an abandoned click is not a
+  # standing authorization. API only
+  oauthFlowTtlSeconds: 600
+  # -- One deadline over the whole start step (probe, protected-resource
+  # metadata, authorization-server metadata, registration), so a slow provider
+  # cannot hold the request for four timeouts in a row. API only
+  oauthStartDeadlineSeconds: 30
+  # -- How long an authorization server may cache the client metadata document
+  # this deployment serves. API only
+  oauthClientMetadataCacheSeconds: 3600
   # -- Result text handed to the model, in characters
   resultMaxChars: 32000
   # -- Maximum request body, bounding argument egress

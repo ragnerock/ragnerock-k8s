@@ -82,6 +82,14 @@ Finally configure your license
 
 - `license` -- The License provided by Ragnerock
 
+#### Limiting where the data-ingestor can connect (optional)
+
+The data-ingestor opens connections to hosts your users pick: the databases behind SQL sources, S3-compatible endpoints, and files linked from scraped pages. It refuses private addresses unless they're listed in `ingest.privateEgressAllowlist`, with one exception: `ingest.sqlAllowPrivateHosts` (on by default) lets SQL sources reach databases on any private address, since that's where a self-hosted install's databases usually are. Set it to `false` if your users should only reach the hosts you list. If your cluster's CNI enforces NetworkPolicy, you can have Kubernetes refuse private addresses too:
+
+- `dataIngestor.networkPolicy.enabled` -- set to `true` to create the policy. The pods can then reach DNS, the other pods of this release, and public addresses, but not private, CGNAT or link-local ones. While `ingest.sqlAllowPrivateHosts` is on, only link-local addresses are refused
+- `dataIngestor.networkPolicy.allowedPrivateCidrs` -- private ranges it still needs, for example a database on a private address. Add the same host to `ingest.privateEgressAllowlist`
+- `dataIngestor.networkPolicy.extraEgress` -- extra egress rules for dependencies that live in the cluster but outside this release, such as the example `cloudserver` bucket or an OpenTelemetry collector in another namespace. Add these before turning the policy on, or ingest runs won't be able to write their results
+
 ### Deployment
 
 First deploy your imagePullSecret:

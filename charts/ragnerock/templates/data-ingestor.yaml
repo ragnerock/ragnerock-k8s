@@ -56,11 +56,17 @@ spec:
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-data-ingestor
             - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-data-ingestor-config
+            - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-audience
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-callback-delivery
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-queue
+            # Audit emitter knobs: the data-ingestor audits the queries SQL
+            # sources run against customer databases (INGEST_SQL_QUERY).
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-audit
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-db-conn
             - configMapRef:

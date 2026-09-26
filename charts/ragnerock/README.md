@@ -1,6 +1,6 @@
 # ragnerock
 
-![Version: 1.7.0](https://img.shields.io/badge/Version-1.7.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v2026.09.21](https://img.shields.io/badge/AppVersion-v2026.09.21-informational?style=flat-square)
+![Version: 1.7.0](https://img.shields.io/badge/Version-1.7.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v2026.09.22-2](https://img.shields.io/badge/AppVersion-v2026.09.22--2-informational?style=flat-square)
 
 Ragnerock research intelligence platform
 
@@ -20,7 +20,7 @@ Ragnerock research intelligence platform
 | agent.tokenBudgetSoftFraction | float | `0.8` | Soft advisory threshold: at this fraction of the turn budget the Runner injects one non-forcing wrap-up message |
 | agent.toolResultImages | bool | `false` | Rollout flag: attach sandbox plots to tool results so the model sees them within the producing turn |
 | agent.turnTokenBudget | int | `150000` | Turn token budget in cost-weighted units (output + uncached input + cachedTokenWeight x cached input). Empty disables budget termination, leaving the iteration cap as the only backstop |
-| agentTools | object | `{"annotationQueueWaitSeconds":120,"annotationToolCallRecordResultMaxChars":40000,"auditResultMaxChars":8000,"buildTimeBudgetSeconds":600,"busyWaitSeconds":5,"callTimeoutMaxSeconds":120,"callTimeoutSeconds":30,"connectTimeoutSeconds":5,"descriptionMaxChars":1024,"discoveryTimeoutSeconds":20,"enabled":true,"executionLogEnabled":true,"executionLogWriteTimeoutSeconds":5,"headerValueMaxChars":4096,"maxCallsPerInvocation":10,"maxConcurrentCalls":20,"maxFunctionsPerAgent":40,"maxHeaders":20,"maxPerOperator":10,"maxResultImages":4,"maxUserToolsPerProject":25,"mcpMaxFunctions":30,"paramDescriptionMaxChars":256,"privateEgressAllowlist":"","requestBodyMaxBytes":262144,"responseMaxBytes":262144,"restMaxRoutes":30,"resultMaxChars":32000,"rowTimeBudgetSeconds":360,"schemaMaxBytes":16384,"schemaMaxDepth":5}` | Agent tools: the ops kill switch plus the size, time, and concurrency bounds for the MCP servers and REST APIs a project points its agents at. |
+| agentTools | object | `{"annotationQueueWaitSeconds":120,"annotationToolCallRecordResultMaxChars":40000,"auditResultMaxChars":8000,"buildTimeBudgetSeconds":600,"busyWaitSeconds":5,"callTimeoutMaxSeconds":120,"callTimeoutSeconds":30,"connectTimeoutSeconds":5,"descriptionMaxChars":1024,"discoveryTimeoutSeconds":20,"enabled":true,"executionLogEnabled":true,"executionLogWriteTimeoutSeconds":5,"headerValueMaxChars":4096,"maxCallsPerInvocation":10,"maxConcurrentCalls":20,"maxFunctionsPerAgent":40,"maxHeaders":20,"maxPerOperator":10,"maxResultImages":4,"maxUserToolsPerProject":25,"mcpMaxFunctions":30,"oauthClientMetadataCacheSeconds":3600,"oauthEnabled":true,"oauthFlowTtlSeconds":600,"oauthMetadataMaxBytes":65536,"oauthRefreshLeaseSeconds":30,"oauthRefreshSkewSeconds":60,"oauthStartDeadlineSeconds":30,"oauthTokenRequestTimeoutSeconds":10,"paramDescriptionMaxChars":256,"privateEgressAllowlist":"","requestBodyMaxBytes":262144,"responseMaxBytes":262144,"restMaxRoutes":30,"resultMaxChars":32000,"rowTimeBudgetSeconds":360,"schemaMaxBytes":16384,"schemaMaxDepth":5}` | Agent tools: the ops kill switch plus the size, time, and concurrency bounds for the MCP servers and REST APIs a project points its agents at. |
 | agentTools.annotationQueueWaitSeconds | int | `120` | How long an annotation call waits for the same semaphores. A refused call there is a failed row, so it queues; a row that still starves past this is classified retryable and costs a redelivery |
 | agentTools.annotationToolCallRecordResultMaxChars | int | `40000` | Cap on a stored annotation tool-call result (provenance, not replay) |
 | agentTools.auditResultMaxChars | int | `8000` | Cap on the result text carried in an external-tool audit payload |
@@ -43,6 +43,14 @@ Ragnerock research intelligence platform
 | agentTools.maxResultImages | int | `4` | MCP image blocks attached to a notebook tool result |
 | agentTools.maxUserToolsPerProject | int | `25` | MCP + REST tools a single project may define |
 | agentTools.mcpMaxFunctions | int | `30` | Discovered functions kept per MCP server |
+| agentTools.oauthClientMetadataCacheSeconds | int | `3600` | How long an authorization server may cache the client metadata document this deployment serves. API only |
+| agentTools.oauthEnabled | bool | `true` | Allow an MCP tool to sign in to its server with OAuth. Set to false to refuse the editing routes, build nothing from connected rows, and hide the option in the panel |
+| agentTools.oauthFlowTtlSeconds | int | `600` | Life of a pending sign-in: long enough to sign in at the provider and approve a consent screen, short enough that an abandoned click is not a standing authorization. API only |
+| agentTools.oauthMetadataMaxBytes | int | `65536` | Cap on a fetched OAuth metadata or token-response body |
+| agentTools.oauthRefreshLeaseSeconds | int | `30` | Lease held by the process performing a refresh. Must exceed the token request timeout, or two processes could spend one refresh token |
+| agentTools.oauthRefreshSkewSeconds | int | `60` | Refresh an access token proactively when it expires within this window; also the window inside which a second 401 is not retried |
+| agentTools.oauthStartDeadlineSeconds | int | `30` | One deadline over the whole start step (probe, protected-resource metadata, authorization-server metadata, registration), so a slow provider cannot hold the request for four timeouts in a row. API only |
+| agentTools.oauthTokenRequestTimeoutSeconds | int | `10` | Timeout for one OAuth metadata fetch, registration, or token request |
 | agentTools.paramDescriptionMaxChars | int | `256` | Maximum per-parameter description length |
 | agentTools.privateEgressAllowlist | string | `""` | Comma-separated hostnames, hostname suffixes (".corp.internal"), or CIDRs a tool may target even though they resolve to private addresses, and for which http:// is accepted. Empty means public HTTPS only. Name hosts rather than ranges: every service on an allowlisted host becomes reachable. |
 | agentTools.requestBodyMaxBytes | int | `262144` | Maximum request body, bounding argument egress |
@@ -86,6 +94,7 @@ Ragnerock research intelligence platform
 | api.capacityWaitSeconds | float | `5` | Seconds a request waits for capacity before it is rejected |
 | api.dbServiceMaxConnections | int | `40` | Concurrent HTTP connections to db-service, bounding the source so a spike queues here rather than arriving as load db-service has to shed |
 | api.dbThreadpoolSize | int | `64` | Threads serving blocking DB work off the event loop |
+| api.documentIngestChangeBatchLimit | int | `1000` | Documents one request may ask the last ingest change for. Matches the document cap the dataset explorer fetches |
 | api.embeddingDocumentTestExcerptChars | int | `200` | Characters of a failing input's text shown when an embedding document test is asked for excerpts |
 | api.embeddingDocumentTestMaxBytes | int | `20971520` | Most text one embedding document test sends, in UTF-8 bytes, whatever the item count. Kept under the model-service's request limit and Cloud Run's 32 MiB request limit |
 | api.embeddingDocumentTestMaxConcurrentPerAccount | int | `2` | Embedding document tests one account may have running at once on one API pod. Counted per pod, so an account's ceiling is this times the number of pods; the rate limit bounds it across pods |
@@ -109,7 +118,7 @@ Ragnerock research intelligence platform
 | api.serviceAccount.create | bool | `false` | Create a service account for this deployment's pods |
 | api.serviceAccount.name | string | `""` | Service account name to use; if empty and `create` is true a name is generated |
 | api.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
-| api.url | string | `""` |  |
+| api.url | string | `""` | The address browsers and third parties reach the API at. Used for the frontend's `NEXT_PUBLIC_API_URL` and, as `PUBLIC_API_URL`, for the client metadata document an authorization server fetches while a user connects an MCP tool. The chart ships no ingress, so whatever fronts the API must let `/api/oauth/client-metadata` through unauthenticated for that path to work; leave this empty and sign-ins register a client dynamically instead |
 | api.validationStreamReadTimeoutSeconds | int | `120` | Read timeout between events of a streamed validation run, in seconds. One test can take a reasoning model most of a minute on large inputs |
 | api.validationTokenTtlSeconds | int | `900` | How long a passing AI-settings validation lets a save of the same settings skip re-testing, in seconds |
 | api.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
@@ -194,6 +203,9 @@ Ragnerock research intelligence platform
 | dataIngestor.autoscaling.targetMemoryUtilizationPercentage | int | `80` | Target average memory utilization (% of requests). Set to null to disable. |
 | dataIngestor.image.name | string | `"data-ingestor"` |  |
 | dataIngestor.image.tag | string | `""` |  |
+| dataIngestor.networkPolicy.allowedPrivateCidrs | list | `[]` | Private CIDRs the data-ingestor may still reach, such as a database on a private address. Pair each with an entry in `ingest.privateEgressAllowlist`, which the service checks before connecting |
+| dataIngestor.networkPolicy.enabled | bool | `false` | Create an egress NetworkPolicy for the data-ingestor pods. Off by default because in-cluster dependencies outside this release (an object store, a telemetry collector) need `extraEgress` entries first |
+| dataIngestor.networkPolicy.extraEgress | list | `[]` | Extra egress rules appended as written (a list of NetworkPolicyEgressRule), for example the namespace of an in-cluster object store or OTel collector |
 | dataIngestor.replicaCount | int | `1` |  |
 | dataIngestor.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
 | dataIngestor.service.port | int | `8080` |  |
@@ -203,7 +215,7 @@ Ragnerock research intelligence platform
 | dataIngestor.serviceAccount.name | string | `""` | Service account name to use; if empty and `create` is true a name is generated |
 | dataIngestor.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | dataIngestor.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
-| dataIngestor.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
+| dataIngestor.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs). Ingest runs write their artifacts to the default blob storage (`/app/data`) and the worker reads them back, so mount the same shared volume you give `api` and `worker`. |
 | database | object | `{"connectTimeoutSeconds":5,"existingSecret":"","host":"","maxConnections":"","maxOverflow":6,"name":"ragnerock","opsConnectionHeadroom":27,"password":"","poolSize":12,"poolTimeout":10,"port":5432,"readOnlyPoolResetIntervalSeconds":5,"reservedConnections":13,"user":"ragnerock"}` | Database configuration |
 | database.connectTimeoutSeconds | int | `5` | Seconds every service waits to open a Postgres connection. Bounds how long a host resolving to an unresponsive address (a DNS flap during a failover) can stall startup or a request |
 | database.existingSecret | string | `""` | Use a pre-existing secret (must provide key `DB_PASSWORD`) instead of generating one. When set, `password` is ignored. |
@@ -288,6 +300,17 @@ Ragnerock research intelligence platform
 | endpoints.mcp.staleHintSeconds | int | `3600` | Elapsed seconds past which the tool contract tells an agent to stop polling a run and report it stuck |
 | endpoints.mcp.urlConnectTimeoutSeconds | int | `5` | Connect timeout, in seconds, for one URL file input; short so an unreachable host fails fast instead of eating the fetch budget |
 | endpoints.mcp.urlFetchBudgetSeconds | int | `30` | Wall-clock budget, in seconds, shared by every URL input of one call |
+| endpoints.oauth.accessTokenTtlSeconds | int | `3600` | Lifetime of an access token, in seconds. API only |
+| endpoints.oauth.authorizationCodeTtlSeconds | int | `120` | Lifetime of an authorization code, in seconds. A code crosses one redirect and is spent immediately. API only |
+| endpoints.oauth.cimdCacheSeconds | int | `3600` | How long a fetched client ID metadata document is cached, in seconds. API only |
+| endpoints.oauth.cimdMaxBytes | int | `65536` | Byte cap on a client ID metadata document. This is the one outbound fetch the authorization server makes to a URL a stranger chose. API only |
+| endpoints.oauth.cimdTimeoutSeconds | int | `10` | Timeout on fetching a client ID metadata document, in seconds. API only |
+| endpoints.oauth.dcrMaxPerDayGlobal | int | `5000` | Dynamic client registrations the whole deployment accepts per day, whoever sends them: the bound that holds even where the edge passes `X-Forwarded-For` through. Legitimate use is a few a day. API only |
+| endpoints.oauth.dcrMaxPerIpPerDay | int | `20` | Dynamic client registrations one address may create per day. The MCP hosts register from shared egress addresses, so this is sized to survive a whole office behind one NAT. Keys on the client address the API sees, which is the left-most `X-Forwarded-For` entry: whatever fronts the API must set that header from the connection rather than pass a caller's own through, or a caller gets a fresh bucket per spoofed value. API only |
+| endpoints.oauth.dcrUnusedClientTtlDays | int | `30` | How long a registration nobody ever consented to is kept before the maintenance CronJob's prune deletes it, in days. API only |
+| endpoints.oauth.enabled | bool | `true` | Let a caller sign in to an endpoint MCP server instead of presenting a key. When false the well-known documents and every /api/oauth route answer 404 and existing tokens stop being accepted, so a host sees a deployment that never supported OAuth rather than one that advertises it and then refuses. Two install requirements, neither of which the chart can satisfy for you: `api.url` must be set, because it is the issuer every token is bound to; and **`/.well-known/*` on that host must reach the API**. The chart ships no ingress, so whatever fronts the API is what has to route those two paths — a client that cannot fetch them cannot start a sign-in at all, and sees a server with no OAuth rather than an error. API only |
+| endpoints.oauth.refreshTokenTtlDays | int | `30` | Lifetime of a refresh token, in days. Sliding: every rotation issues a fresh expiry, so an app in regular use never expires and one idle this long does. API only |
+| endpoints.oauth.registrationMaxBodyBytes | int | `16384` | Largest client registration body accepted, in bytes. API only |
 | fallback | object | `{"agentChainBudgetSeconds":120,"chainBudgetSeconds":420,"maxChainCiphertextBytes":30720,"maxDepth":3,"perProviderAttempts":2}` | BYOAI fallback chains: how far a chain may reach and how long the model-service will spend working through one. |
 | fallback.agentChainBudgetSeconds | int | `120` | Wall-clock budget for one agent chain, in seconds |
 | fallback.chainBudgetSeconds | int | `420` | Wall-clock budget for one annotation chain, in seconds |
@@ -326,7 +349,8 @@ Ragnerock research intelligence platform
 | global.tolerations | list | `[]` | Default pod tolerations applied to all workloads. Can be overridden per-service with `<service>.tolerations`. See https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/ |
 | iam | object | `{"permissionsCacheTTL":60}` | Identity and access management |
 | iam.permissionsCacheTTL | int | `60` | Seconds a resolved IAM permission set is cached in-process |
-| ingest.staleTimeoutSeconds | int | `3600` |  |
+| ingest.privateEgressAllowlist | string | `""` | Comma-separated hostnames, hostname suffixes (".corp.internal"), or CIDRs ingest sources (files linked from scraped pages, SQL source databases) may reach even though they resolve to private addresses. The data-ingestor enforces it at execution and the API prechecks SQL source hosts against it at save and preview. Empty means public addresses only; cloud metadata endpoints are always refused. |
+| ingest.sqlAllowPrivateHosts | bool | `true` | Let SQL sources connect to databases on private addresses (RFC 1918, loopback, link-local, IPv6 unique local) without listing each host in `privateEgressAllowlist`. On by default because a self-hosted install usually ingests from databases on its own network. Applies to SQL sources only; cloud metadata endpoints are always refused. When `dataIngestor.networkPolicy.enabled` is also set, the NetworkPolicy lets the data-ingestor reach private ranges too. |
 | license | string | `""` | Ragnerock provided license key |
 | licenseCheck.enabled | bool | `true` | Enable license enforcement. Turning this off skips both the startup check and the periodic re-check; intended for air-gapped evaluation, not for production. |
 | licenseCheck.graceSeconds | int | `259200` | How long a service may keep serving without a successful validation before it stops (default: 3 days) |
@@ -350,11 +374,13 @@ Ragnerock research intelligence platform
 | limits.concurrency.maxConcurrentSampleParses | int | `2` | Concurrent workbench attachment parses one worker pod accepts. These are synchronous API-originated calls sharing the pod with queue deliveries, so the pool is small; excess requests shed as 503 |
 | limits.concurrency.maxConcurrentSubtasks | int | `50` |  |
 | limits.dbIdsPerRequest | int | `200` | Ids per request to a db-service '*-by-ids' endpoint, and the ceiling those endpoints enforce -- one value, because the client's chunk size and the server's limit are one decision. A URL byte budget: each id costs 41 bytes of request line, so 200 is about 8.2 KB, half the smallest limit in the path. |
-| limits.job.watchdogSlackMinutes | int | `5` | Extra delay past the subtask stale threshold before the job watchdog reconciles |
+| limits.job.watchdogSlackMinutes | int | `5` | Extra delay past the subtask claim lease (claimStaleSeconds) before the job watchdog reconciles |
 | limits.notificationNodeMaxPerSubtask | int | `50` | Most inbox notifications one notification-node subtask may create. The rest collapse into a single summary, so a row-scoped node over a large sheet cannot flood the run user's inbox |
+| limits.subtask.claimStaleSeconds | int | `300` | Seconds without a heartbeat before an in-flight subtask may be re-claimed; must be several times the interval and above the DB pool timeout |
 | limits.subtask.failureThreshold | float | `0.05` |  |
+| limits.subtask.heartbeatIntervalSeconds | int | `30` | Seconds between claim heartbeats on an in-flight subtask |
 | limits.subtask.maxAttempts | int | `3` |  |
-| limits.subtask.staleThresholdMinutes | int | `35` | Minutes without a heartbeat before an in-flight subtask may be re-claimed |
+| limits.subtask.staleThresholdMinutes | int | `35` | Fallback cutoff in minutes on started_at for subtasks claimed by a pre-heartbeat revision (rollout overlap only) |
 | limits.usage.maxComputeSeconds | string | `"86400"` |  |
 | limits.usage.maxInputTokens | string | `"1000000"` |  |
 | limits.usage.maxOutputTokens | string | `"1000000"` |  |
@@ -399,18 +425,18 @@ Ragnerock research intelligence platform
 | maintenance.affinity | object | `{}` | Pod affinity rules (overrides `global.affinity`) |
 | maintenance.annotations | object | `{}` | Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence) |
 | maintenance.backoffLimit | int | `1` | Retries within one firing. The routes are idempotent and daily, so a transient failure is better left to tomorrow's run than retried hard. |
-| maintenance.enabled | bool | `true` | Run the maintenance CronJob. Disable only if you fire the internal `/api/endpoints/internal/*` routes some other way.  The job sends no credential. Those routes are guarded by a Google OIDC check that a Kubernetes CronJob cannot satisfy, and that check is inert unless `CALLBACK_AUTH_ENABLED` is true — which this chart never sets. In other words they are protected by network isolation: reachable only from inside the cluster, and the chart ships no ingress. If you turn `CALLBACK_AUTH_ENABLED` on through `api.extraEnv`, this job starts failing every night; disable it here and drive the two routes yourself. |
+| maintenance.enabled | bool | `true` | Run the maintenance CronJob. Disable only if you fire the internal `/api/endpoints/internal/*`, `/ingest/internal/maintenance` and `/api/oauth/internal/prune` routes some other way.  The job sends no credential. Those routes are guarded by a Google OIDC check that a Kubernetes CronJob cannot satisfy, and that check is inert unless `CALLBACK_AUTH_ENABLED` is true — which this chart never sets. In other words they are protected by network isolation: reachable only from inside the cluster, and the chart ships no ingress. If you turn `CALLBACK_AUTH_ENABLED` on through `api.extraEnv`, this job starts failing every night; disable it here and drive the routes yourself. |
 | maintenance.failedJobsHistoryLimit | int | `3` |  |
 | maintenance.image.name | string | `"api"` |  |
 | maintenance.image.tag | string | `""` |  |
 | maintenance.resources | object | `{}` | Deployment resource constraints (i.e. requests/limits) |
-| maintenance.schedule | string | `"23 3 * * *"` | Cron schedule (cluster timezone). Daily, off-peak by default. |
+| maintenance.schedule | string | `"23 3 * * *"` | Cron schedule (cluster timezone). Daily, off-peak by default. An ingest run whose execution was lost keeps its source busy until this job fails it, so installs that ingest on a schedule may want it more often (every route is idempotent and bounded). |
 | maintenance.serviceAccount.annotations | object | `{}` | Annotations to add to the created service account (e.g. for workload identity) |
 | maintenance.serviceAccount.create | bool | `false` | Create a service account for the maintenance job's pods |
 | maintenance.serviceAccount.name | string | `""` | Service account name to use; if empty and `create` is true a name is generated |
 | maintenance.startingDeadlineSeconds | int | `600` | Skip a firing that could not start within this many seconds rather than piling up missed runs after a cluster outage. |
 | maintenance.successfulJobsHistoryLimit | int | `3` |  |
-| maintenance.timeoutSeconds | int | `300` | Per-route HTTP timeout. The prune route works in bounded batches and resumes at the next firing, so it never needs a long one. |
+| maintenance.timeoutSeconds | int | `300` | Per-route HTTP timeout. The prune and ingest maintenance routes work in bounded batches and resume at the next firing, so they never need a long one. |
 | maintenance.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | memory | object | `{"schemaHardCap":100,"schemaSoftCap":25,"searchBudgetAnnotation":8,"toolsEnabled":true,"writeBudgetAnnotation":12,"writeBudgetNotebook":8}` | Agentic memory: the ops kill switch, schema-proliferation caps, and the per-run write budgets that bound a single agent's memory writes. |
 | memory.schemaHardCap | int | `100` | Schemas per project past which creating another is refused |
@@ -556,13 +582,14 @@ Ragnerock research intelligence platform
 | query | object | `{"assistQueryTimeoutSeconds":30,"metadataCacheTTLSeconds":10}` | Document-query layer (API and worker) |
 | query.assistQueryTimeoutSeconds | int | `30` | Statement timeout (seconds) for the query-assist sub-agent's probe queries |
 | query.metadataCacheTTLSeconds | int | `10` | Seconds the query-layer metadata (annotation schemas, agents, datasets) is cached per project in-process; 0 disables |
-| queue | object | `{"affinity":{},"annotations":{},"auditExportQueueName":"audit-export-runs","auditQueueName":"ragnerock-audit","autoscaling":{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80},"callbackQueueName":"ragnerock-callbacks","jobQueueName":"ragnerock-document-jobs","port":8123,"queuePoolSize":100,"resources":{},"serviceAccount":{"annotations":{},"create":false,"name":""},"subtaskQueueName":"ragnerock-subtask-jobs","tolerations":[],"volumeMounts":[],"volumes":[]}` | Cloudtask configuration for use with in-cluster emulator |
+| queue | object | `{"affinity":{},"annotations":{},"auditExportQueueName":"audit-export-runs","auditQueueName":"ragnerock-audit","autoscaling":{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80},"callbackQueueName":"ragnerock-callbacks","ingestRunsQueueName":"ingest-runs","jobQueueName":"ragnerock-document-jobs","port":8123,"queuePoolSize":100,"resources":{},"serviceAccount":{"annotations":{},"create":false,"name":""},"subtaskQueueName":"ragnerock-subtask-jobs","tolerations":[],"volumeMounts":[],"volumes":[]}` | Cloudtask configuration for use with in-cluster emulator |
 | queue.affinity | object | `{}` | Pod affinity rules for the queue deployment (overrides `global.affinity`) |
 | queue.annotations | object | `{}` | Annotations added to the queue deployment's metadata (merged with `global.annotations`; per-service keys take precedence) |
 | queue.auditExportQueueName | string | `"audit-export-runs"` | Queue the audit-service enqueues its own /audit/export-run tasks onto |
 | queue.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
 | queue.autoscaling.targetCPUUtilizationPercentage | int | `80` | Target average CPU utilization (% of requests). Set to null to disable. |
 | queue.autoscaling.targetMemoryUtilizationPercentage | int | `80` | Target average memory utilization (% of requests). Set to null to disable. |
+| queue.ingestRunsQueueName | string | `"ingest-runs"` | Queue the API sends ingest runs to the data-ingestor on |
 | queue.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
 | queue.serviceAccount.annotations | object | `{}` | Annotations to add to the created service account (e.g. for workload identity) |
 | queue.serviceAccount.create | bool | `false` | Create a service account for this deployment's pods |
@@ -573,6 +600,7 @@ Ragnerock research intelligence platform
 | ragnerock.safetyEnabled | bool | `true` | Should Ragnerock treat all prompts as unsafe |
 | rateLimits.adminMutationPerMinute | int | `40` |  |
 | rateLimits.agentPerMinute | int | `20` |  |
+| rateLimits.agentToolOauthPerMinute | int | `10` | Per-user limit on starting a sign-in for an MCP tool; each start is a metadata fetch, an authorization-server fetch, and often a client registration at a third party |
 | rateLimits.agentToolProbesPerMinute | int | `30` | Agent-tool probes (REST route test, MCP discovery preview) |
 | rateLimits.annotationPerMinute | int | `120` |  |
 | rateLimits.apiTokenPerMinute | int | `30` |  |
@@ -599,6 +627,8 @@ Ragnerock research intelligence platform
 | rateLimits.notebookCodeFeedbackPerMinute | int | `40` |  |
 | rateLimits.notebookCompactionPerMinute | int | `10` |  |
 | rateLimits.notificationStreamPerMinute | int | `10` |  |
+| rateLimits.oauthAuthorizePerMinute | int | `30` | Per-user limit on the signed-in OAuth routes (authorize, decision, grants); an authorize request can make the API fetch a client metadata document from a host the caller chose |
+| rateLimits.oauthPerMinute | int | `30` | Per-IP limit on the public OAuth routes, whose callers are authorization servers and carry no session |
 | rateLimits.operatorParseSamplePerMinute | int | `10` | Per-user limit on workbench attachment parses. Each request can hold a synchronous worker OCR call for minutes, so the ceiling is deliberately low |
 | rateLimits.operatorTestPerMinute | int | `60` |  |
 | rateLimits.pydanticSchemaImportPerMinute | int | `30` |  |
@@ -658,7 +688,7 @@ Ragnerock research intelligence platform
 | tabular.readRowsPerPage | int | `50` | Rows returned per page when an agent reads a tabular document |
 | tools.codeToolTimeoutSeconds | int | `30` |  |
 | tools.maxResultImages | int | `10` | Cap on images attached to a single agent tool result |
-| webTools | object | `{"auditResultMaxChars":8000,"cacheMaxBytes":16777216,"cacheMaxEntries":64,"enabled":true,"fetchAllowHttp":false,"fetchBlocklistExtra":[],"fetchExtractThreads":2,"fetchMaxBytes":5242880,"fetchMaxConcurrentPdf":2,"fetchMaxConcurrentPerHost":2,"fetchMaxRedirects":5,"fetchPdfMaxBytes":33554432,"fetchPdfMaxPages":50,"fetchRespectRobots":true,"fetchResultMaxChars":32000,"fetchRobotsCacheTtlSeconds":3600,"fetchRobotsTimeoutSeconds":5,"fetchTimeoutSeconds":45,"maxConcurrentCalls":10,"privateEgressAllowlist":"","searchAccountDailyCap":5000,"searchBraveUrl":"https://api.search.brave.com/res/v1/web/search","searchDefaultResults":10,"searchMaxCallsPerInvocation":3,"searchMaxCallsPerTurn":5,"searchMaxResults":20,"searchRetryAttempts":2,"searchTimeoutSeconds":15,"userAgent":"RagnerockBot/1 (+https://ragnerock.com/bot)"}` | Web access: the ops kill switch plus the egress, size, and budget bounds for the web_search and web_fetch tools agents reach the open web with. |
+| webTools | object | `{"auditResultMaxChars":8000,"cacheMaxBytes":16777216,"cacheMaxEntries":64,"enabled":true,"fetchAllowHttp":false,"fetchBlocklistExtra":[],"fetchExtractThreads":2,"fetchMaxBytes":5242880,"fetchMaxConcurrentPdf":2,"fetchMaxConcurrentPerHost":2,"fetchMaxRedirects":5,"fetchPdfMaxBytes":33554432,"fetchPdfMaxPages":50,"fetchRespectRobots":true,"fetchResultMaxChars":32000,"fetchRobotsCacheTtlSeconds":3600,"fetchRobotsTimeoutSeconds":5,"fetchTimeoutSeconds":45,"maxConcurrentCalls":10,"privateEgressAllowlist":"","saveMetadataMaxChars":256,"savePagesEnabled":true,"saveTimeoutSeconds":10,"saveVersionScanLimit":25,"searchAccountDailyCap":5000,"searchBraveUrl":"https://api.search.brave.com/res/v1/web/search","searchDefaultResults":10,"searchMaxCallsPerInvocation":3,"searchMaxCallsPerTurn":5,"searchMaxResults":20,"searchRetryAttempts":2,"searchTimeoutSeconds":15,"userAgent":"RagnerockBot/1 (+https://ragnerock.com/bot)"}` | Web access: the ops kill switch plus the egress, size, and budget bounds for the web_search and web_fetch tools agents reach the open web with. |
 | webTools.auditResultMaxChars | int | `8000` | Cap on the agent-visible text carried in a web tool's audit payload |
 | webTools.cacheMaxBytes | int | `16777216` | Bytes held in the per-build web cache |
 | webTools.cacheMaxEntries | int | `64` | Pages held in the per-build web cache |
@@ -679,6 +709,10 @@ Ragnerock research intelligence platform
 | webTools.fetchTimeoutSeconds | int | `45` | Wall clock for one fetch, extraction included |
 | webTools.maxConcurrentCalls | int | `10` | Per-process limiter for all web calls, separate from `agentTools.maxConcurrentCalls`; also sizes the web client's connection pool |
 | webTools.privateEgressAllowlist | string | `""` | Comma-separated hostnames, hostname suffixes (".corp.internal"), or CIDRs a MODEL-CHOSEN url may reach even though they resolve to private addresses, and which are exempt from the public-port rule. Empty means public only. Deliberately separate from `agentTools.privateEgressAllowlist`: that list is for URLs an editor typed, this one for URLs a search result suggested. |
+| webTools.saveMetadataMaxChars | int | `256` | Truncation bound on a metadata value the page archive writes, chiefly the page title |
+| webTools.savePagesEnabled | bool | `true` | File every page web_fetch reads as a document in the project's "Web pages" dataset. No parsing, chunking or embedding happens then: the page is visible and selectable, and a workflow run over it does the rest. False leaves web_fetch behaving exactly as it did before. |
+| webTools.saveTimeoutSeconds | int | `10` | Wall clock for filing one fetched page. Nested inside `fetchTimeoutSeconds` and failing open, so a slow blob backend never costs the agent its page. |
+| webTools.saveVersionScanLimit | int | `25` | Stored versions of one URL examined for a byte-for-byte match before a new document is created |
 | webTools.searchAccountDailyCap | int | `5000` | Default billed searches per account per rolling day; an account administrator can override it per workspace |
 | webTools.searchBraveUrl | string | `"https://api.search.brave.com/res/v1/web/search"` | Where the Brave adapter sends its query. Point it at a vendor proxy if this cluster reaches the provider through one; changing it changes where each workspace's search key is sent |
 | webTools.searchDefaultResults | int | `10` | Search results returned when the model names no count |

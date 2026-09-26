@@ -46,6 +46,11 @@ spec:
             - name: http
               containerPort: 8080
               protocol: TCP
+            # The isolated health server (HEALTH_PORT in the configmap): the
+            # probes hit it so a busy main event loop is never judged dead.
+            - name: health
+              containerPort: 8081
+              protocol: TCP
           envFrom:
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-config
@@ -110,13 +115,13 @@ spec:
           livenessProbe:
             httpGet:
               path: /health/live
-              port: http
+              port: health
             initialDelaySeconds: 15
             periodSeconds: 20
           readinessProbe:
             httpGet:
               path: /health/ready
-              port: http
+              port: health
             initialDelaySeconds: 5
             periodSeconds: 10
 {{- with .Values.worker.resources }}

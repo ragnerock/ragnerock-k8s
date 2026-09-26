@@ -1,0 +1,77 @@
+{{- if .Values.dataIngestor.networkPolicy.enabled }}
+  {{- /*
+  Egress backstop for the data-ingestor (sql-ingest design, "Egress and SSRF").
+  
+  The service checks every address it resolves before connecting to a customer's
+  database or a scraped link, but check-then-connect leaves a DNS-rebinding
+  window and database drivers may resolve again on their own. This policy
+  refuses private destinations at the network as well. It allows:
+  
+  * DNS on port 53 to any resolver, so name lookups keep working whichever
+  DNS add-on and labels the cluster uses;
+  * every pod of this release, which covers the API's internal ingest routes,
+  the audit service and the worker. Traffic to a Service's cluster IP is
+  matched against the backing pods by CNIs that enforce NetworkPolicy;
+  * public IPv4 and IPv6 addresses, minus private (RFC 1918, ULA), CGNAT and
+  link-local ranges;
+  * the CIDRs in `allowedPrivateCidrs` and the rules in `extraEgress`.
+  
+  When `ingest.sqlAllowPrivateHosts` is on, SQL sources may reach any private
+  database, so private ranges stay open and only link-local is refused.
+  
+  Link-local covers the cloud metadata endpoint, which the service refuses on
+  its own as well.
+  */ -}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-data-ingestor
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+    {{- include "ragnerock.selectorLabels" (dict "context" . "component" "data-ingestor") | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "ragnerock.selectorLabels" (dict "context" . "component" "data-ingestor") | nindent 6 }}
+  policyTypes:
+    - Egress
+  egress:
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: {{ include "ragnerock.name" . }}
+              app.kubernetes.io/instance: {{ .Release.Name }}
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+  {{- if not .Values.ingest.sqlAllowPrivateHosts }}
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 100.64.0.0/10
+  {{- end }}
+              - 169.254.0.0/16
+        - ipBlock:
+            cidr: "::/0"
+            except:
+  {{- if not .Values.ingest.sqlAllowPrivateHosts }}
+              - "fc00::/7"
+  {{- end }}
+              - "fe80::/10"
+  {{- with .Values.dataIngestor.networkPolicy.allowedPrivateCidrs }}
+    - to:
+    {{- range . }}
+        - ipBlock:
+            cidr: {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  {{- with .Values.dataIngestor.networkPolicy.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
