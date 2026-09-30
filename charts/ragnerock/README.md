@@ -109,6 +109,7 @@ Ragnerock research intelligence platform
 | api.operatorSample.maxFileBytes | int | `20971520` | Max workbench attachment size accepted by the parse-sample endpoint. The file rides to the worker as base64 JSON (~4/3 the size), so keep it at or below 20 MiB |
 | api.operatorSample.parseTimeoutSeconds | int | `300` | API-side read timeout on the synchronous worker parse call, in seconds. Whole-document OCR of a large PDF via an external backend takes minutes |
 | api.pydanticSchemaImportMaxChars | int | `100000` | Largest Pydantic source paste a schema import accepts, in characters. Parsing is static (no code runs), but each request parses arbitrary pasted Python |
+| api.queryTabularTablesListLimit | int | `500` | Cap on tabular tables returned to the query explorer's flat table list. A project past this is better served by the paginated db-service catalog |
 | api.replicaCount | int | `1` |  |
 | api.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
 | api.searchQueryMaxChars | int | `4000` | Longest search query accepted, in characters. Queries are embedded (and on the tools route sent to an LLM), so this bounds the provider cost of one search |
@@ -495,6 +496,8 @@ Ragnerock research intelligence platform
 | model.openaiUseResponsesApi | bool | `false` | Route OpenAI calls through the Responses API (enables encrypted reasoning items) |
 | model.providerCallRetryAfterSeconds | int | `5` | Retry-After sent on a provider-call shed |
 | model.providerCallWaitSeconds | int | `30` | How long a request waits for a provider-call slot before the gate sheds it with 503 + Retry-After |
+| model.schemaCoercionMaxDepth | int | `32` | Recursion depth cap on the pass that backfills schema-declared nullable keys a model omitted, so a pathological schema cannot recurse without bound |
+| model.schemaCoercionMaxFields | int | `200` | Backfilled pointers one schema-coercion pass records; the list rides the audit row and the annotation's generation metadata |
 | modelService.affinity | object | `{}` | Pod affinity rules (overrides `global.affinity`) |
 | modelService.annotations | object | `{}` | Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence) |
 | modelService.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
@@ -655,6 +658,8 @@ Ragnerock research intelligence platform
 | schedules.tickClaimBatchSize | int | `20` | Due rows leased per claim statement within one tick. |
 | schedules.tickSource | string | `"inprocess"` | Who drives the tick. Pods run continuously, so `inprocess` is right for Kubernetes; `external` means something POSTs /api/jobs/internal/schedule-tick and the lifespan starts nothing. |
 | schedules.tickTimeBudgetSeconds | int | `35` | Wall clock for one tick, in seconds: the only cap on how much it does, and what spreads a burst of due schedules across minutes. |
+| search | object | `{"similarityThreshold":0.7}` | Semantic search over document embeddings. |
+| search.similarityThreshold | float | `0.7` | Minimum cosine similarity for a semantic-search hit. The right value depends on the embedding model in use: raise it if results look loose, lower it if a query that should obviously match returns nothing |
 | skills | object | `{"bodyMaxChars":32000,"descriptionMaxChars":512,"enabled":true,"loadMaxCalls":10,"maxPerOperator":10}` | Agent skills: the ops kill switch, the size caps that bound catalog and body token cost, and the per-run load budget. |
 | skills.bodyMaxChars | int | `32000` | Maximum instruction-body length in characters |
 | skills.descriptionMaxChars | int | `512` | Maximum description length in characters (bounds catalog token cost) |

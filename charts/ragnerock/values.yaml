@@ -314,6 +314,12 @@ model:
   providerCallWaitSeconds: 30
   # -- Retry-After sent on a provider-call shed
   providerCallRetryAfterSeconds: 5
+  # -- Recursion depth cap on the pass that backfills schema-declared nullable
+  # keys a model omitted, so a pathological schema cannot recurse without bound
+  schemaCoercionMaxDepth: 32
+  # -- Backfilled pointers one schema-coercion pass records; the list rides the
+  # audit row and the annotation's generation metadata
+  schemaCoercionMaxFields: 200
   # -- Concurrent POSTs to model-service /annotate from one client process
   maxConcurrentAnnotateCalls: 50
   # -- Seconds a client-side /annotate call waits for one of those slots before
@@ -379,6 +385,8 @@ api:
   dbThreadpoolSize: 64
   # -- Longest search query accepted, in characters. Queries are embedded (and on the tools route sent to an LLM), so this bounds the provider cost of one search
   searchQueryMaxChars: 4000
+  # -- Cap on tabular tables returned to the query explorer's flat table list. A project past this is better served by the paginated db-service catalog
+  queryTabularTablesListLimit: 500
   # -- Largest Pydantic source paste a schema import accepts, in characters. Parsing is static (no code runs), but each request parses arbitrary pasted Python
   pydanticSchemaImportMaxChars: 100000
   # -- How long a passing AI-settings validation lets a save of the same settings skip re-testing, in seconds
@@ -1178,6 +1186,13 @@ notebook:
   auditTurnSnapshot: false
   # -- Wall-clock bound (seconds) on the one-shot notebook-compaction summarization call
   compactionTimeoutSeconds: 120
+
+# -- Semantic search over document embeddings.
+search:
+  # -- Minimum cosine similarity for a semantic-search hit. The right value
+  # depends on the embedding model in use: raise it if results look loose,
+  # lower it if a query that should obviously match returns nothing
+  similarityThreshold: 0.7
 
 # -- Agentic memory: the ops kill switch, schema-proliferation caps, and the
 # per-run write budgets that bound a single agent's memory writes.
