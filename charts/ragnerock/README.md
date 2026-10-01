@@ -94,7 +94,8 @@ Ragnerock research intelligence platform
 | api.capacityWaitSeconds | float | `5` | Seconds a request waits for capacity before it is rejected |
 | api.dbServiceMaxConnections | int | `40` | Concurrent HTTP connections to db-service, bounding the source so a spike queues here rather than arriving as load db-service has to shed |
 | api.dbThreadpoolSize | int | `64` | Threads serving blocking DB work off the event loop |
-| api.documentIngestChangeBatchLimit | int | `1000` | Documents one request may ask the last ingest change for. Matches the document cap the dataset explorer fetches |
+| api.documentIngestChangeBatchLimit | int | `1000` | Documents one request may ask the last ingest change for. Matches the largest page of documents a listing serves |
+| api.documentStatusFilterMaxIds | int | `10000` | Most documents a status filter on a document listing may name before it is refused. Status comes from jobs, so the filter becomes a list of document ids |
 | api.embeddingDocumentTestExcerptChars | int | `200` | Characters of a failing input's text shown when an embedding document test is asked for excerpts |
 | api.embeddingDocumentTestMaxBytes | int | `20971520` | Most text one embedding document test sends, in UTF-8 bytes, whatever the item count. Kept under the model-service's request limit and Cloud Run's 32 MiB request limit |
 | api.embeddingDocumentTestMaxConcurrentPerAccount | int | `2` | Embedding document tests one account may have running at once on one API pod. Counted per pod, so an account's ceiling is this times the number of pods; the rate limit bounds it across pods |
@@ -104,6 +105,7 @@ Ragnerock research intelligence platform
 | api.embeddingDocumentTestRetryAfterSeconds | int | `30` | Retry-After sent, in seconds, when an account is already running its share of embedding document tests |
 | api.image.name | string | `"api"` |  |
 | api.image.tag | string | `""` |  |
+| api.manualJobMaxDocuments | int | `5000` | Most documents one manual-run request may fan out over, one job each. Jobs are created inside the request, so a larger run is refused rather than left to time out |
 | api.maxConcurrentRequests | int | `18` | In-flight ordinary requests one API pod accepts before it starts shedding. Sized to `database.poolSize + maxOverflow`, because a request in this class holds a connection for most of its life. On Kubernetes there is no platform concurrency behind it, so this gate is the ONLY bound -- which is why the chart checks it against the pool rather than trusting it |
 | api.maxConcurrentStreams | int | `40` | Concurrent streaming requests (SSE, NDJSON, MCP waiters) one pod admits. A separate class: a stream holds a request slot for minutes and a DB connection for almost none of it, and every logged-in browser tab holds two permanently |
 | api.operatorSample.maxFileBytes | int | `20971520` | Max workbench attachment size accepted by the parse-sample endpoint. The file rides to the worker as base64 JSON (~4/3 the size), so keep it at or below 20 MiB |

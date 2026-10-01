@@ -393,8 +393,12 @@ api:
   validationTokenTtlSeconds: 900
   # -- Read timeout between events of a streamed validation run, in seconds. One test can take a reasoning model most of a minute on large inputs
   validationStreamReadTimeoutSeconds: 120
-  # -- Documents one request may ask the last ingest change for. Matches the document cap the dataset explorer fetches
+  # -- Documents one request may ask the last ingest change for. Matches the largest page of documents a listing serves
   documentIngestChangeBatchLimit: 1000
+  # -- Most documents a status filter on a document listing may name before it is refused. Status comes from jobs, so the filter becomes a list of document ids
+  documentStatusFilterMaxIds: 10000
+  # -- Most documents one manual-run request may fan out over, one job each. Jobs are created inside the request, so a larger run is refused rather than left to time out
+  manualJobMaxDocuments: 5000
   # -- Chunks or rows an embedding document test covers by default, from the start of the document
   embeddingDocumentTestMaxItems: 200
   # -- Most chunks or rows an embedding document test covers when the whole document is tested

@@ -14,9 +14,11 @@ database:
 encryption:
   kek: "NGk5S1pvfkRVWfjMbGbcze8YqVNUuM86NvmeIhWR21Q="
 
+# Signing keys are passed with --set on install (see README.md). The chart
+# refuses to install without them.
 auth:
-  secretKey: "your-secret-key-for-jwt-tokens"
-  accessKey: "your-secret-key-for-access-codes"
+  secretKey: ""
+  accessKey: ""
 
 config:
   environmentIdentifier: minimal

@@ -267,6 +267,10 @@ data:
   VALIDATION_STREAM_READ_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.api.validationStreamReadTimeoutSeconds }}"
   # Documents one request may ask the last ingest change for.
   DOCUMENT_INGEST_CHANGE_BATCH_LIMIT: "{{ include "ragnerock.number" .Values.api.documentIngestChangeBatchLimit }}"
+  # Most documents a status filter on a document listing may name.
+  DOCUMENT_STATUS_FILTER_MAX_IDS: "{{ include "ragnerock.number" .Values.api.documentStatusFilterMaxIds }}"
+  # Most documents one manual-run request may fan out over.
+  MANUAL_JOB_MAX_DOCUMENTS: "{{ include "ragnerock.number" .Values.api.manualJobMaxDocuments }}"
   EMBEDDING_DOCUMENT_TEST_MAX_ITEMS: "{{ include "ragnerock.number" .Values.api.embeddingDocumentTestMaxItems }}"
   EMBEDDING_DOCUMENT_TEST_MAX_ITEMS_ENTIRE: "{{ include "ragnerock.number" .Values.api.embeddingDocumentTestMaxItemsEntire }}"
   EMBEDDING_DOCUMENT_TEST_PAGE_SIZE: "{{ include "ragnerock.number" .Values.api.embeddingDocumentTestPageSize }}"

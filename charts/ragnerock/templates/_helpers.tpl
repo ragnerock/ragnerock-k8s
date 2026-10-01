@@ -399,3 +399,31 @@ the hand-maintained arithmetic that used to live in a comment.
     {{- end -}}
   {{- end -}}
 {{- end -}}
+
+{{/*
+The signing keys the chart writes into the auth Secret.
+
+`auth.secretKey` signs every session and `auth.accessKey` signs access, signup
+and invite codes. The API's JWT library signs and verifies with an empty key,
+so an empty `secretKey` lets anyone who knows a user's id sign in as them, and
+the placeholders older example files carried are just as public. The API
+refuses the same values at startup (`PUBLIC_PLACEHOLDER_KEYS` in
+`packages/api/src/api/settings.py`); failing here stops the install before a
+pod starts.
+
+Nothing is checked when `auth.existingSecret` names the Secret, since its
+values are not in the chart.
+*/}}
+{{- define "ragnerock.validateAuthKeys" -}}
+  {{- if not .Values.auth.existingSecret -}}
+    {{- $placeholders := list "your-secret-key-for-jwt-tokens" "your-secret-key-for-access-codes" "your-secret-key-for-password-reset" "your-secret-for-access-codes" -}}
+    {{- range $name, $value := dict "auth.secretKey" .Values.auth.secretKey "auth.accessKey" .Values.auth.accessKey -}}
+      {{- if not (trim (toString $value)) -}}
+        {{- fail (printf "%s is empty. Generate one with `openssl rand -hex 22`, or name a Secret in auth.existingSecret." $name) -}}
+      {{- end -}}
+      {{- if has (toString $value) $placeholders -}}
+        {{- fail (printf "%s is a published placeholder, so anyone could sign with it. Generate one with `openssl rand -hex 22`. Changing auth.secretKey signs every user out." $name) -}}
+      {{- end -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}

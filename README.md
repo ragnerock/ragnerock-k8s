@@ -47,6 +47,8 @@ Note that in the event you are using the pgvector manifest, the default values w
 - `auth.secretKey` -- generate with `openssl rand -hex 22`
 - `auth.accessKey` -- generate with `openssl rand -hex 22`
 
+The chart refuses to install without `auth.secretKey` and `auth.accessKey`, and refuses the placeholder values older example files carried. `auth.secretKey` signs every session, so changing it later signs everyone out.
+
 Choose an identifier for your deployment, generally `ragnerock` is acceptable but you may wish to change it to a different value depending on your situation
 
 - `config.environmentIdentifier` -- whatever idenfifier you decide on

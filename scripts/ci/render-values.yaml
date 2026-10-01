@@ -1,0 +1,6 @@
+# Values the CI checks render the chart with. The chart refuses to render
+# without signing keys (`ragnerock.validateAuthKeys`), so these throwaway keys
+# exist only to let the templates render. Never deploy with them.
+auth:
+  secretKey: ci-render-only-secret-key
+  accessKey: ci-render-only-access-key

@@ -20,7 +20,7 @@ _log "DEBUG" "Checking Helm chart"
 
 pip install pyyaml
 
-helm template charts/ragnerock | kubeconform -strict -verbose
+helm template charts/ragnerock --values "$HERE"/render-values.yaml | kubeconform -strict -verbose
 python "$HERE"/../helpers/check-configmaps.py
 python "$HERE"/../helpers/check-values.py charts/ragnerock
 

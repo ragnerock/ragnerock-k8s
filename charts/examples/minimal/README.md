@@ -52,6 +52,17 @@ scraping, so a Cloudflare API token (set to `CLOUDFLARE_API_TOKEN` in our
 examples) and the matching account ID (set to `CLOUDFLARE_ACCOUNT_ID`) are
 required for the pod to start. Both are passed via `--set` on install.
 
+## Signing keys
+
+The API signs sessions with `auth.secretKey` and access codes with
+`auth.accessKey`. Generate both; the chart won't install without them. Keep
+them somewhere safe, because changing `auth.secretKey` later signs everyone out.
+
+```bash
+export SECRET_KEY=$(openssl rand -hex 22)
+export ACCESS_KEY=$(openssl rand -hex 22)
+```
+
 ## Install
 
 Apply the supporting manifests, then install the chart:
@@ -62,6 +73,8 @@ kubectl apply -f ./charts/examples/minimal/cloudserver.yaml
 
 helm upgrade --install ragnerock ./charts/ragnerock \
   --values ./charts/examples/minimal/values.yaml \
+  --set auth.secretKey=$SECRET_KEY \
+  --set auth.accessKey=$ACCESS_KEY \
   --set llm.geminiApiKey=$GEMINI_API_KEY \
   --set llm.mistralApiKey=$MISTRAL_API_KEY \
   --set dataIngestor.cloudflare.apiToken=$CLOUDFLARE_API_TOKEN \

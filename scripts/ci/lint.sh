@@ -15,6 +15,6 @@ _log "INFO" "Linting repo"
 
 _log "DEBUG" "Linting Helm chart"
 
-helm lint charts/ragnerock
+helm lint charts/ragnerock --values "$HERE"/render-values.yaml
 
 _log "SUCCESS" "Linting done"
