@@ -114,8 +114,18 @@ spec:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "otel" "existingSecret" .Values.otel.existingSecret) }}
             - secretRef:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "license" "existingSecret" .Values.licenseExistingSecret) }}
+{{- if or .Values.agentTools.connectors.clients .Values.agentTools.connectors.existingSecret }}
+            # The built-in MCP connectors' OAuth apps: shared by every tenant, so
+            # only the API, worker, and subtask-worker load them.
+            - secretRef:
+                name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "agent-tool-connectors" "existingSecret" .Values.agentTools.connectors.existingSecret) }}
+{{- end }}
           env:
             {{- include "ragnerock.otelEnv" (dict "context" . "service" "subtask-worker") | nindent 12 }}
+            # Here rather than in the shared core ConfigMap: only the API, worker,
+            # and subtask-worker act on it, so a mistyped name stops only them.
+            - name: AGENT_TOOL_CONNECTORS_DISABLED
+              value: {{ .Values.agentTools.connectorsDisabled | quote }}
 {{- with .Values.subtaskWorker.volumeMounts }}
           volumeMounts:
             {{- toYaml . | nindent 12 }}

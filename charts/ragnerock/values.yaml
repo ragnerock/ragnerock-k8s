@@ -1507,6 +1507,21 @@ agentTools:
   executionLogEnabled: true
   # -- Ceiling on one execution-log write; past it the row is dropped with a warning
   executionLogWriteTimeoutSeconds: 5
+  # -- Built-in MCP connectors turned off on this deployment, comma-separated
+  # (for example "linear,slack"): hidden from the catalog, refused on create
+  # and start, and not built for existing tools. An unknown name stops the API
+  # and workers at startup. Set on the API, worker, and subtask-worker only
+  connectorsDisabled: ""
+  connectors:
+    # -- The OAuth apps this deployment registered for the built-in connectors
+    # that have no dynamic registration (GitHub, Asana, Slack), as JSON keyed
+    # by connector: {"github": {"client_id": "...", "client_secret": "...",
+    # "install_url": "https://github.com/apps/<slug>/installations/new"}}.
+    # Every tenant shares these apps, so only the API, worker, and
+    # subtask-worker load them. Empty leaves those connectors unconfigured
+    clients: ""
+    # -- Use a pre-existing secret (must provide key `AGENT_TOOL_CONNECTOR_CLIENTS`) instead of generating one. When set, `clients` is ignored.
+    existingSecret: ""
 
 # -- Node decorators (JUDGE/CHECK/CRITIC/TOKEN_BUDGET): the global kill switch
 # and the bounds that keep a decorated node's per-item cost bounded.
