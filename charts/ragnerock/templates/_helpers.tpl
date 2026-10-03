@@ -416,7 +416,7 @@ values are not in the chart.
 */}}
 {{- define "ragnerock.validateAuthKeys" -}}
   {{- if not .Values.auth.existingSecret -}}
-    {{- $placeholders := list "your-secret-key-for-jwt-tokens" "your-secret-key-for-access-codes" "your-secret-key-for-password-reset" "your-secret-for-access-codes" -}}
+    {{- $placeholders := list "848ca5908da3b3d204cf679507d6a00c39c7bd601be4" "76d2c0fc8dbd7bc7a7cb64e40c03a9203d9cb7b2c703" "ab1d1c1d5e8fa2e501d5c2c98592fb95b977db866a10" "your-secret-for-access-codes" -}}
     {{- range $name, $value := dict "auth.secretKey" .Values.auth.secretKey "auth.accessKey" .Values.auth.accessKey -}}
       {{- if not (trim (toString $value)) -}}
         {{- fail (printf "%s is empty. Generate one with `openssl rand -hex 22`, or name a Secret in auth.existingSecret." $name) -}}
