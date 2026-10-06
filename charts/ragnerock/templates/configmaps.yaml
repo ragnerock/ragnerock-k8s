@@ -32,6 +32,12 @@ data:
   ANNOTATION_TOOL_MAX_ITERATIONS: "{{ include "ragnerock.number" .Values.agent.annotationToolMaxIterations }}"
   MAX_CONCURRENT_ANNOTATE_CALLS: "{{ include "ragnerock.number" .Values.model.maxConcurrentAnnotateCalls }}"
   MODEL_SERVICE_ANNOTATE_WAIT_SECONDS: "{{ include "ragnerock.number" .Values.model.annotateWaitSeconds }}"
+  MAX_CONCURRENT_AGENT_CALLS: "{{ include "ragnerock.number" .Values.model.maxConcurrentAgentCalls }}"
+  MODEL_SERVICE_AGENT_WAIT_SECONDS: "{{ include "ragnerock.number" .Values.model.agentWaitSeconds }}"
+  # Read wherever an annotation leaf runs: the worker, and the API's test and
+  # debug runs. Renders empty when unset; the settings-side validator reads ""
+  # as None.
+  OPERATOR_TURN_TOKEN_BUDGET: "{{ if .Values.agent.operatorTurnTokenBudget }}{{ include "ragnerock.number" .Values.agent.operatorTurnTokenBudget }}{{ end }}"
   MAX_CONCURRENT_ANNOTATION_TARGETS: "{{ include "ragnerock.number" .Values.model.maxConcurrentAnnotationTargets }}"
   # Both the clients' chunk size and the ceiling db-service enforces on every
   # '*-by-ids' route, so the two cannot disagree -- which is why it lives HERE,
@@ -40,6 +46,7 @@ data:
   # decision: the clients read one and the server enforced the other, and
   # raising either alone 422s every by-ids call.
   DB_IDS_PER_REQUEST: "{{ include "ragnerock.number" .Values.limits.dbIdsPerRequest }}"
+  WORKFLOW_MAX_REQUIRED_FUNCTIONS: "{{ include "ragnerock.number" .Values.limits.requiredFunctionsPerNode }}"
   # Postgres failover resilience, read by core.db.failover in every service
   # that opens an engine.
   DB_CONNECT_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.database.connectTimeoutSeconds }}"
@@ -62,6 +69,12 @@ data:
   MESSAGE_BOARD_MAX_HANDLES: "{{ include "ragnerock.number" .Values.messageBoard.maxHandles }}"
   MESSAGE_BOARD_INBOX_MAX_AGE_DAYS: "{{ include "ragnerock.number" .Values.messageBoard.inboxMaxAgeDays }}"
   MESSAGE_BOARD_WRITE_BUDGET: "{{ include "ragnerock.number" .Values.messageBoard.writeBudget }}"
+  AGENT_CONTEXT_BLOCK_ENABLED: "{{ .Values.agentContext.blockEnabled }}"
+  AGENT_CONTEXT_BLOCK_RECENT_RUNS: "{{ include "ragnerock.number" .Values.agentContext.blockRecentRuns }}"
+  AGENT_CONTEXT_BLOCK_PRIOR_CONVERSATIONS: "{{ include "ragnerock.number" .Values.agentContext.blockPriorConversations }}"
+  AGENT_CONTEXT_BLOCK_RECENT_ASSIGNMENTS: "{{ include "ragnerock.number" .Values.agentContext.blockRecentAssignments }}"
+  AGENT_CONTEXT_BLOCK_TITLE_MAX_CHARS: "{{ include "ragnerock.number" .Values.agentContext.blockTitleMaxChars }}"
+  AGENT_CONTEXT_BLOCK_MAX_CHARS: "{{ include "ragnerock.number" .Values.agentContext.blockMaxChars }}"
   SKILLS_ENABLED: "{{ .Values.skills.enabled }}"
   SKILL_BODY_MAX_CHARS: "{{ include "ragnerock.number" .Values.skills.bodyMaxChars }}"
   SKILL_DESCRIPTION_MAX_CHARS: "{{ include "ragnerock.number" .Values.skills.descriptionMaxChars }}"
@@ -102,11 +115,42 @@ data:
   AGENT_TOOL_REQUEST_BODY_MAX_BYTES: "{{ include "ragnerock.number" .Values.agentTools.requestBodyMaxBytes }}"
   AGENT_TOOL_MAX_CALLS_PER_INVOCATION: "{{ include "ragnerock.number" .Values.agentTools.maxCallsPerInvocation }}"
   AGENT_TOOL_MAX_CONCURRENT_CALLS: "{{ include "ragnerock.number" .Values.agentTools.maxConcurrentCalls }}"
+  SEARCH_MAX_CONCURRENT_QUERIES: "{{ include "ragnerock.number" .Values.search.maxConcurrentQueries }}"
   AGENT_TOOL_MAX_RESULT_IMAGES: "{{ include "ragnerock.number" .Values.agentTools.maxResultImages }}"
   AGENT_TOOL_AUDIT_RESULT_MAX_CHARS: "{{ include "ragnerock.number" .Values.agentTools.auditResultMaxChars }}"
   ANNOTATION_TOOL_CALL_RECORD_RESULT_MAX_CHARS: "{{ include "ragnerock.number" .Values.agentTools.annotationToolCallRecordResultMaxChars }}"
   AGENT_TOOL_EXECUTION_LOG_ENABLED: "{{ .Values.agentTools.executionLogEnabled }}"
   AGENT_TOOL_EXECUTION_LOG_WRITE_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.agentTools.executionLogWriteTimeoutSeconds }}"
+  # The agent instance registry (unified-agent-model §6.6): one row per live
+  # agent loop, so the activity view can say what is running right now.
+  AGENT_INSTANCE_REGISTRY_ENABLED: "{{ .Values.agentInstances.registryEnabled }}"
+  AGENT_INSTANCE_HEARTBEAT_INTERVAL_SECONDS: "{{ include "ragnerock.number" .Values.agentInstances.heartbeatIntervalSeconds }}"
+  AGENT_INSTANCE_WRITE_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.agentInstances.writeTimeoutSeconds }}"
+  # The agent kill switch (unified-agent-model §6.6): the deployment-wide
+  # switch every halt check ORs with, and how long a loop may reuse its
+  # answer.
+  AGENT_EXECUTION_ENABLED: "{{ .Values.agentHalts.executionEnabled }}"
+  AGENT_HALT_CHECK_TTL_SECONDS: "{{ include "ragnerock.number" .Values.agentHalts.checkTtlSeconds }}"
+  AGENT_HALT_NOTIFY_MAX_RECIPIENTS: "{{ include "ragnerock.number" .Values.agentHalts.notifyMaxRecipients }}"
+  # Agent assignments (unified-agent-model §6.2): how long a delivery's lease
+  # on an assignment lasts between renewals.
+  ASSIGNMENT_LEASE_TTL_SECONDS: "{{ include "ragnerock.number" .Values.assignments.leaseTtlSeconds }}"
+  AGENT_ASSIGNMENTS_ENABLED: {{ .Values.assignments.enabled | quote }}
+  ASSIGNMENT_MAX_ACTIVE_PER_PROJECT: "{{ include "ragnerock.number" .Values.assignments.maxActivePerProject }}"
+  ASSIGNMENT_WAIT_DEFAULT_DAYS: "{{ include "ragnerock.number" .Values.assignments.waitDefaultDays }}"
+  ASSIGNMENT_WAIT_MAX_DAYS: "{{ include "ragnerock.number" .Values.assignments.waitMaxDays }}"
+  ASSIGNMENT_COMPACTION_HIGH_WATER_TOKENS: "{{ include "ragnerock.number" .Values.assignments.compactionHighWaterTokens }}"
+  ASSIGNMENT_TOKEN_BUDGET: "{{ include "ragnerock.number" .Values.assignments.tokenBudget }}"
+  ASSIGNMENT_MAX_TURNS: "{{ include "ragnerock.number" .Values.assignments.maxTurns }}"
+  ASSIGNMENT_MAX_AGE_DAYS: "{{ include "ragnerock.number" .Values.assignments.maxAgeDays }}"
+  ASSIGNMENT_RETENTION_DAYS: "{{ include "ragnerock.number" .Values.assignments.retentionDays }}"
+  SCHEMA_COERCION_MAX_DEPTH: "{{ include "ragnerock.number" .Values.model.schemaCoercionMaxDepth }}"
+  SCHEMA_COERCION_MAX_FIELDS: "{{ include "ragnerock.number" .Values.model.schemaCoercionMaxFields }}"
+  STRUCTURED_RUN_MAX_ATTEMPTS: "{{ include "ragnerock.number" .Values.model.structuredRunMaxAttempts }}"
+  STRUCTURED_RUN_RETRY_BUDGET_SECONDS: "{{ include "ragnerock.number" .Values.model.structuredRunRetryBudgetSeconds }}"
+  ASSIGNMENT_MAX_CONSECUTIVE_FAILURES: "{{ include "ragnerock.number" .Values.assignments.maxConsecutiveFailures }}"
+  ASSIGNMENT_MAX_CHILDREN: "{{ include "ragnerock.number" .Values.assignments.maxChildren }}"
+  NOTEBOOK_INCREMENTAL_PERSISTENCE: {{ .Values.notebook.incrementalPersistence | quote }}
   # Web search and web fetch (web-search/fetch design §9): the kill switch, the
   # network policy for model-chosen URLs, and the byte/time/concurrency bounds.
   # Every core-running service carries them for settings parity as it does in
@@ -168,6 +212,13 @@ data:
   TABULAR_PROMPT_MAX_COLUMNS: "{{ include "ragnerock.number" .Values.tabular.promptMaxColumns }}"
   TABULAR_PROMPT_MAX_SOURCES: "{{ include "ragnerock.number" .Values.tabular.promptMaxSources }}"
   TABULAR_READ_ROWS_PER_PAGE: "{{ include "ragnerock.number" .Values.tabular.readRowsPerPage }}"
+  OPERATOR_INPUT_COLUMNS_MAX: "{{ include "ragnerock.number" .Values.tabular.operatorInputColumnsMax }}"
+  # Workflow change requests, from the shared core settings: the trigger's
+  # instruction cap (operator save), the stored signal width (the workers
+  # record firings), and the backfill cap (the API).
+  CHANGE_REQUEST_PROMPT_MAX_CHARS: "{{ include "ragnerock.number" .Values.changeRequests.promptMaxChars }}"
+  CHANGE_REQUEST_SIGNAL_MAX_CHARS: "{{ include "ragnerock.number" .Values.changeRequests.signalMaxChars }}"
+  CHANGE_REQUEST_BACKFILL_MAX_RUNS: "{{ include "ragnerock.number" .Values.changeRequests.backfillMaxRuns }}"
   # Node decorators (JUDGE/CHECK/CRITIC/TOKEN_BUDGET): the kill switch and the
   # write-time/runtime bounds, read by core validation (API) and the worker
   # chain. Every core-running service carries them for settings parity as it
@@ -252,9 +303,19 @@ data:
   MAX_CONCURRENT_STREAMS: "{{ include "ragnerock.number" .Values.api.maxConcurrentStreams }}"
   CAPACITY_WAIT_SECONDS: "{{ include "ragnerock.number" .Values.api.capacityWaitSeconds }}"
   CAPACITY_RETRY_AFTER_SECONDS: "{{ include "ragnerock.number" .Values.api.capacityRetryAfterSeconds }}"
+  ASSIGNMENT_STREAM_POLL_SECONDS: "{{ include "ragnerock.number" .Values.api.assignmentStreamPollSeconds }}"
   DB_SERVICE_MAX_CONNECTIONS: "{{ include "ragnerock.number" .Values.api.dbServiceMaxConnections }}"
   DB_THREADPOOL_SIZE: "{{ include "ragnerock.number" .Values.api.dbThreadpoolSize }}"
   SEARCH_QUERY_MAX_CHARS: "{{ include "ragnerock.number" .Values.api.searchQueryMaxChars }}"
+  DOCUMENT_DOWNLOAD_SPOOL_MAX_BYTES: "{{ include "ragnerock.number" .Values.api.documentDownloadSpoolMaxBytes }}"
+  DOCUMENT_DOWNLOAD_CHUNK_BYTES: "{{ include "ragnerock.number" .Values.api.documentDownloadChunkBytes }}"
+  # Workflow change requests: proposal generation.
+  CHANGE_REQUEST_PROMPT_MAX_SIGNALS: "{{ include "ragnerock.number" .Values.changeRequests.promptMaxSignals }}"
+  CHANGE_REQUEST_PROMPT_EXAMPLE_DOCUMENTS: "{{ include "ragnerock.number" .Values.changeRequests.promptExampleDocuments }}"
+  CHANGE_REQUEST_GENERATION_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.changeRequests.generationTimeoutSeconds }}"
+  # Users in these email domains run the install and maintain the shared
+  # default data DB. Comma-separated; empty means nobody.
+  PLATFORM_OPERATOR_DOMAINS: {{ join "," .Values.api.platformOperatorDomains | quote }}
   # The query explorer's flat table list is unpaginated, so the catalog read
   # behind it is capped.
   QUERY_TABULAR_TABLES_LIST_LIMIT: "{{ include "ragnerock.number" .Values.api.queryTabularTablesListLimit }}"
@@ -288,6 +349,8 @@ data:
   ENDPOINT_EXECUTION_RETENTION_DAYS: "{{ include "ragnerock.number" .Values.endpoints.executionRetentionDays }}"
   ENDPOINT_EXECUTION_PRUNE_BATCH_SIZE: "{{ include "ragnerock.number" .Values.endpoints.executionPruneBatchSize }}"
   ENDPOINT_EXECUTION_PRUNE_MAX_BATCHES: "{{ include "ragnerock.number" .Values.endpoints.executionPruneMaxBatches }}"
+  # The customer-facing endpoint metrics scrape, which only the API serves.
+  METRICS_MAX_ENDPOINTS_PER_SCRAPE: "{{ include "ragnerock.number" .Values.endpoints.metricsMaxEndpointsPerScrape }}"
   # The MCP front on workflow endpoints, which only the API serves. The wait
   # and result limits are quoted verbatim in the tool contract every agent
   # reads, so changing one changes a published contract.
@@ -350,6 +413,11 @@ data:
   WORKBENCH_RUN_RESULT_MAX_CHARS_PER_NODE: "{{ include "ragnerock.number" .Values.workbench.runResultMaxCharsPerNode }}"
   WORKBENCH_SNAPSHOT_RETENTION: "{{ include "ragnerock.number" .Values.workbench.snapshotRetention }}"
   WORKBENCH_DEBUG_SESSION_RETENTION: "{{ include "ragnerock.number" .Values.workbench.debugSessionRetention }}"
+  # The notebook agent's two background-work tools (unified-agent-model
+  # §6.3). API settings, so they live in the API's map rather than the shared
+  # one every service loads.
+  NOTEBOOK_RUN_WORKFLOW_ENABLED: {{ .Values.notebook.runWorkflowEnabled | quote }}
+  NOTEBOOK_WORKBENCH_TOOLS_ENABLED: {{ .Values.notebook.workbenchToolsEnabled | quote }}
   # The schedule tick, which only the API drives. Pods run continuously, so
   # every API replica runs the in-process ticker and the chart ships no
   # CronJob: the claim partitions with SKIP LOCKED, so N replicas ticking is
@@ -357,6 +425,12 @@ data:
   SCHEDULE_TICK_SOURCE: "{{ .Values.schedules.tickSource }}"
   SCHEDULE_LOCAL_TICK_SECONDS: "{{ include "ragnerock.number" .Values.schedules.localTickSeconds }}"
   SCHEDULE_TICK_CLAIM_BATCH_SIZE: "{{ include "ragnerock.number" .Values.schedules.tickClaimBatchSize }}"
+  ASSIGNMENT_TICK_BATCH_SIZE: "{{ include "ragnerock.number" .Values.assignments.tickBatchSize }}"
+  ASSIGNMENT_QUESTION_REMINDER_HOURS: "{{ include "ragnerock.number" .Values.assignments.questionReminderHours }}"
+  ASSIGNMENT_STRANDED_AFTER_MINUTES: "{{ include "ragnerock.number" .Values.assignments.strandedAfterMinutes }}"
+  ASSIGNMENT_REAP_BATCH_SIZE: "{{ include "ragnerock.number" .Values.assignments.reapBatchSize }}"
+  ASSIGNMENT_REAP_MAX_BATCHES: "{{ include "ragnerock.number" .Values.assignments.reapMaxBatches }}"
+  ASSIGNMENT_REAP_RECHECK_DAYS: "{{ include "ragnerock.number" .Values.assignments.reapRecheckDays }}"
   SCHEDULE_TICK_TIME_BUDGET_SECONDS: "{{ include "ragnerock.number" .Values.schedules.tickTimeBudgetSeconds }}"
 ---
 apiVersion: v1
@@ -383,6 +457,7 @@ data:
   RATE_LIMIT_NOTEBOOK_CELL_EXECUTE_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.notebookCellExecutePerMinute }}"
   RATE_LIMIT_DOCUMENT_UPLOAD_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.documentUploadPerMinute }}"
   RATE_LIMIT_SEARCH_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.searchPerMinute }}"
+  RATE_LIMIT_SEARCH_REGEX_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.searchRegexPerMinute }}"
   RATE_LIMIT_INGEST_TRIGGER_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.ingestTriggerPerMinute }}"
   RATE_LIMIT_TOOLS_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.toolsPerMinute }}"
   RATE_LIMIT_AGENT_TOOL_PROBES_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.agentToolProbesPerMinute }}"
@@ -395,6 +470,8 @@ data:
   RATE_LIMIT_DEBUG_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.debugPerMinute }}"
   RATE_LIMIT_PYDANTIC_SCHEMA_IMPORT_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.pydanticSchemaImportPerMinute }}"
   RATE_LIMIT_WORKBENCH_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.workbenchPerMinute }}"
+  RATE_LIMIT_METRICS_SCRAPE_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.metricsScrapePerMinute }}"
+  RATE_LIMIT_CHANGE_REQUEST_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.changeRequestPerMinute }}"
   RATE_LIMIT_WORKFLOW_TEST_CONDITION_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.workflowTestConditionPerMinute }}"
   RATE_LIMIT_CONFIG_VALIDATE_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.configValidatePerMinute }}"
   RATE_LIMIT_EMBEDDING_DOCUMENT_TEST_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.embeddingDocumentTestPerMinute }}"
@@ -447,6 +524,7 @@ data:
   API_AUTH_ENABLED: "false"
   INGEST_PRIVATE_EGRESS_ALLOWLIST: "{{ .Values.ingest.privateEgressAllowlist }}"
   SQL_INGEST_ALLOW_PRIVATE_HOSTS: "{{ .Values.ingest.sqlAllowPrivateHosts }}"
+  SQL_INGEST_DATABRICKS_EXTRA_HOST_SUFFIXES: {{ .Values.ingest.sqlDatabricksExtraHostSuffixes | toJson | quote }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -481,8 +559,16 @@ data:
   SNOWFLAKE_STATEMENT_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.dbService.snowflakeStatementTimeoutSeconds }}"
   SNOWFLAKE_LOCK_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.dbService.snowflakeLockTimeoutSeconds }}"
   SNOWFLAKE_INSERT_PAGE_SIZE: "{{ include "ragnerock.number" .Values.dbService.snowflakeInsertPageSize }}"
+  DATABRICKS_STATEMENT_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.dbService.databricksStatementTimeoutSeconds }}"
+  DATABRICKS_SOCKET_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.dbService.databricksSocketTimeoutSeconds }}"
+  DATABRICKS_RETRY_WINDOW_SECONDS: "{{ include "ragnerock.number" .Values.dbService.databricksRetryWindowSeconds }}"
+  DATABRICKS_INSERT_PAGE_SIZE: "{{ include "ragnerock.number" .Values.dbService.databricksInsertPageSize }}"
+  # A JSON list, which is how pydantic reads a list setting from the environment.
+  DATABRICKS_EXTRA_HOST_SUFFIXES: {{ .Values.dbService.databricksExtraHostSuffixes | toJson | quote }}
+  UPDATED_AT_BACKFILL_BATCH_SIZE: "{{ include "ragnerock.number" .Values.dbService.updatedAtBackfillBatchSize }}"
   QUERY_WORK_MEM: {{ .Values.dbService.queryWorkMem | quote }}
   QUERY_DEFAULT_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.dbService.queryDefaultTimeoutSeconds }}"
+  KEYWORD_SEARCH_REGEX_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.dbService.keywordSearchRegexTimeoutSeconds }}"
   QUERY_SLOW_LOG_THRESHOLD_MS: "{{ include "ragnerock.number" .Values.dbService.querySlowLogThresholdMs }}"
 ---
 apiVersion: v1
@@ -581,6 +667,7 @@ metadata:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
   AGENT_MAX_ITERATIONS: "{{ include "ragnerock.number" .Values.agent.maxIterations }}"
+  AGENT_CALL_RETRY_BUDGET_SECONDS: "{{ include "ragnerock.number" .Values.agent.callRetryBudgetSeconds }}"
   # Turn-budget, reasoning, drain, context-eviction, and image knobs — read only
   # in the API process (the sole Runner host); other services ignore them in
   # .configignore. The two nullable budgets render empty when unset; the
@@ -747,6 +834,7 @@ data:
   # worker keeps the shared values. The -subtask-worker map cannot carry
   # these, because the plain worker mounts that one too.
   MAX_CONCURRENT_ANNOTATION_TARGETS: "{{ include "ragnerock.subtaskWorkerAnnotationTargets" . }}"
+  MAX_CONCURRENT_AGENT_CALLS: "{{ include "ragnerock.subtaskWorkerAgentCalls" . }}"
   WEB_TOOL_MAX_CONCURRENT_CALLS: "{{ include "ragnerock.subtaskWorkerWebToolCalls" . }}"
 ---
 apiVersion: v1
@@ -787,8 +875,6 @@ data:
   # omitted: recursion depth, and how many backfilled pointers one pass
   # records (the list rides the audit row and the annotation's generation
   # metadata).
-  SCHEMA_COERCION_MAX_DEPTH: "{{ include "ragnerock.number" .Values.model.schemaCoercionMaxDepth }}"
-  SCHEMA_COERCION_MAX_FIELDS: "{{ include "ragnerock.number" .Values.model.schemaCoercionMaxFields }}"
   # Retry shaping for a provider with no fallback chain behind it, and the
   # budgets the model-service spends working through one that has.
   AGENT_NO_CHAIN_MAX_ATTEMPTS: "{{ include "ragnerock.number" .Values.model.agentNoChainMaxAttempts }}"
@@ -834,7 +920,9 @@ metadata:
 data:
   MAX_CONCURRENT_SUBTASKS: "{{ include "ragnerock.number" .Values.limits.concurrency.maxConcurrentSubtasks }}"
   MAX_CONCURRENT_ANNOTATIONS: "{{ include "ragnerock.number" .Values.limits.concurrency.maxConcurrentAnnotations }}"
+  MAX_CONCURRENT_TOOLLESS_ANNOTATIONS: "{{ include "ragnerock.number" .Values.limits.concurrency.maxConcurrentToollessAnnotations }}"
   NOTIFICATION_NODE_MAX_PER_SUBTASK: "{{ include "ragnerock.number" .Values.limits.notificationNodeMaxPerSubtask }}"
+  CHANGE_REQUEST_RENOTIFY_COOLDOWN_HOURS: "{{ include "ragnerock.number" .Values.changeRequests.renotifyCooldownHours }}"
   MAX_CONCURRENT_JOBS: "{{ include "ragnerock.number" .Values.limits.concurrency.maxConcurrentJobs }}"
   # Only the job worker is targeted by the API's parse-sample calls; the
   # subtask-worker gets this for settings parity, as it does in Terraform.
@@ -888,6 +976,12 @@ data:
   SUBTASK_ENQUEUE_STALE_MINUTES: "{{ include "ragnerock.number" .Values.workers.subtaskEnqueueStaleMinutes }}"
   SUBTASK_INSERT_CHUNK_ROWS: "{{ include "ragnerock.number" .Values.workers.subtaskInsertChunkRows }}"
   MAX_CONCURRENT_SPAWNS: "{{ include "ragnerock.number" .Values.workers.maxConcurrentSpawns }}"
+  MAX_CONCURRENT_ASSIGNMENT_TURNS: "{{ include "ragnerock.number" .Values.assignments.maxConcurrentTurns }}"
+  ASSIGNMENT_TURN_TIME_BUDGET_SECONDS: "{{ include "ragnerock.number" .Values.assignments.turnTimeBudgetSeconds }}"
+  ASSIGNMENT_COMPACTION_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.assignments.compactionTimeoutSeconds }}"
+  ASSIGNMENT_TURN_MAX_ITERATIONS: "{{ include "ragnerock.number" .Values.assignments.turnMaxIterations }}"
+  ASSIGNMENT_RETRY_DELAY_SECONDS: "{{ include "ragnerock.number" .Values.assignments.retryDelaySeconds }}"
+  UNIFIED_LOOP_OPERATOR_KINDS: {{ .Values.unifiedLoop.operatorKinds | quote }}
   SPAWN_PAGE_SIZE: "{{ include "ragnerock.number" .Values.workers.spawn.pageSize }}"
   SPAWN_TIME_BUDGET_SECONDS: "{{ include "ragnerock.number" .Values.workers.spawn.timeBudgetSeconds }}"
   SPAWN_PLANNING_STALE_SECONDS: "{{ include "ragnerock.number" .Values.workers.spawn.planningStaleSeconds }}"
@@ -962,6 +1056,7 @@ data:
   # SQL source's host against it when the source is saved or previewed.
   INGEST_PRIVATE_EGRESS_ALLOWLIST: "{{ .Values.ingest.privateEgressAllowlist }}"
   SQL_INGEST_ALLOW_PRIVATE_HOSTS: "{{ .Values.ingest.sqlAllowPrivateHosts }}"
+  SQL_INGEST_DATABRICKS_EXTRA_HOST_SUFFIXES: {{ .Values.ingest.sqlDatabricksExtraHostSuffixes | toJson | quote }}
 ---
 apiVersion: v1
 kind: ConfigMap

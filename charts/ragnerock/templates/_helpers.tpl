@@ -309,6 +309,17 @@ The subtask worker's annotation-target ceiling, falling back to the shared one.
 {{- end -}}
 
 {{/*
+The subtask worker's /agent call limit, falling back to the shared one.
+*/}}
+{{- define "ragnerock.subtaskWorkerAgentCalls" -}}
+  {{- if .Values.subtaskWorker.maxConcurrentAgentCalls -}}
+{{- .Values.subtaskWorker.maxConcurrentAgentCalls -}}
+  {{- else -}}
+{{- include "ragnerock.number" .Values.model.maxConcurrentAgentCalls -}}
+  {{- end -}}
+{{- end -}}
+
+{{/*
 The subtask worker's web-call limiter, falling back to the shared one.
 */}}
 {{- define "ragnerock.subtaskWorkerWebToolCalls" -}}

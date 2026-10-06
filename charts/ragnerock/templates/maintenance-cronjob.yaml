@@ -96,6 +96,7 @@ spec:
                       "/api/endpoints/internal/reap-ephemeral",
                       "/ingest/internal/maintenance",
                       "/api/oauth/internal/prune",
+                      "/api/assignments/internal/reap",
                   ]
                   failed = []
                   for route in routes:

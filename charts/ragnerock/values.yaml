@@ -98,7 +98,7 @@ llm:
   pdfExtractImages: true
 
 encryption:
-  # -- Key Encryption Key (KEK), generate with python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'
+  # -- Key Encryption Key (KEK) ring, generate a key with python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'. A single key is fine; during a rotation this is a comma-separated `<id>:<key>` list, primary first. Pass it with `--set-string` and escaped commas, or in a values file, since `--set` splits on commas. Changing it does not restart pods; `kubectl rollout restart` every deployment that mounts it. See docs/operations/master-key-rotation.md
   kek: ""
   # -- Use a pre-existing secret (must provide key `ENCRYPTION_KEK`) instead of generating one. When set, `kek` is ignored.
   existingSecret: ""
@@ -216,6 +216,8 @@ rateLimits:
   notebookCellExecutePerMinute: 60
   documentUploadPerMinute: 60
   searchPerMinute: 60
+  # -- Regex-mode searches, counted on top of searchPerMinute. A regex cannot use the full-text index, so each one scans every row in scope
+  searchRegexPerMinute: 10
   ingestTriggerPerMinute: 20
   toolsPerMinute: 60
   # -- Agent-tool probes (REST route test, MCP discovery preview)
@@ -241,6 +243,10 @@ rateLimits:
   debugPerMinute: 20
   pydanticSchemaImportPerMinute: 30
   workbenchPerMinute: 10
+  # -- Per-principal scrapes per minute of the endpoint metrics route
+  metricsScrapePerMinute: 12
+  # -- Per-minute rate limit for workflow change-request proposal generation
+  changeRequestPerMinute: 10
   workflowTestConditionPerMinute: 120
   configValidatePerMinute: 20
   # -- Per-user limit on embedding document tests, each of which embeds up to thousands of a document's chunks or rows
@@ -315,17 +321,30 @@ model:
   # -- Retry-After sent on a provider-call shed
   providerCallRetryAfterSeconds: 5
   # -- Recursion depth cap on the pass that backfills schema-declared nullable
-  # keys a model omitted, so a pathological schema cannot recurse without bound
+  # keys a model omitted, so a pathological schema cannot recurse without bound.
+  # Read by every service: the unified loop's workers coerce too.
   schemaCoercionMaxDepth: 32
   # -- Backfilled pointers one schema-coercion pass records; the list rides the
   # audit row and the annotation's generation metadata
   schemaCoercionMaxFields: 200
+  # -- Attempts a tool-less structured call on the unified loop makes for an
+  # answer it can read, the first included; each is billed. Matches the
+  # annotate path's annotatorNoChainMaxAttempts
+  structuredRunMaxAttempts: 8
+  # -- Wall clock all of a tool-less structured call's attempts share
+  structuredRunRetryBudgetSeconds: 420
   # -- Concurrent POSTs to model-service /annotate from one client process
   maxConcurrentAnnotateCalls: 50
   # -- Seconds a client-side /annotate call waits for one of those slots before
   # failing in-band. The failure is classified retryable, so reaching it costs a
   # redelivery rather than a failed row
   annotateWaitSeconds: 120
+  # -- Concurrent POSTs to model-service /agent from one client process. A call
+  # holds its slot while the provider answers, not while the loop runs a tool
+  maxConcurrentAgentCalls: 50
+  # -- Seconds a client-side /agent call waits for one of those slots before
+  # failing: retryable on the worker, a busy turn in a notebook
+  agentWaitSeconds: 120
   # -- Annotation targets in flight at once across every subtask one worker
   # process is serving. The per-row limiters (web tools, agent tools, the
   # /annotate gate) are sized against this, not against
@@ -378,6 +397,9 @@ api:
   # -- Retry-After sent with a shed 503, honoured by the frontend's reconnect,
   # and with the 503 for a database connection lost to a failover
   capacityRetryAfterSeconds: 2
+  # -- Seconds between an assignment's live stream reading the assignment and
+  # its transcript for what changed
+  assignmentStreamPollSeconds: 2.0
   # -- Concurrent HTTP connections to db-service, bounding the source so a
   # spike queues here rather than arriving as load db-service has to shed
   dbServiceMaxConnections: 40
@@ -385,6 +407,15 @@ api:
   dbThreadpoolSize: 64
   # -- Longest search query accepted, in characters. Queries are embedded (and on the tools route sent to an LLM), so this bounds the provider cost of one search
   searchQueryMaxChars: 4000
+  # -- A document download is staged in a temporary file before it is streamed back; up to this many bytes it stays in memory, past it the file moves to disk
+  documentDownloadSpoolMaxBytes: 8388608
+  # -- Size (bytes) of each chunk streamed back to the client on a document download
+  documentDownloadChunkBytes: 1048576
+  # -- Email domains whose users are platform operators: the only users who can
+  # migrate and backfill the shared default data DB. The bootstrap admin is
+  # `admin@localhost.local`; add the domain your install's operators log in with
+  platformOperatorDomains:
+    - localhost.local
   # -- Cap on tabular tables returned to the query explorer's flat table list. A project past this is better served by the paginated db-service catalog
   queryTabularTablesListLimit: 500
   # -- Largest Pydantic source paste a schema import accepts, in characters. Parsing is static (no code runs), but each request parses arbitrary pasted Python
@@ -568,6 +599,13 @@ subtaskWorker:
   # transient row failure redelivered like any other overload. Null falls
   # back to the shared value
   maxConcurrentAnnotationTargets: ~
+  # -- This deployment's own per-process limit on concurrent /agent calls,
+  # when it should differ from `model.maxConcurrentAgentCalls`. Every
+  # unified-loop operator call takes one of these slots and one target slot,
+  # so raise it with `maxConcurrentAnnotationTargets`: a target left waiting
+  # for an /agent slot costs its subtask a redelivery. Null falls back to the
+  # shared value
+  maxConcurrentAgentCalls: ~
   # -- This deployment's own per-process limiter for web tool calls, when it
   # should differ from `webTools.maxConcurrentCalls`. Raise it with
   # `maxConcurrentAnnotationTargets` to keep the ratio the annotation queue
@@ -783,10 +821,24 @@ dbService:
   snowflakeLockTimeoutSeconds: 30
   # -- Rows per multi-row INSERT when SQLAlchemy pages an executemany batch on Snowflake
   snowflakeInsertPageSize: 1000
+  # -- Ceiling for every statement on a Databricks BYODB connection (seconds); Databricks' own default is 48 hours
+  databricksStatementTimeoutSeconds: 600
+  # -- How long the Databricks connector waits on one HTTP call, including the OAuth token request (seconds); kept under the worker's 60 s write budget
+  databricksSocketTimeoutSeconds: 45
+  # -- Total time the Databricks connector spends retrying one request (seconds); kept under the worker's 60 s write budget
+  databricksRetryWindowSeconds: 50
+  # -- Rows per multi-row INSERT when SQLAlchemy pages an executemany batch on Databricks
+  databricksInsertPageSize: 200
+  # -- Databricks workspace host suffixes to accept besides Databricks' own, for private deployments. Each starts with "." (e.g. ".databricks.corp.example")
+  databricksExtraHostSuffixes: []
+  # -- Rows per UPDATE when the updated-at backfill fills NULL updated_at on Postgres
+  updatedAtBackfillBatchSize: 5000
   # -- Postgres work_mem for a document query's transaction (a number with a kB/MB/GB unit); the annotation pivot spills to disk at the cluster default
   queryWorkMem: "64MB"
   # -- Statement timeout (seconds) for a document query whose request carries none
   queryDefaultTimeoutSeconds: 120
+  # -- Statement timeout (seconds) for a regex-mode keyword search on PostgreSQL; a regex cannot use the full-text index, so keep this well under the caller's read timeout
+  keywordSearchRegexTimeoutSeconds: 30
   # -- A document query slower than this (ms) is logged with its shape and timings, never the SQL; 0 disables
   querySlowLogThresholdMs: 5000
   # -- Deployment resoruce contraints (i.e. requests/limits)
@@ -906,12 +958,14 @@ migrations:
 
 # Periodic maintenance, fired in-cluster. On GCP these routes are driven by
 # Cloud Scheduler; a self-hosted install has no equivalent, so without this
-# compat execution history and uncollected ephemeral results are never cleaned
-# up, and ingest runs whose execution was lost are never failed.
+# compat execution history, uncollected ephemeral results and finished agent
+# assignments' transcripts are never cleaned up, and ingest runs whose
+# execution was lost are never failed.
 maintenance:
   # -- Run the maintenance CronJob. Disable only if you fire the internal
-  # `/api/endpoints/internal/*`, `/ingest/internal/maintenance` and
-  # `/api/oauth/internal/prune` routes some other way.
+  # `/api/endpoints/internal/*`, `/ingest/internal/maintenance`,
+  # `/api/oauth/internal/prune` and `/api/assignments/internal/reap` routes
+  # some other way.
   #
   # The job sends no credential. Those routes are guarded by a Google OIDC
   # check that a Kubernetes CronJob cannot satisfy, and that check is inert
@@ -963,11 +1017,15 @@ limits:
   # bytes of request line, so 200 is about 8.2 KB, half the smallest limit in
   # the path.
   dbIdsPerRequest: 200
+  # -- Functions one workflow node may require its agent to call before it answers. Each can cost a forced model call per target, so the cap bounds that cost
+  requiredFunctionsPerNode: 3
   # -- Most inbox notifications one notification-node subtask may create. The rest collapse into a single summary, so a row-scoped node over a large sheet cannot flood the run user's inbox
   notificationNodeMaxPerSubtask: 50
   concurrency:
     maxConcurrentSubtasks: 50
     maxConcurrentAnnotations: 10
+    # -- Per-subtask concurrency of a function-shaped operator's tool-less calls on the unified loop (`unifiedLoop.operatorKinds` lists `function_shaped`); bounded process-wide by the annotation-target and agent-call gates
+    maxConcurrentToollessAnnotations: 50
     maxConcurrentJobs: 10
     # -- Concurrent workbench attachment parses one worker pod accepts. These are synchronous API-originated calls sharing the pod with queue deliveries, so the pool is small; excess requests shed as 503
     maxConcurrentSampleParses: 2
@@ -1049,6 +1107,8 @@ endpoints:
   executionPruneBatchSize: 5000
   # -- Prune statements issued in one pass before the job yields
   executionPruneMaxBatches: 100
+  # -- Most endpoints one endpoint-metrics scrape covers; past it the response is marked truncated
+  metricsMaxEndpointsPerScrape: 500
   # The MCP front every workflow endpoint publishes. The wait and result
   # limits below are quoted verbatim in the tool contract agents read, so
   # changing one changes a contract that is already in use.
@@ -1142,6 +1202,8 @@ ingest:
   # `dataIngestor.networkPolicy.enabled` is also set, the NetworkPolicy lets the
   # data-ingestor reach private ranges too.
   sqlAllowPrivateHosts: true
+  # -- Databricks workspace host suffixes SQL sources accept besides Databricks' own, for private deployments. Each starts with "." (e.g. ".databricks.corp.example"). Private workspace hosts must also be in `privateEgressAllowlist` unless `sqlAllowPrivateHosts` is on
+  sqlDatabricksExtraHostSuffixes: []
 
 analysis:
   dataframeOpTimeout: 60
@@ -1158,6 +1220,10 @@ agent:
   maxIterations: 10
   # -- Tool-call iterations an annotation operator's agent may take before it is cut off
   annotationToolMaxIterations: 25
+  # -- One annotation target's token budget on the unified loop, in the same cost-weighted unit as turnTokenBudget. Sized to bind only on a runaway; reaching it forces a final answer. Empty disables it
+  operatorTurnTokenBudget: 1000000
+  # -- Seconds one interactive model call keeps retrying a shed or transient failure before the turn reports the model service busy
+  callRetryBudgetSeconds: 120
   # -- Turn token budget in cost-weighted units (output + uncached input + cachedTokenWeight x cached input). Empty disables budget termination, leaving the iteration cap as the only backstop
   turnTokenBudget: 150000
   # -- Soft advisory threshold: at this fraction of the turn budget the Runner injects one non-forcing wrap-up message
@@ -1190,13 +1256,24 @@ notebook:
   auditTurnSnapshot: false
   # -- Wall-clock bound (seconds) on the one-shot notebook-compaction summarization call
   compactionTimeoutSeconds: 120
+  # -- Persist a turn's cells as the turn happens (tool calls, results, sandbox code) instead of diffing the finished turn afterwards; off restores the post-hoc write byte-for-byte
+  incrementalPersistence: true
+  # -- Give the notebook agent the run_workflow tool: a conversation can start workflow runs in the background under the user's own permissions and usage limit, and hears back on the message board
+  runWorkflowEnabled: false
+  # -- Give the notebook agent the workflow-authoring tools (propose, apply, try on a document), so a conversation can build a workflow and try it out; what it creates is a creator-private draft
+  workbenchToolsEnabled: false
 
-# -- Semantic search over document embeddings.
+# -- Semantic search over document embeddings, and how the agents' search
+# tool runs the queries of one call.
 search:
   # -- Minimum cosine similarity for a semantic-search hit. The right value
   # depends on the embedding model in use: raise it if results look loose,
   # lower it if a query that should obviously match returns nothing
   similarityThreshold: 0.7
+  # -- Queries of one document-search tool call that run at once. Each holds
+  # its own short database session for the length of its query, so this also
+  # caps the pooled connections one query list can draw.
+  maxConcurrentQueries: 4
 
 # -- Agentic memory: the ops kill switch, schema-proliferation caps, and the
 # per-run write budgets that bound a single agent's memory writes.
@@ -1229,6 +1306,24 @@ messageBoard:
   inboxMaxAgeDays: 30
   # -- message_write calls allowed in a single agent invocation
   writeBudget: 4
+
+# -- The agent context block: what a conversation with an agent opens
+# knowing about that agent's own recent work. Delivered onto the user's turn,
+# never into the system prompt, so none of this touches the cached prefix.
+agentContext:
+  # -- Open an agent conversation with that agent's own record. Off: the
+  # conversation still runs as the agent, it just starts without the summary.
+  blockEnabled: true
+  # -- Jobs named in the recent-runs section, newest first
+  blockRecentRuns: 5
+  # -- Earlier conversations between this user and this agent to name
+  blockPriorConversations: 5
+  # -- The agent's assignments to name, most recently active first
+  blockRecentAssignments: 5
+  # -- Characters kept from one conversation title
+  blockTitleMaxChars: 120
+  # -- Ceiling on the whole block; past it the rows collapse to counts
+  blockMaxChars: 4000
 
 # -- Agent skills: the ops kill switch, the size caps that bound catalog and
 # body token cost, and the per-run load budget.
@@ -1523,6 +1618,122 @@ agentTools:
     # -- Use a pre-existing secret (must provide key `AGENT_TOOL_CONNECTOR_CLIENTS`) instead of generating one. When set, `clients` is ignored.
     existingSecret: ""
 
+# -- The agent instance registry: one row per live agent loop, which is what
+# the activity view reads to say how many agents are running and what they are
+# doing.
+agentInstances:
+  # -- Write a registry row for every live agent loop. Set to false to write no
+  # rows; every loop still carries its instance id into audit rows, memory
+  # provenance and annotation metadata, so only the live view is lost.
+  registryEnabled: true
+  # -- How often a running loop refreshes its row. The reaper fails a row after
+  # three of these, so this is also how fast a crashed instance is told from a
+  # slow one.
+  heartbeatIntervalSeconds: 30
+  # -- Ceiling on one registry write; past it the write is dropped with a
+  # warning and the reaper closes the row
+  writeTimeoutSeconds: 5
+
+# -- The agent kill switch: the platform operator's deployment-wide switch and
+# the halt check's cache window. The per-tenant switch is an ACCOUNT row in the
+# halt list, set from the product, not a value here.
+agentHalts:
+  # -- Allow agents to run at all in this deployment. Set to false to stop
+  # every agent loop at its next check and refuse new turns; every check ORs
+  # this with the tenant's own halts.
+  executionEnabled: true
+  # -- How long a loop may reuse the answer to "am I halted?". A drained batch
+  # of parallel tool calls then costs one lookup; also the worst-case delay
+  # before a halt lands.
+  checkTtlSeconds: 5
+  # -- Cap on how many people one halt notifies, so an account-wide halt in a
+  # large workspace cannot write a notification row per member inside the
+  # administrator's request.
+  notifyMaxRecipients: 500
+
+# -- Agent assignments: an agent given a piece of work, run one turn at a time
+# in the worker under a renewable lease.
+assignments:
+  # -- How long a delivery's lease lasts without renewal. A running turn
+  # renews it every iteration, so this is how long a delivery that died
+  # mid-turn keeps the next one from reclaiming and resuming its turn.
+  leaseTtlSeconds: 180
+  # -- Allow agent assignments to be created. Off, the assignment routes
+  # answer 404; assignments already queued still run, since a halt is what
+  # stops those.
+  enabled: true
+  # -- How many of a project's assignments may be queued, running or waiting
+  # at once. A new assignment over the cap is refused.
+  maxActivePerProject: 50
+  # -- Days an assignment waits when it names no deadline.
+  waitDefaultDays: 7
+  # -- The longest deadline a wait may name, in days. Cloud Tasks cannot
+  # schedule a delivery further out than 30 days.
+  waitMaxDays: 30
+  # -- Estimated tokens an assignment's rebuilt history may reach before the
+  # worker compacts it at the start of a turn.
+  compactionHighWaterTokens: 140000
+  # -- What one assignment may spend, in cost-weighted tokens (output +
+  # uncached input + a fraction of cached input). Fixed when it is given;
+  # spending it fails the assignment. Overridable per account.
+  tokenBudget: 1500000
+  # -- How many turns one assignment may take. Overridable per account.
+  maxTurns: 50
+  # -- Days an assignment may run for when given no deadline, and the latest
+  # deadline it may be given. Overridable per account.
+  maxAgeDays: 30
+  # -- Days a finished assignment's transcript is kept before the retention
+  # reaper deletes it, unless an annotation still names the assignment.
+  # Overridable per account.
+  retentionDays: 365
+  # -- Turns that may fail in a row before an assignment pauses and the
+  # person it runs as is notified; a failed turn short of it is retried.
+  maxConsecutiveFailures: 3
+  # -- Children one assignment may dispatch in its life. A child that names no
+  # budget takes the parent's remaining budget divided by the children it may
+  # still dispatch.
+  maxChildren: 10
+  # -- Rows each of the tick's assignment scans (due waits, lapsed leases)
+  # takes per pass.
+  tickBatchSize: 50
+  # -- Hours before an agent's question reaches its deadline that the person
+  # it was asked of is reminded, once, if it is still unanswered.
+  questionReminderHours: 24
+  # -- Minutes a queued assignment may wait for its delivery before the tick
+  # takes its publish to have failed and publishes its turn again.
+  strandedAfterMinutes: 15
+  # -- Finished assignments the retention reaper takes per page.
+  reapBatchSize: 25
+  # -- Pages the retention reaper takes per run; a backlog drains over runs.
+  reapMaxBatches: 8
+  # -- Days an assignment the reaper found still named by an annotation waits
+  # before the reaper looks at it again.
+  reapRecheckDays: 7
+  # -- Maximum concurrent assignment turns per worker instance. Each holds its
+  # delivery for up to turnTimeBudgetSeconds, so the pool is small.
+  maxConcurrentTurns: 2
+  # -- Wall clock for one delivery of a turn. Must stay well inside the 1800 s
+  # Cloud Tasks dispatch deadline: a delivery that reaches it hands the turn
+  # to the next one.
+  turnTimeBudgetSeconds: 1500
+  # -- How long a turn-boundary compaction's summary call may take, in
+  # seconds. It runs before the turn's clock starts; together with
+  # turnTimeBudgetSeconds it must stay inside the 1800 s dispatch deadline.
+  compactionTimeoutSeconds: 120
+  # -- Maximum loop iterations one turn may take across all its deliveries.
+  turnMaxIterations: 40
+  # -- Seconds a failed turn waits before it is retried from its checkpoint.
+  retryDelaySeconds: 60
+
+# -- Operator kinds whose calls run on the unified loop (RunnerModel over
+# /agent) instead of the annotate path, comma-separated. Accepted values:
+# tool_carrying (operators with tools of their own), function_shaped (operators
+# without), decorated (a node's judge, critic and decorator-bound runs). Empty
+# runs every operator on the annotate path, which is the rollback
+# (docs/operations/unified-loop.md).
+unifiedLoop:
+  operatorKinds: "tool_carrying"
+
 # -- Node decorators (JUDGE/CHECK/CRITIC/TOKEN_BUDGET): the global kill switch
 # and the bounds that keep a decorated node's per-item cost bounded.
 decorators:
@@ -1553,6 +1764,27 @@ tabular:
   promptMaxSources: 10
   # -- Rows returned per page when an agent reads a tabular document
   readRowsPerPage: 50
+  # -- Columns a single Row- or Sheet-scoped operator may choose to be shown,
+  # checked when the operator is saved
+  operatorInputColumnsMax: 500
+
+# -- Workflow change requests: a workflow's change-request node records the
+# documents it fires on, and a reviewer approves a proposed change.
+changeRequests:
+  # -- Longest instructions a change-request trigger may carry, in characters, checked when the operator is saved
+  promptMaxChars: 8000
+  # -- Longest rendered signal stored per recorded document; longer values are cut and flagged as truncated
+  signalMaxChars: 500
+  # -- Most runs one change-request backfill call creates
+  backfillMaxRuns: 500
+  # -- Hours after a rejection during which a new request for the same trigger opens without notifying anyone
+  renotifyCooldownHours: 24
+  # -- Distinct signals listed in the proposal-generation prompt
+  promptMaxSignals: 20
+  # -- Example documents the proposal-generation prompt offers the design agent
+  promptExampleDocuments: 3
+  # -- Seconds after which an in-flight proposal generation is considered abandoned
+  generationTimeoutSeconds: 300
 
 # -- BYOAI fallback chains: how far a chain may reach and how long the
 # model-service will spend working through one.
