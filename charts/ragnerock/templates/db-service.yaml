@@ -105,6 +105,9 @@ spec:
             - name: DEFAULT_DATA_DB_CONFIG
               value: '{"type":"postgresql","connection_string":"postgresql://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)"}'
             {{- include "ragnerock.otelEnv" (dict "context" . "service" "db-service") | nindent 12 }}
+{{- with .Values.dbService.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+{{- end }}
 {{- with .Values.dbService.volumeMounts }}
           volumeMounts:
             {{- toYaml . | nindent 12 }}

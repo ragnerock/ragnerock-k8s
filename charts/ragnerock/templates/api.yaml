@@ -138,6 +138,11 @@ spec:
             # and subtask-worker act on it, so a mistyped name stops only them.
             - name: AGENT_TOOL_CONNECTORS_DISABLED
               value: {{ .Values.agentTools.connectorsDisabled | quote }}
+            - name: AGENT_TOOL_CONNECTORS_ENABLED
+              value: {{ .Values.agentTools.connectorsEnabled | quote }}
+{{- with .Values.api.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+{{- end }}
 {{- with .Values.api.volumeMounts }}
           volumeMounts:
             {{- toYaml . | nindent 12 }}

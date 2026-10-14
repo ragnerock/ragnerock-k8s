@@ -85,6 +85,9 @@ spec:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "auth" "existingSecret" .Values.auth.existingSecret) }}
           env:
             {{- include "ragnerock.otelEnv" (dict "context" . "service" "data-ingestor") | nindent 12 }}
+{{- with .Values.dataIngestor.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+{{- end }}
 {{- with .Values.dataIngestor.volumeMounts }}
           volumeMounts:
             {{- toYaml . | nindent 12 }}

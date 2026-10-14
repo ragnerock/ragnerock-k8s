@@ -71,6 +71,9 @@ spec:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "encryption" "existingSecret" .Values.encryption.existingSecret) }}
           env:
             {{- include "ragnerock.otelEnv" (dict "context" . "service" "analysis-toolkit") | nindent 12 }}
+{{- with .Values.analysisToolkit.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+{{- end }}
 {{- with .Values.analysisToolkit.volumeMounts }}
           volumeMounts:
             {{- toYaml . | nindent 12 }}

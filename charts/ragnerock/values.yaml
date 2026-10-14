@@ -263,6 +263,11 @@ rateLimits:
   # -- Per-user limit on workbench attachment parses. Each request can hold a synchronous worker OCR call for minutes, so the ceiling is deliberately low
   operatorParseSamplePerMinute: 10
   backfillRunPerMinute: 30
+  # -- Per-driver-token limit on the execution API's version, dispatch-list,
+  # and claim calls; one token serves every run in the account
+  orchestratorDriverPerMinute: 600
+  # -- Per-dispatch limit on the execution API's calls about one run
+  orchestratorDispatchPerMinute: 120
   # -- Per-user limit on opening the live-log tail
   liveLogStreamPerMinute: 10
   # -- Per-user limit on the browser log relay endpoint
@@ -482,6 +487,10 @@ api:
     name: ""
     # -- Annotations to add to the created service account (e.g. for workload identity)
     annotations: {}
+  # -- Extra container environment variables (list of Kubernetes EnvVar specs, so
+  # `valueFrom` works). Rendered after the chart's own, so an entry here overrides
+  # a variable of the same name the chart sets
+  extraEnv: []
   # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
   volumes: []
   # -- Container volume mounts (list of Kubernetes volumeMount specs)
@@ -527,6 +536,10 @@ callbackDelivery:
     name: ""
     # -- Annotations to add to the created service account (e.g. for workload identity)
     annotations: {}
+  # -- Extra container environment variables (list of Kubernetes EnvVar specs, so
+  # `valueFrom` works). Rendered after the chart's own, so an entry here overrides
+  # a variable of the same name the chart sets
+  extraEnv: []
   # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
   volumes: []
   # -- Container volume mounts (list of Kubernetes volumeMount specs)
@@ -574,6 +587,10 @@ worker:
     name: ""
     # -- Annotations to add to the created service account (e.g. for workload identity)
     annotations: {}
+  # -- Extra container environment variables (list of Kubernetes EnvVar specs, so
+  # `valueFrom` works). Rendered after the chart's own, so an entry here overrides
+  # a variable of the same name the chart sets
+  extraEnv: []
   # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
   volumes: []
   # -- Container volume mounts (list of Kubernetes volumeMount specs)
@@ -642,6 +659,10 @@ subtaskWorker:
     name: ""
     # -- Annotations to add to the created service account (e.g. for workload identity)
     annotations: {}
+  # -- Extra container environment variables (list of Kubernetes EnvVar specs, so
+  # `valueFrom` works). Rendered after the chart's own, so an entry here overrides
+  # a variable of the same name the chart sets
+  extraEnv: []
   # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
   volumes: []
   # -- Container volume mounts (list of Kubernetes volumeMount specs)
@@ -681,6 +702,10 @@ modelService:
     name: ""
     # -- Annotations to add to the created service account (e.g. for workload identity)
     annotations: {}
+  # -- Extra container environment variables (list of Kubernetes EnvVar specs, so
+  # `valueFrom` works). Rendered after the chart's own, so an entry here overrides
+  # a variable of the same name the chart sets
+  extraEnv: []
   # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
   volumes: []
   # -- Container volume mounts (list of Kubernetes volumeMount specs)
@@ -721,6 +746,10 @@ frontend:
     name: ""
     # -- Annotations to add to the created service account (e.g. for workload identity)
     annotations: {}
+  # -- Extra container environment variables (list of Kubernetes EnvVar specs, so
+  # `valueFrom` works). Rendered after the chart's own, so an entry here overrides
+  # a variable of the same name the chart sets
+  extraEnv: []
   # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
   volumes: []
   # -- Container volume mounts (list of Kubernetes volumeMount specs)
@@ -761,6 +790,10 @@ analysisToolkit:
     name: ""
     # -- Annotations to add to the created service account (e.g. for workload identity)
     annotations: {}
+  # -- Extra container environment variables (list of Kubernetes EnvVar specs, so
+  # `valueFrom` works). Rendered after the chart's own, so an entry here overrides
+  # a variable of the same name the chart sets
+  extraEnv: []
   # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
   volumes: []
   # -- Container volume mounts (list of Kubernetes volumeMount specs)
@@ -807,8 +840,6 @@ dbService:
   rateLimitMaxTokens: 100
   # -- Per-customer-DB rate limit: token refill rate (tokens per second)
   rateLimitRefillRate: 20.0
-  # -- Consecutive connection failures before a config is flagged for deactivation
-  connectionFailureThreshold: 5
   # -- Connection pool size for a customer database that does not specify one
   defaultDBPoolSize: 20
   # -- Overflow above the pool size for a customer database that does not specify one
@@ -870,6 +901,10 @@ dbService:
     name: ""
     # -- Annotations to add to the created service account (e.g. for workload identity)
     annotations: {}
+  # -- Extra container environment variables (list of Kubernetes EnvVar specs, so
+  # `valueFrom` works). Rendered after the chart's own, so an entry here overrides
+  # a variable of the same name the chart sets
+  extraEnv: []
   # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
   volumes: []
   # -- Container volume mounts (list of Kubernetes volumeMount specs)
@@ -909,6 +944,10 @@ dataIngestor:
     name: ""
     # -- Annotations to add to the created service account (e.g. for workload identity)
     annotations: {}
+  # -- Extra container environment variables (list of Kubernetes EnvVar specs, so
+  # `valueFrom` works). Rendered after the chart's own, so an entry here overrides
+  # a variable of the same name the chart sets
+  extraEnv: []
   # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs).
   # Ingest runs write their artifacts to the default blob storage (`/app/data`)
   # and the worker reads them back, so mount the same shared volume you give `api` and `worker`.
@@ -958,14 +997,14 @@ migrations:
 
 # Periodic maintenance, fired in-cluster. On GCP these routes are driven by
 # Cloud Scheduler; a self-hosted install has no equivalent, so without this
-# compat execution history, uncollected ephemeral results and finished agent
-# assignments' transcripts are never cleaned up, and ingest runs whose
-# execution was lost are never failed.
+# compat execution history, uncollected ephemeral results, finished agent
+# assignments' transcripts and orphaned rows in BYODB customer databases are
+# never cleaned up, and ingest runs whose execution was lost are never failed.
 maintenance:
   # -- Run the maintenance CronJob. Disable only if you fire the internal
-  # `/api/endpoints/internal/*`, `/ingest/internal/maintenance`,
-  # `/api/oauth/internal/prune` and `/api/assignments/internal/reap` routes
-  # some other way.
+  # `/api/endpoints/internal/*`, `/api/maintenance/internal/*`,
+  # `/ingest/internal/maintenance`, `/api/oauth/internal/prune` and
+  # `/api/assignments/internal/reap` routes some other way.
   #
   # The job sends no credential. Those routes are guarded by a Google OIDC
   # check that a Kubernetes CronJob cannot satisfy, and that check is inert
@@ -989,6 +1028,18 @@ maintenance:
   # -- Retries within one firing. The routes are idempotent and daily, so a
   # transient failure is better left to tomorrow's run than retried hard.
   backoffLimit: 1
+  # The BYODB orphan cleanup the job fires. These are read by the API, which
+  # serves the route.
+  orphanCleanup:
+    # -- Hours an orphan must have existed before it is swept. Chunks of a
+    # document deleted more recently, and newer revisions, are left alone.
+    gracePeriodHours: 24
+    # -- Rows per DELETE statement (1-1000). One run still clears an account's
+    # whole backlog.
+    batchSize: 1000
+    # -- Count orphans and delete nothing. Useful on a first rollout to see the
+    # backlog before anything is removed.
+    dryRun: false
   # -- Skip a firing that could not start within this many seconds rather
   # than piling up missed runs after a cluster outage.
   startingDeadlineSeconds: 600
@@ -1089,6 +1140,10 @@ licenseCheck:
   timeoutSeconds: 10
   # -- Seconds allowed for graceful shutdown after a lapsed license before the process is killed
   shutdownGraceSeconds: 30
+  # -- How long the startup check retries an unreachable license server before the service exits
+  startupRetrySeconds: 45
+  # -- Seconds between startup check attempts while the license server is unreachable
+  startupRetryDelaySeconds: 5
 
 endpoints:
   HMACMasterKey: ""
@@ -1339,6 +1394,34 @@ skills:
   # -- load_skill calls allowed in a single run
   loadMaxCalls: 10
 
+# -- The orchestrator that paces workflow runs.
+orchestrator:
+  # -- The orchestrator backend: `builtin`, Ragnerock's own queue-driven
+  # orchestrator, or `external`, an orchestrator the install already runs,
+  # which drives runs through the execution API with an adapter package.
+  backend: builtin
+  # -- Run triggers that stay on the built-in orchestrator when the backend
+  # is external: endpoint calls wait on a request deadline, and upload
+  # auto-runs and ingest-triggered runs arrive one per document, in bursts.
+  builtinTriggers:
+    - endpoint
+    - auto_run
+    - resource_check
+  # -- Seconds an external orchestrator may go without calling before its
+  # dispatch can be claimed again.
+  driverTakeoverSeconds: 600
+  # -- Seconds an externally driven job may wait at a gate with no call from
+  # its orchestrator before it is failed. Must exceed the orchestrator's worst
+  # queue wait before a run launches.
+  dispatchTimeoutSeconds: 21600
+  # -- Execution-API calls one API instance holds open waiting before
+  # answering 503 with Retry-After. Shares `api.maxConcurrentStreams` with
+  # `endpoints.mcp.maxWaiters` and two slots per browser tab.
+  maxWaiters: 8
+  # -- The longest, in seconds, an execution-API call is held open waiting;
+  # under common ingress idle timeouts.
+  maxWaitSeconds: 25
+
 # -- Scheduled runs: the ops kill switch, who drives the tick, and the
 # save-time, window, failure, and lease bounds.
 schedules:
@@ -1376,6 +1459,24 @@ schedules:
   # -- Failed fires, failed runs, and overlap skips in a row before a schedule
   # pauses itself and tells its owner.
   maxConsecutiveFailures: 5
+
+# -- Connected-store health: when a customer's own database (BYODB) or blob
+# storage (BYOBS) is marked unhealthy in Settings and its admins are told.
+# Health is only shown: an unreachable customer store fails closed and is
+# never deactivated or replaced.
+connectionHealth:
+  # -- BYODB: failed connections in a row (health checks and db-service calls)
+  # before the database is marked unhealthy.
+  byodbUnhealthyAfterFailures: 5
+  # -- BYODB: how long the failure streak must have lasted, from its first
+  # failure, in seconds.
+  byodbUnhealthyMinOutageSeconds: 300
+  # -- BYOBS: failed connections in a row (health checks and blob calls)
+  # before the storage is marked unhealthy.
+  byobsUnhealthyAfterFailures: 5
+  # -- BYOBS: how long the failure streak must have lasted, from its first
+  # failure, in seconds.
+  byobsUnhealthyMinOutageSeconds: 300
 
 # -- Pull inputs: the bounds on what a workflow may fetch for itself on each
 # run, and the workers' budget for fetching it.
@@ -1607,6 +1708,12 @@ agentTools:
   # and start, and not built for existing tools. An unknown name stops the API
   # and workers at startup. Set on the API, worker, and subtask-worker only
   connectorsDisabled: ""
+  # -- Built-in MCP connectors that ship turned off and this deployment turns
+  # on, comma-separated (for example "gong"). Naming a connector that is
+  # already on does nothing, and connectorsDisabled wins over this list. An
+  # unknown name stops the API and workers at startup. Set on the API,
+  # worker, and subtask-worker only
+  connectorsEnabled: ""
   connectors:
     # -- The OAuth apps this deployment registered for the built-in connectors
     # that have no dynamic registration (GitHub, Asana, Slack), as JSON keyed
@@ -1800,6 +1907,12 @@ fallback:
   # -- Attempts against each provider in a chain before moving to the next
   perProviderAttempts: 2
 
+# -- Workflow node error handling.
+workflowNodes:
+  # -- Upper bound on a node's max_retries (on_error RETRY); larger requests
+  # are refused.
+  maxRetries: 5
+
 # -- Workflow resources bound into operator runs and rendered into prompts.
 workflowResources:
   # -- Ceiling on a value resource's serialized inline value, in bytes
@@ -1924,6 +2037,9 @@ workers:
     notStartedAfterSeconds: 900
     # -- Seconds a job may sit in progress before the sweep re-enqueues it
     inProgressAfterSeconds: 2700
+    # -- Seconds after it started a job may sit at a terminal phase with its
+    # status still in progress before the sweep writes its outcome
+    terminalWriteAfterSeconds: 300
   # -- Periodic sweep of notebook sandbox session state: idle purge plus
   # collection of state objects no session references any more.
   codeSession:
@@ -1953,6 +2069,8 @@ audit:
   queueMaxBytes: 134217728 # 128 * 1024 * 1024
   queueMaxEvents: 10000
   resnapshotTurns: 10
+  # -- Most audit events one job or document trace loads before it is marked truncated
+  traceMaxEvents: 2000
   # -- Rollout flag: ship stripped audit image bytes to audit-service for content-addressed blob storage
   imageStoreEnabled: false
   # -- Largest single stripped audit image (bytes) the emitter ships to the image sink
@@ -2114,6 +2232,10 @@ auditService:
     name: ""
     # -- Annotations to add to the created service account (e.g. for workload identity)
     annotations: {}
+  # -- Extra container environment variables (list of Kubernetes EnvVar specs, so
+  # `valueFrom` works). Rendered after the chart's own, so an entry here overrides
+  # a variable of the same name the chart sets
+  extraEnv: []
   # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
   volumes: []
   # -- Container volume mounts (list of Kubernetes volumeMount specs)
@@ -2212,6 +2334,10 @@ pythonService:
     name: ""
     # -- Annotations to add to the created service account (e.g. for workload identity)
     annotations: {}
+  # -- Extra container environment variables (list of Kubernetes EnvVar specs, so
+  # `valueFrom` works). Rendered after the chart's own, so an entry here overrides
+  # a variable of the same name the chart sets
+  extraEnv: []
   # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
   volumes: []
   # -- Container volume mounts (list of Kubernetes volumeMount specs)

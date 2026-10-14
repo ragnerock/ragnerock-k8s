@@ -5,9 +5,10 @@
   Every route it fires is an internal, scheduler-guarded endpoint that on GCP
   is driven by Cloud Scheduler. A self-hosted install has no Cloud Scheduler,
   so without this none of them run: compat execution history grows without
-  bound, an ephemeral endpoint's uncollected results are retained forever, and
-  an ingest run whose execution was lost is never failed and keeps its source
-  from running again.
+  bound, an ephemeral endpoint's uncollected results are retained forever,
+  orphaned rows in BYODB customer databases are never swept, and an ingest run
+  whose execution was lost is never failed and keeps its source from running
+  again.
   
   The guard (`require_scheduler_caller`) verifies a Google OIDC token minted by
   a specific service account, which is a GCP mechanism a Kubernetes CronJob has
@@ -94,6 +95,7 @@ spec:
                   routes = [
                       "/api/endpoints/internal/prune-executions",
                       "/api/endpoints/internal/reap-ephemeral",
+                      "/api/maintenance/internal/byodb-orphan-cleanup",
                       "/ingest/internal/maintenance",
                       "/api/oauth/internal/prune",
                       "/api/assignments/internal/reap",

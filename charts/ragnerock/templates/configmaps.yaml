@@ -121,6 +121,16 @@ data:
   ANNOTATION_TOOL_CALL_RECORD_RESULT_MAX_CHARS: "{{ include "ragnerock.number" .Values.agentTools.annotationToolCallRecordResultMaxChars }}"
   AGENT_TOOL_EXECUTION_LOG_ENABLED: "{{ .Values.agentTools.executionLogEnabled }}"
   AGENT_TOOL_EXECUTION_LOG_WRITE_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.agentTools.executionLogWriteTimeoutSeconds }}"
+  # The orchestrator that paces workflow runs. Every core-running service
+  # carries it for settings parity; a value that names no backend would fail
+  # every service at boot, so the chart refuses it here.
+{{- if not (has .Values.orchestrator.backend (list "builtin" "external")) }}
+  {{- fail "orchestrator.backend must be builtin or external" }}
+{{- end }}
+  ORCHESTRATOR_BACKEND: "{{ .Values.orchestrator.backend }}"
+  ORCHESTRATOR_BUILTIN_TRIGGERS: {{ .Values.orchestrator.builtinTriggers | toJson | quote }}
+  ORCHESTRATOR_DRIVER_TAKEOVER_SECONDS: "{{ include "ragnerock.number" .Values.orchestrator.driverTakeoverSeconds }}"
+  ORCHESTRATOR_DISPATCH_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.orchestrator.dispatchTimeoutSeconds }}"
   # The agent instance registry (unified-agent-model §6.6): one row per live
   # agent loop, so the activity view can say what is running right now.
   AGENT_INSTANCE_REGISTRY_ENABLED: "{{ .Values.agentInstances.registryEnabled }}"
@@ -166,6 +176,11 @@ data:
   SCHEDULE_MAX_WINDOW_INTERVALS: "{{ include "ragnerock.number" .Values.schedules.maxWindowIntervals }}"
   SCHEDULE_MAX_LOOKBACK_SECONDS: "{{ include "ragnerock.number" .Values.schedules.maxLookbackSeconds }}"
   SCHEDULE_MAX_CONSECUTIVE_FAILURES: "{{ include "ragnerock.number" .Values.schedules.maxConsecutiveFailures }}"
+  BYODB_UNHEALTHY_AFTER_FAILURES: "{{ include "ragnerock.number" .Values.connectionHealth.byodbUnhealthyAfterFailures }}"
+  WORKFLOW_NODE_MAX_RETRIES: "{{ include "ragnerock.number" .Values.workflowNodes.maxRetries }}"
+  BYODB_UNHEALTHY_MIN_OUTAGE_SECONDS: "{{ include "ragnerock.number" .Values.connectionHealth.byodbUnhealthyMinOutageSeconds }}"
+  BYOBS_UNHEALTHY_AFTER_FAILURES: "{{ include "ragnerock.number" .Values.connectionHealth.byobsUnhealthyAfterFailures }}"
+  BYOBS_UNHEALTHY_MIN_OUTAGE_SECONDS: "{{ include "ragnerock.number" .Values.connectionHealth.byobsUnhealthyMinOutageSeconds }}"
   SCHEDULE_CLAIM_TTL_SECONDS: "{{ include "ragnerock.number" .Values.schedules.claimTtlSeconds }}"
   PULL_MAX_RESOURCES_PER_WORKFLOW: "{{ include "ragnerock.number" .Values.pull.maxResourcesPerWorkflow }}"
   PULL_MAX_FETCH_RETRIES: "{{ include "ragnerock.number" .Values.pull.maxFetchRetries }}"
@@ -263,6 +278,8 @@ data:
   LICENSE_CHECK_GRACE_SECONDS: "{{ include "ragnerock.number" .Values.licenseCheck.graceSeconds }}"
   LICENSE_CHECK_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.licenseCheck.timeoutSeconds }}"
   LICENSE_CHECK_SHUTDOWN_GRACE_SECONDS: "{{ include "ragnerock.number" .Values.licenseCheck.shutdownGraceSeconds }}"
+  LICENSE_CHECK_STARTUP_RETRY_SECONDS: "{{ include "ragnerock.number" .Values.licenseCheck.startupRetrySeconds }}"
+  LICENSE_CHECK_STARTUP_RETRY_DELAY_SECONDS: "{{ include "ragnerock.number" .Values.licenseCheck.startupRetryDelaySeconds }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -375,6 +392,10 @@ data:
   ENDPOINTS_MCP_KEEPALIVE_SECONDS: "{{ include "ragnerock.number" .Values.endpoints.mcp.keepaliveSeconds }}"
   ENDPOINTS_MCP_MAX_BODY_BYTES: "{{ include "ragnerock.number" .Values.endpoints.mcp.maxBodyBytes }}"
   ENDPOINTS_MCP_MAX_WAITERS: "{{ include "ragnerock.number" .Values.endpoints.mcp.maxWaiters }}"
+  # Execution-API long-polls (plugin-orchestrator §6.3), in the same stream
+  # slot class as the endpoint MCP waiters.
+  ORCHESTRATOR_MAX_WAITERS: "{{ include "ragnerock.number" .Values.orchestrator.maxWaiters }}"
+  ORCHESTRATOR_MAX_WAIT_SECONDS: "{{ include "ragnerock.number" .Values.orchestrator.maxWaitSeconds }}"
   # OAuth for endpoint MCP, where Ragnerock is the authorization SERVER. The
   # issuer is PUBLIC_API_URL above, so /.well-known/* on the API host must
   # reach the API for any of this to work; the chart ships no ingress, so
@@ -431,6 +452,11 @@ data:
   ASSIGNMENT_REAP_BATCH_SIZE: "{{ include "ragnerock.number" .Values.assignments.reapBatchSize }}"
   ASSIGNMENT_REAP_MAX_BATCHES: "{{ include "ragnerock.number" .Values.assignments.reapMaxBatches }}"
   ASSIGNMENT_REAP_RECHECK_DAYS: "{{ include "ragnerock.number" .Values.assignments.reapRecheckDays }}"
+  # Read by `/api/maintenance/internal/byodb-orphan-cleanup`, which the
+  # maintenance CronJob fires.
+  ORPHAN_CLEANUP_GRACE_PERIOD_HOURS: "{{ include "ragnerock.number" .Values.maintenance.orphanCleanup.gracePeriodHours }}"
+  ORPHAN_CLEANUP_BATCH_SIZE: "{{ include "ragnerock.number" .Values.maintenance.orphanCleanup.batchSize }}"
+  ORPHAN_CLEANUP_DRY_RUN: {{ .Values.maintenance.orphanCleanup.dryRun | quote }}
   SCHEDULE_TICK_TIME_BUDGET_SECONDS: "{{ include "ragnerock.number" .Values.schedules.tickTimeBudgetSeconds }}"
 ---
 apiVersion: v1
@@ -486,6 +512,8 @@ data:
   RATE_LIMIT_OPERATOR_TEST_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.operatorTestPerMinute }}"
   RATE_LIMIT_OPERATOR_PARSE_SAMPLE_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.operatorParseSamplePerMinute }}"
   RATE_LIMIT_BACKFILL_RUN_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.backfillRunPerMinute }}"
+  RATE_LIMIT_ORCHESTRATOR_DRIVER_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.orchestratorDriverPerMinute }}"
+  RATE_LIMIT_ORCHESTRATOR_DISPATCH_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.orchestratorDispatchPerMinute }}"
   RATE_LIMIT_LIVE_LOG_STREAM_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.liveLogStreamPerMinute }}"
   RATE_LIMIT_LIVE_LOG_CLIENT_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.liveLogClientPerMinute }}"
 ---
@@ -545,7 +573,6 @@ data:
   BATCH_LIMIT: "{{ include "ragnerock.number" .Values.dbService.batchLimit }}"
   RATE_LIMIT_MAX_TOKENS: "{{ include "ragnerock.number" .Values.dbService.rateLimitMaxTokens }}"
   RATE_LIMIT_REFILL_RATE: "{{ include "ragnerock.number" .Values.dbService.rateLimitRefillRate }}"
-  CONNECTION_FAILURE_THRESHOLD: "{{ include "ragnerock.number" .Values.dbService.connectionFailureThreshold }}"
   DEFAULT_DB_POOL_SIZE: "{{ include "ragnerock.number" .Values.dbService.defaultDBPoolSize }}"
   DEFAULT_DB_MAX_OVERFLOW: "{{ include "ragnerock.number" .Values.dbService.defaultDBMaxOverflow }}"
   REQUEST_THREADPOOL_SIZE: "{{ include "ragnerock.number" .Values.dbService.requestThreadpoolSize }}"
@@ -723,9 +750,10 @@ data:
   AUDIT_IMAGE_MAX_BYTES: "{{ include "ragnerock.number" .Values.audit.imageMaxBytes }}"
   AUDIT_IMAGE_QUEUE_MAX_BYTES: "{{ include "ragnerock.number" .Values.audit.imageQueueMaxBytes }}"
 ---
-# Audit knobs read only in the API process: the event-list cap belongs to the
-# audit read side (api.routers.audit / core.audit.query) and the re-snapshot
-# cadence to the agent Runner, which only the API constructs.
+# Audit knobs read only in the API process: the event-list and trace caps
+# belong to the audit read side (api.routers.audit / core.audit.query and
+# core.audit.trace) and the re-snapshot cadence to the agent Runner, which only
+# the API constructs.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -735,6 +763,7 @@ metadata:
 data:
   AUDIT_LIST_LIMIT_CAP: "{{ include "ragnerock.number" .Values.audit.listLimitCap }}"
   AUDIT_RESNAPSHOT_TURNS: "{{ include "ragnerock.number" .Values.audit.resnapshotTurns }}"
+  AUDIT_TRACE_MAX_EVENTS: "{{ include "ragnerock.number" .Values.audit.traceMaxEvents }}"
 ---
 # The live-log shipper every service runs (live-logs design §2.5). The gate and
 # the pacing are shared, so a deployment moves them together; the buffer bounds
@@ -995,6 +1024,7 @@ data:
   JOB_RECONCILE_BATCH_SIZE: "{{ include "ragnerock.number" .Values.workers.reconcile.batchSize }}"
   JOB_RECONCILE_NOT_STARTED_AFTER_SECONDS: "{{ include "ragnerock.number" .Values.workers.reconcile.notStartedAfterSeconds }}"
   JOB_RECONCILE_IN_PROGRESS_AFTER_SECONDS: "{{ include "ragnerock.number" .Values.workers.reconcile.inProgressAfterSeconds }}"
+  JOB_RECONCILE_TERMINAL_WRITE_AFTER_SECONDS: "{{ include "ragnerock.number" .Values.workers.reconcile.terminalWriteAfterSeconds }}"
   # Notebook sandbox session-state sweep: idle purge plus orphan state-object
   # collection. TTL and grace are core settings read by the worker.
   CODE_SESSION_SWEEP_ENABLED: "{{ .Values.workers.codeSession.sweepEnabled }}"

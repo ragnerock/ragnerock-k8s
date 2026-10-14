@@ -1,6 +1,6 @@
 # ragnerock
 
-![Version: 1.8.2](https://img.shields.io/badge/Version-1.8.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v2026.10.06](https://img.shields.io/badge/AppVersion-v2026.10.06-informational?style=flat-square)
+![Version: 1.8.4](https://img.shields.io/badge/Version-1.8.4-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v2026.10.13](https://img.shields.io/badge/AppVersion-v2026.10.13-informational?style=flat-square)
 
 Ragnerock research intelligence platform
 
@@ -37,7 +37,7 @@ Ragnerock research intelligence platform
 | agentInstances.heartbeatIntervalSeconds | int | `30` | How often a running loop refreshes its row. The reaper fails a row after three of these, so this is also how fast a crashed instance is told from a slow one. |
 | agentInstances.registryEnabled | bool | `true` | Write a registry row for every live agent loop. Set to false to write no rows; every loop still carries its instance id into audit rows, memory provenance and annotation metadata, so only the live view is lost. |
 | agentInstances.writeTimeoutSeconds | int | `5` | Ceiling on one registry write; past it the write is dropped with a warning and the reaper closes the row |
-| agentTools | object | `{"annotationQueueWaitSeconds":120,"annotationToolCallRecordResultMaxChars":40000,"auditResultMaxChars":8000,"buildTimeBudgetSeconds":600,"busyWaitSeconds":5,"callTimeoutMaxSeconds":120,"callTimeoutSeconds":30,"connectTimeoutSeconds":5,"connectors":{"clients":"","existingSecret":""},"connectorsDisabled":"","descriptionMaxChars":1024,"discoveryTimeoutSeconds":20,"enabled":true,"executionLogEnabled":true,"executionLogWriteTimeoutSeconds":5,"headerValueMaxChars":4096,"maxCallsPerInvocation":10,"maxConcurrentCalls":20,"maxFunctionsPerAgent":40,"maxHeaders":20,"maxPerOperator":10,"maxResultImages":4,"maxUserToolsPerProject":25,"mcpMaxFunctions":30,"oauthClientMetadataCacheSeconds":3600,"oauthEnabled":true,"oauthFlowTtlSeconds":600,"oauthMetadataMaxBytes":65536,"oauthRefreshLeaseSeconds":30,"oauthRefreshSkewSeconds":60,"oauthStartDeadlineSeconds":30,"oauthTokenRequestTimeoutSeconds":10,"paramDescriptionMaxChars":256,"privateEgressAllowlist":"","requestBodyMaxBytes":262144,"responseMaxBytes":262144,"restMaxRoutes":30,"resultMaxChars":32000,"rowTimeBudgetSeconds":360,"schemaMaxBytes":16384,"schemaMaxDepth":5}` | Agent tools: the ops kill switch plus the size, time, and concurrency bounds for the MCP servers and REST APIs a project points its agents at. |
+| agentTools | object | `{"annotationQueueWaitSeconds":120,"annotationToolCallRecordResultMaxChars":40000,"auditResultMaxChars":8000,"buildTimeBudgetSeconds":600,"busyWaitSeconds":5,"callTimeoutMaxSeconds":120,"callTimeoutSeconds":30,"connectTimeoutSeconds":5,"connectors":{"clients":"","existingSecret":""},"connectorsDisabled":"","connectorsEnabled":"","descriptionMaxChars":1024,"discoveryTimeoutSeconds":20,"enabled":true,"executionLogEnabled":true,"executionLogWriteTimeoutSeconds":5,"headerValueMaxChars":4096,"maxCallsPerInvocation":10,"maxConcurrentCalls":20,"maxFunctionsPerAgent":40,"maxHeaders":20,"maxPerOperator":10,"maxResultImages":4,"maxUserToolsPerProject":25,"mcpMaxFunctions":30,"oauthClientMetadataCacheSeconds":3600,"oauthEnabled":true,"oauthFlowTtlSeconds":600,"oauthMetadataMaxBytes":65536,"oauthRefreshLeaseSeconds":30,"oauthRefreshSkewSeconds":60,"oauthStartDeadlineSeconds":30,"oauthTokenRequestTimeoutSeconds":10,"paramDescriptionMaxChars":256,"privateEgressAllowlist":"","requestBodyMaxBytes":262144,"responseMaxBytes":262144,"restMaxRoutes":30,"resultMaxChars":32000,"rowTimeBudgetSeconds":360,"schemaMaxBytes":16384,"schemaMaxDepth":5}` | Agent tools: the ops kill switch plus the size, time, and concurrency bounds for the MCP servers and REST APIs a project points its agents at. |
 | agentTools.annotationQueueWaitSeconds | int | `120` | How long an annotation call waits for the same semaphores. A refused call there is a failed row, so it queues; a row that still starves past this is classified retryable and costs a redelivery |
 | agentTools.annotationToolCallRecordResultMaxChars | int | `40000` | Cap on a stored annotation tool-call result (provenance, not replay) |
 | agentTools.auditResultMaxChars | int | `8000` | Cap on the result text carried in an external-tool audit payload |
@@ -49,6 +49,7 @@ Ragnerock research intelligence platform
 | agentTools.connectors.clients | string | `""` | The OAuth apps this deployment registered for the built-in connectors that have no dynamic registration (GitHub, Asana, Slack), as JSON keyed by connector: {"github": {"client_id": "...", "client_secret": "...", "install_url": "https://github.com/apps/<slug>/installations/new"}}. Every tenant shares these apps, so only the API, worker, and subtask-worker load them. Empty leaves those connectors unconfigured |
 | agentTools.connectors.existingSecret | string | `""` | Use a pre-existing secret (must provide key `AGENT_TOOL_CONNECTOR_CLIENTS`) instead of generating one. When set, `clients` is ignored. |
 | agentTools.connectorsDisabled | string | `""` | Built-in MCP connectors turned off on this deployment, comma-separated (for example "linear,slack"): hidden from the catalog, refused on create and start, and not built for existing tools. An unknown name stops the API and workers at startup. Set on the API, worker, and subtask-worker only |
+| agentTools.connectorsEnabled | string | `""` | Built-in MCP connectors that ship turned off and this deployment turns on, comma-separated (for example "gong"). Naming a connector that is already on does nothing, and connectorsDisabled wins over this list. An unknown name stops the API and workers at startup. Set on the API, worker, and subtask-worker only |
 | agentTools.descriptionMaxChars | int | `1024` | Maximum function description length (it rides every prompt) |
 | agentTools.discoveryTimeoutSeconds | int | `20` | Timeout for an MCP tools/list call at save or refresh |
 | agentTools.enabled | bool | `true` | Serve user-defined agent tools. Set to false to build no MCP or REST tools anywhere and ignore the system-tool rows (a full revert to the built-in list). |
@@ -93,6 +94,7 @@ Ragnerock research intelligence platform
 | analysisToolkit.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
 | analysisToolkit.autoscaling.targetCPUUtilizationPercentage | int | `80` | Target average CPU utilization (% of requests). Set to null to disable. |
 | analysisToolkit.autoscaling.targetMemoryUtilizationPercentage | int | `80` | Target average memory utilization (% of requests). Set to null to disable. |
+| analysisToolkit.extraEnv | list | `[]` | Extra container environment variables (list of Kubernetes EnvVar specs, so `valueFrom` works). Rendered after the chart's own, so an entry here overrides a variable of the same name the chart sets |
 | analysisToolkit.image.name | string | `"analysis-toolkit"` |  |
 | analysisToolkit.image.tag | string | `""` | Overwrites global value if set |
 | analysisToolkit.replicaCount | int | `1` |  |
@@ -126,6 +128,7 @@ Ragnerock research intelligence platform
 | api.embeddingDocumentTestMaxItemsEntire | int | `5000` | Most chunks or rows an embedding document test covers when the whole document is tested |
 | api.embeddingDocumentTestPageSize | int | `500` | Chunks or rows read from the data store per request while loading a document for an embedding document test |
 | api.embeddingDocumentTestRetryAfterSeconds | int | `30` | Retry-After sent, in seconds, when an account is already running its share of embedding document tests |
+| api.extraEnv | list | `[]` | Extra container environment variables (list of Kubernetes EnvVar specs, so `valueFrom` works). Rendered after the chart's own, so an entry here overrides a variable of the same name the chart sets |
 | api.image.name | string | `"api"` |  |
 | api.image.tag | string | `""` |  |
 | api.manualJobMaxDocuments | int | `5000` | Most documents one manual-run request may fan out over, one job each. Jobs are created inside the request, so a larger run is refused rather than left to time out |
@@ -191,6 +194,7 @@ Ragnerock research intelligence platform
 | audit.queueMaxBytes | int | `134217728` |  |
 | audit.queueMaxEvents | int | `10000` |  |
 | audit.resnapshotTurns | int | `10` |  |
+| audit.traceMaxEvents | int | `2000` | Most audit events one job or document trace loads before it is marked truncated |
 | auditService.affinity | object | `{}` | Pod affinity rules (overrides `global.affinity`) |
 | auditService.annotations | object | `{}` | Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence) |
 | auditService.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
@@ -203,6 +207,7 @@ Ragnerock research intelligence platform
 | auditService.export.lagAlertMinutes | int | `120` | Oldest-incomplete-window age past which the scan logs a lag alert |
 | auditService.export.scanLookbackHours | int | `26` | Bounded catch-up horizon the export scan considers for missing windows |
 | auditService.export.watermarkMinutes | int | `15` | Ingest-lag settle time before an export window is declared complete |
+| auditService.extraEnv | list | `[]` | Extra container environment variables (list of Kubernetes EnvVar specs, so `valueFrom` works). Rendered after the chart's own, so an entry here overrides a variable of the same name the chart sets |
 | auditService.image.name | string | `"audit-service"` |  |
 | auditService.image.tag | string | `""` | Overwrites global value if set |
 | auditService.partitionPrecreateMonths | int | `3` | Months of partitions `/audit/maintain` keeps ahead of ingest on each daily run |
@@ -231,6 +236,7 @@ Ragnerock research intelligence platform
 | callbackDelivery.database.maxOverflow | int | `10` | Extra connections allowed beyond poolSize |
 | callbackDelivery.database.poolSize | int | `5` | Persistent DB connections held by the pool. SQLAlchemy's own default, named explicitly so the connection budget sums a visible number |
 | callbackDelivery.database.poolTimeout | int | `5` | Seconds a request waits for a connection before failing |
+| callbackDelivery.extraEnv | list | `[]` | Extra container environment variables (list of Kubernetes EnvVar specs, so `valueFrom` works). Rendered after the chart's own, so an entry here overrides a variable of the same name the chart sets |
 | callbackDelivery.image.name | string | `"api"` |  |
 | callbackDelivery.image.tag | string | `""` |  |
 | callbackDelivery.replicaCount | int | `1` |  |
@@ -255,11 +261,17 @@ Ragnerock research intelligence platform
 | cloudflare.apiToken | string | `""` |  |
 | cloudflare.existingSecret | string | `""` | Use a pre-existing secret (must provide keys `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`) instead of generating one. When set, `apiToken`/`accountId` are ignored. |
 | config | object | `{"environmentIdentifier":"ragnerock","logLevel":"INFO"}` | General app configuration |
+| connectionHealth | object | `{"byobsUnhealthyAfterFailures":5,"byobsUnhealthyMinOutageSeconds":300,"byodbUnhealthyAfterFailures":5,"byodbUnhealthyMinOutageSeconds":300}` | Connected-store health: when a customer's own database (BYODB) or blob storage (BYOBS) is marked unhealthy in Settings and its admins are told. Health is only shown: an unreachable customer store fails closed and is never deactivated or replaced. |
+| connectionHealth.byobsUnhealthyAfterFailures | int | `5` | BYOBS: failed connections in a row (health checks and blob calls) before the storage is marked unhealthy. |
+| connectionHealth.byobsUnhealthyMinOutageSeconds | int | `300` | BYOBS: how long the failure streak must have lasted, from its first failure, in seconds. |
+| connectionHealth.byodbUnhealthyAfterFailures | int | `5` | BYODB: failed connections in a row (health checks and db-service calls) before the database is marked unhealthy. |
+| connectionHealth.byodbUnhealthyMinOutageSeconds | int | `300` | BYODB: how long the failure streak must have lasted, from its first failure, in seconds. |
 | dataIngestor.affinity | object | `{}` | Pod affinity rules (overrides `global.affinity`) |
 | dataIngestor.annotations | object | `{}` | Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence) |
 | dataIngestor.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
 | dataIngestor.autoscaling.targetCPUUtilizationPercentage | int | `80` | Target average CPU utilization (% of requests). Set to null to disable. |
 | dataIngestor.autoscaling.targetMemoryUtilizationPercentage | int | `80` | Target average memory utilization (% of requests). Set to null to disable. |
+| dataIngestor.extraEnv | list | `[]` | Extra container environment variables (list of Kubernetes EnvVar specs, so `valueFrom` works). Rendered after the chart's own, so an entry here overrides a variable of the same name the chart sets |
 | dataIngestor.image.name | string | `"data-ingestor"` |  |
 | dataIngestor.image.tag | string | `""` |  |
 | dataIngestor.networkPolicy.allowedPrivateCidrs | list | `[]` | Private CIDRs the data-ingestor may still reach, such as a database on a private address. Pair each with an entry in `ingest.privateEgressAllowlist`, which the service checks before connecting |
@@ -296,7 +308,6 @@ Ragnerock research intelligence platform
 | dbService.batchLimit | int | `10000` |  |
 | dbService.capacityRetryAfterSeconds | int | `2` | Retry-After sent with a shed, POOL_EXHAUSTED, or CONNECTION_FAILED 503 |
 | dbService.capacityWaitSeconds | float | `2` | Seconds a request waits for a capacity slot before being shed |
-| dbService.connectionFailureThreshold | int | `5` | Consecutive connection failures before a config is flagged for deactivation |
 | dbService.databricksExtraHostSuffixes | list | `[]` | Databricks workspace host suffixes to accept besides Databricks' own, for private deployments. Each starts with "." (e.g. ".databricks.corp.example") |
 | dbService.databricksInsertPageSize | int | `200` | Rows per multi-row INSERT when SQLAlchemy pages an executemany batch on Databricks |
 | dbService.databricksRetryWindowSeconds | int | `50` | Total time the Databricks connector spends retrying one request (seconds); kept under the worker's 60 s write budget |
@@ -306,6 +317,7 @@ Ragnerock research intelligence platform
 | dbService.defaultDBPoolSize | int | `20` | Connection pool size for a customer database that does not specify one |
 | dbService.defaultDBStartupRetryInitialSeconds | float | `1` | Seconds before the first retry when the default data DB is unreachable or read-only at startup. The pod stays up and unready while it retries |
 | dbService.defaultDBStartupRetryMaxSeconds | float | `30` | Cap on the doubling delay between those startup retries (seconds) |
+| dbService.extraEnv | list | `[]` | Extra container environment variables (list of Kubernetes EnvVar specs, so `valueFrom` works). Rendered after the chart's own, so an entry here overrides a variable of the same name the chart sets |
 | dbService.image.name | string | `"db-service"` |  |
 | dbService.image.tag | string | `""` | Overwrites global value if set |
 | dbService.keywordSearchRegexTimeoutSeconds | int | `30` | Statement timeout (seconds) for a regex-mode keyword search on PostgreSQL; a regex cannot use the full-text index, so keep this well under the caller's read timeout |
@@ -389,6 +401,7 @@ Ragnerock research intelligence platform
 | frontend.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
 | frontend.autoscaling.targetCPUUtilizationPercentage | int | `80` | Target average CPU utilization (% of requests). Set to null to disable. |
 | frontend.autoscaling.targetMemoryUtilizationPercentage | int | `80` | Target average memory utilization (% of requests). Set to null to disable. |
+| frontend.extraEnv | list | `[]` | Extra container environment variables (list of Kubernetes EnvVar specs, so `valueFrom` works). Rendered after the chart's own, so an entry here overrides a variable of the same name the chart sets |
 | frontend.image.name | string | `"frontend"` |  |
 | frontend.image.tag | string | `""` |  |
 | frontend.replicaCount | int | `1` |  |
@@ -425,6 +438,8 @@ Ragnerock research intelligence platform
 | licenseCheck.intervalSeconds | int | `86400` | Seconds between checks after a successful validation (default: once a day) |
 | licenseCheck.retrySeconds | int | `3600` | Seconds between checks while the license server is unreachable |
 | licenseCheck.shutdownGraceSeconds | int | `30` | Seconds allowed for graceful shutdown after a lapsed license before the process is killed |
+| licenseCheck.startupRetryDelaySeconds | int | `5` | Seconds between startup check attempts while the license server is unreachable |
+| licenseCheck.startupRetrySeconds | int | `45` | How long the startup check retries an unreachable license server before the service exits |
 | licenseCheck.timeoutSeconds | int | `10` | Per-request timeout for one validation call, in seconds |
 | licenseExistingSecret | string | `""` | Use a pre-existing secret (must provide key `RAGNEROCK_LICENSE`) instead of generating one. When set, `license` is ignored. |
 | licenseServerUrl | string | `"https://licenses.ragnerock.com"` | License server the deployment validates against |
@@ -495,10 +510,13 @@ Ragnerock research intelligence platform
 | maintenance.affinity | object | `{}` | Pod affinity rules (overrides `global.affinity`) |
 | maintenance.annotations | object | `{}` | Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence) |
 | maintenance.backoffLimit | int | `1` | Retries within one firing. The routes are idempotent and daily, so a transient failure is better left to tomorrow's run than retried hard. |
-| maintenance.enabled | bool | `true` | Run the maintenance CronJob. Disable only if you fire the internal `/api/endpoints/internal/*`, `/ingest/internal/maintenance`, `/api/oauth/internal/prune` and `/api/assignments/internal/reap` routes some other way.  The job sends no credential. Those routes are guarded by a Google OIDC check that a Kubernetes CronJob cannot satisfy, and that check is inert unless `CALLBACK_AUTH_ENABLED` is true — which this chart never sets. In other words they are protected by network isolation: reachable only from inside the cluster, and the chart ships no ingress. If you turn `CALLBACK_AUTH_ENABLED` on through `api.extraEnv`, this job starts failing every night; disable it here and drive the routes yourself. |
+| maintenance.enabled | bool | `true` | Run the maintenance CronJob. Disable only if you fire the internal `/api/endpoints/internal/*`, `/api/maintenance/internal/*`, `/ingest/internal/maintenance`, `/api/oauth/internal/prune` and `/api/assignments/internal/reap` routes some other way.  The job sends no credential. Those routes are guarded by a Google OIDC check that a Kubernetes CronJob cannot satisfy, and that check is inert unless `CALLBACK_AUTH_ENABLED` is true — which this chart never sets. In other words they are protected by network isolation: reachable only from inside the cluster, and the chart ships no ingress. If you turn `CALLBACK_AUTH_ENABLED` on through `api.extraEnv`, this job starts failing every night; disable it here and drive the routes yourself. |
 | maintenance.failedJobsHistoryLimit | int | `3` |  |
 | maintenance.image.name | string | `"api"` |  |
 | maintenance.image.tag | string | `""` |  |
+| maintenance.orphanCleanup.batchSize | int | `1000` | Rows per DELETE statement (1-1000). One run still clears an account's whole backlog. |
+| maintenance.orphanCleanup.dryRun | bool | `false` | Count orphans and delete nothing. Useful on a first rollout to see the backlog before anything is removed. |
+| maintenance.orphanCleanup.gracePeriodHours | int | `24` | Hours an orphan must have existed before it is swept. Chunks of a document deleted more recently, and newer revisions, are left alone. |
 | maintenance.resources | object | `{}` | Deployment resource constraints (i.e. requests/limits) |
 | maintenance.schedule | string | `"23 3 * * *"` | Cron schedule (cluster timezone). Daily, off-peak by default. An ingest run whose execution was lost keeps its source busy until this job fails it, so installs that ingest on a schedule may want it more often (every route is idempotent and bounded). |
 | maintenance.serviceAccount.annotations | object | `{}` | Annotations to add to the created service account (e.g. for workload identity) |
@@ -576,6 +594,7 @@ Ragnerock research intelligence platform
 | modelService.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
 | modelService.autoscaling.targetCPUUtilizationPercentage | int | `80` | Target average CPU utilization (% of requests). Set to null to disable. |
 | modelService.autoscaling.targetMemoryUtilizationPercentage | int | `80` | Target average memory utilization (% of requests). Set to null to disable. |
+| modelService.extraEnv | list | `[]` | Extra container environment variables (list of Kubernetes EnvVar specs, so `valueFrom` works). Rendered after the chart's own, so an entry here overrides a variable of the same name the chart sets |
 | modelService.image.name | string | `"model-service"` |  |
 | modelService.image.tag | string | `""` |  |
 | modelService.replicaCount | int | `1` |  |
@@ -595,6 +614,13 @@ Ragnerock research intelligence platform
 | notebook.incrementalPersistence | bool | `true` | Persist a turn's cells as the turn happens (tool calls, results, sandbox code) instead of diffing the finished turn afterwards; off restores the post-hoc write byte-for-byte |
 | notebook.runWorkflowEnabled | bool | `false` | Give the notebook agent the run_workflow tool: a conversation can start workflow runs in the background under the user's own permissions and usage limit, and hears back on the message board |
 | notebook.workbenchToolsEnabled | bool | `false` | Give the notebook agent the workflow-authoring tools (propose, apply, try on a document), so a conversation can build a workflow and try it out; what it creates is a creator-private draft |
+| orchestrator | object | `{"backend":"builtin","builtinTriggers":["endpoint","auto_run","resource_check"],"dispatchTimeoutSeconds":21600,"driverTakeoverSeconds":600,"maxWaitSeconds":25,"maxWaiters":8}` | The orchestrator that paces workflow runs. |
+| orchestrator.backend | string | `"builtin"` | The orchestrator backend: `builtin`, Ragnerock's own queue-driven orchestrator, or `external`, an orchestrator the install already runs, which drives runs through the execution API with an adapter package. |
+| orchestrator.builtinTriggers | list | `["endpoint","auto_run","resource_check"]` | Run triggers that stay on the built-in orchestrator when the backend is external: endpoint calls wait on a request deadline, and upload auto-runs and ingest-triggered runs arrive one per document, in bursts. |
+| orchestrator.dispatchTimeoutSeconds | int | `21600` | Seconds an externally driven job may wait at a gate with no call from its orchestrator before it is failed. Must exceed the orchestrator's worst queue wait before a run launches. |
+| orchestrator.driverTakeoverSeconds | int | `600` | Seconds an external orchestrator may go without calling before its dispatch can be claimed again. |
+| orchestrator.maxWaitSeconds | int | `25` | The longest, in seconds, an execution-API call is held open waiting; under common ingress idle timeouts. |
+| orchestrator.maxWaiters | int | `8` | Execution-API calls one API instance holds open waiting before answering 503 with Retry-After. Shares `api.maxConcurrentStreams` with `endpoints.mcp.maxWaiters` and two slots per browser tab. |
 | otel | object | `{"authHeader":"","enabled":false,"existingSecret":"","exporterEndpoint":"","exporterInsecure":false,"exporterProtocol":"http/protobuf","serviceNamespace":"ragnerock","servicePrefix":""}` | Otel metrics/traces/logs export |
 | otel.existingSecret | string | `""` | Use a pre-existing secret (must provide key `OTEL_EXPORTER_OTLP_HEADERS`) instead of generating one. When set, `authHeader` is ignored. |
 | otel.serviceNamespace | string | `"ragnerock"` | OTEL service namespace |
@@ -622,6 +648,7 @@ Ragnerock research intelligence platform
 | pythonService.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
 | pythonService.autoscaling.targetCPUUtilizationPercentage | int | `80` | Target average CPU utilization (% of requests). Set to null to disable. |
 | pythonService.autoscaling.targetMemoryUtilizationPercentage | int | `80` | Target average memory utilization (% of requests). Set to null to disable. |
+| pythonService.extraEnv | list | `[]` | Extra container environment variables (list of Kubernetes EnvVar specs, so `valueFrom` works). Rendered after the chart's own, so an entry here overrides a variable of the same name the chart sets |
 | pythonService.image.name | string | `"python-service"` |  |
 | pythonService.image.tag | string | `""` | Overwrites global value if set |
 | pythonService.podSecurityContext | object | `{"runAsGroup":1338,"runAsNonRoot":true,"runAsUser":1774}` | Pod security context. The UID/GID are the image's `pysandbox` user; sharing a UID with other workloads shares their RLIMIT_NPROC budget |
@@ -712,6 +739,8 @@ Ragnerock research intelligence platform
 | rateLimits.oauthPerMinute | int | `30` | Per-IP limit on the public OAuth routes, whose callers are authorization servers and carry no session |
 | rateLimits.operatorParseSamplePerMinute | int | `10` | Per-user limit on workbench attachment parses. Each request can hold a synchronous worker OCR call for minutes, so the ceiling is deliberately low |
 | rateLimits.operatorTestPerMinute | int | `60` |  |
+| rateLimits.orchestratorDispatchPerMinute | int | `120` | Per-dispatch limit on the execution API's calls about one run |
+| rateLimits.orchestratorDriverPerMinute | int | `600` | Per-driver-token limit on the execution API's version, dispatch-list, and claim calls; one token serves every run in the account |
 | rateLimits.pydanticSchemaImportPerMinute | int | `30` |  |
 | rateLimits.queryAssistPerMinute | int | `30` |  |
 | rateLimits.queryExecutePerMinute | int | `120` |  |
@@ -751,6 +780,7 @@ Ragnerock research intelligence platform
 | subtaskWorker.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
 | subtaskWorker.autoscaling.targetCPUUtilizationPercentage | int | `80` | Target average CPU utilization (% of requests). Set to null to disable. |
 | subtaskWorker.autoscaling.targetMemoryUtilizationPercentage | int | `80` | Target average memory utilization (% of requests). Set to null to disable. |
+| subtaskWorker.extraEnv | list | `[]` | Extra container environment variables (list of Kubernetes EnvVar specs, so `valueFrom` works). Rendered after the chart's own, so an entry here overrides a variable of the same name the chart sets |
 | subtaskWorker.image.name | string | `"worker"` |  |
 | subtaskWorker.image.tag | string | `""` |  |
 | subtaskWorker.maxConcurrentAgentCalls | string | `nil` | This deployment's own per-process limit on concurrent /agent calls, when it should differ from `model.maxConcurrentAgentCalls`. Every unified-loop operator call takes one of these slots and one target slot, so raise it with `maxConcurrentAnnotationTargets`: a target left waiting for an /agent slot costs its subtask a redelivery. Null falls back to the shared value |
@@ -823,6 +853,7 @@ Ragnerock research intelligence platform
 | worker.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
 | worker.autoscaling.targetCPUUtilizationPercentage | int | `80` | Target average CPU utilization (% of requests). Set to null to disable. |
 | worker.autoscaling.targetMemoryUtilizationPercentage | int | `80` | Target average memory utilization (% of requests). Set to null to disable. |
+| worker.extraEnv | list | `[]` | Extra container environment variables (list of Kubernetes EnvVar specs, so `valueFrom` works). Rendered after the chart's own, so an entry here overrides a variable of the same name the chart sets |
 | worker.image.name | string | `"worker"` |  |
 | worker.image.tag | string | `""` |  |
 | worker.podDisruptionBudget | object | `{"enabled":false,"maxUnavailable":null,"minAvailable":1}` | Optional pod disruption budget, keeping capacity available during voluntary disruptions (node drains, cluster upgrades). Set exactly one of `minAvailable`/`maxUnavailable`; the other must be null. Both accept an integer or a percentage string (e.g. `"50%"`). |
@@ -836,7 +867,7 @@ Ragnerock research intelligence platform
 | worker.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | worker.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
 | worker.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
-| workers | object | `{"capacityRetryAfterSeconds":5,"capacityWaitSeconds":5,"chunkThreadpoolSize":2,"codeSession":{"sweepBatchSize":200,"sweepEnabled":true,"sweepGraceHours":24,"sweepIntervalSeconds":3600,"ttlDays":30},"database":{"completionLockSlowMs":1000,"lockTimeoutSeconds":30,"maxOverflow":null,"poolHeadroom":5,"poolSize":null,"poolTimeout":10,"subtaskMaxOverflow":null,"subtaskPoolSize":null},"dbServiceMaxConnections":40,"dbThreadpoolSize":80,"maxChunkTokens":1500,"maxConcurrentJobAdvances":10,"maxConcurrentSpawns":5,"maxInstanceRequestConcurrency":"","reconcile":{"batchSize":100,"enabled":true,"inProgressAfterSeconds":2700,"intervalSeconds":300,"notStartedAfterSeconds":900},"spawn":{"pageSize":1000,"planningStaleSeconds":900,"timeBudgetSeconds":300},"subtaskEnqueueStaleMinutes":15,"subtaskInsertChunkRows":5000,"subtaskPublishConcurrency":32,"tabularIngest":{"maxRowsPerSheet":100000,"rowInsertChunkBytes":8000000,"rowInsertChunkRows":1000,"rowRefsPageSize":10000}}` | Settings shared by the worker and subtask-worker deployments. Both run the same job-processing code, so they are tuned together. |
+| workers | object | `{"capacityRetryAfterSeconds":5,"capacityWaitSeconds":5,"chunkThreadpoolSize":2,"codeSession":{"sweepBatchSize":200,"sweepEnabled":true,"sweepGraceHours":24,"sweepIntervalSeconds":3600,"ttlDays":30},"database":{"completionLockSlowMs":1000,"lockTimeoutSeconds":30,"maxOverflow":null,"poolHeadroom":5,"poolSize":null,"poolTimeout":10,"subtaskMaxOverflow":null,"subtaskPoolSize":null},"dbServiceMaxConnections":40,"dbThreadpoolSize":80,"maxChunkTokens":1500,"maxConcurrentJobAdvances":10,"maxConcurrentSpawns":5,"maxInstanceRequestConcurrency":"","reconcile":{"batchSize":100,"enabled":true,"inProgressAfterSeconds":2700,"intervalSeconds":300,"notStartedAfterSeconds":900,"terminalWriteAfterSeconds":300},"spawn":{"pageSize":1000,"planningStaleSeconds":900,"timeBudgetSeconds":300},"subtaskEnqueueStaleMinutes":15,"subtaskInsertChunkRows":5000,"subtaskPublishConcurrency":32,"tabularIngest":{"maxRowsPerSheet":100000,"rowInsertChunkBytes":8000000,"rowInsertChunkRows":1000,"rowRefsPageSize":10000}}` | Settings shared by the worker and subtask-worker deployments. Both run the same job-processing code, so they are tuned together. |
 | workers.capacityRetryAfterSeconds | int | `5` | Retry-After sent with a shed, pool-exhausted, or lost-connection 503; the queue honours it as backoff, so a saturated instance gets a delayed redelivery rather than an immediate one that finds it just as full |
 | workers.capacityWaitSeconds | float | `5` | Seconds a task waits for local capacity before it is deferred |
 | workers.chunkThreadpoolSize | int | `2` | Threads for chunking parsed pages. Chunking is CPU work, so more threads than CPUs only adds contention |
@@ -860,12 +891,13 @@ Ragnerock research intelligence platform
 | workers.maxConcurrentJobAdvances | int | `10` | Concurrent job phase-advances a worker process may run |
 | workers.maxConcurrentSpawns | int | `5` | Concurrent spawn continuations a worker process may run. A node whose subtasks take longer than `spawn.timeBudgetSeconds` to publish continues on a later delivery; those get their own pool so one large job's paging cannot queue behind every other job's phase advances. |
 | workers.maxInstanceRequestConcurrency | string | `""` | Requests one pod is allowed to serve at once, as configured on the platform. Caps the derived DB pool at what can actually arrive; empty leaves the derivation to the concurrency semaphores alone |
-| workers.reconcile | object | `{"batchSize":100,"enabled":true,"inProgressAfterSeconds":2700,"intervalSeconds":300,"notStartedAfterSeconds":900}` | Periodic DB sweep that re-enqueues jobs whose queue deliveries were dropped after exhausting their retry budget. |
+| workers.reconcile | object | `{"batchSize":100,"enabled":true,"inProgressAfterSeconds":2700,"intervalSeconds":300,"notStartedAfterSeconds":900,"terminalWriteAfterSeconds":300}` | Periodic DB sweep that re-enqueues jobs whose queue deliveries were dropped after exhausting their retry budget. |
 | workers.reconcile.batchSize | int | `100` | Jobs examined per sweep |
 | workers.reconcile.enabled | bool | `true` | Run the reconciliation sweep |
 | workers.reconcile.inProgressAfterSeconds | int | `2700` | Seconds a job may sit in progress before the sweep re-enqueues it |
 | workers.reconcile.intervalSeconds | int | `300` | Seconds between sweeps |
 | workers.reconcile.notStartedAfterSeconds | int | `900` | Seconds a job may sit unstarted before the sweep re-enqueues it |
+| workers.reconcile.terminalWriteAfterSeconds | int | `300` | Seconds after it started a job may sit at a terminal phase with its status still in progress before the sweep writes its outcome |
 | workers.spawn.pageSize | int | `1000` | Subtasks published per page of a spawn |
 | workers.spawn.planningStaleSeconds | int | `900` | Seconds a claimed-but-unfinished plan may sit before another delivery takes it over, so a planner that died cannot hang the node forever |
 | workers.spawn.timeBudgetSeconds | int | `300` | Wall clock one spawn delivery may spend publishing before handing the rest to a continuation. Must stay well under the queue's dispatch deadline, or the delivery is killed mid-page instead of stopping cleanly. |
@@ -876,6 +908,8 @@ Ragnerock research intelligence platform
 | workers.tabularIngest.rowInsertChunkBytes | int | `8000000` | Byte ceiling per tabular row-insert request (binds first on a wide sheet) |
 | workers.tabularIngest.rowInsertChunkRows | int | `1000` | Rows per db-service insert request when ingesting a tabular document |
 | workers.tabularIngest.rowRefsPageSize | int | `10000` | Tabular row references per enumeration page (db-service caps it at 10,000) |
+| workflowNodes | object | `{"maxRetries":5}` | Workflow node error handling. |
+| workflowNodes.maxRetries | int | `5` | Upper bound on a node's max_retries (on_error RETRY); larger requests are refused. |
 | workflowResources | object | `{"codeCacheMaxBytes":256000000,"codeMaxBytes":20000000,"codeMaxRows":100000,"codeTotalMaxBytes":40000000,"contextMaxChars":200000,"valueMaxBytes":262144}` | Workflow resources bound into operator runs and rendered into prompts. |
 | workflowResources.codeCacheMaxBytes | int | `256000000` | Byte budget for the worker's per-process cache of materialized code resources |
 | workflowResources.codeMaxBytes | int | `20000000` | Ceiling on a single code operator's returned resource, in bytes |
