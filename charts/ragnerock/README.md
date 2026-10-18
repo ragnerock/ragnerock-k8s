@@ -8,6 +8,14 @@ Ragnerock research intelligence platform
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
+| accountLifecycle | object | `{"purgeBatchSize":5000,"purgeClaimBatchSize":10,"purgeEnabled":false,"purgeLeaseSeconds":900,"purgeMinDelayHours":24,"purgeStepBudgetSeconds":120,"retrievalPeriodDays":30}` | Closing and purging accounts. A closed account is inert and kept for the retrieval window, then purged in bounded steps on the worker. |
+| accountLifecycle.purgeBatchSize | int | `5000` | Rows one purge delete statement removes. |
+| accountLifecycle.purgeClaimBatchSize | int | `10` | Closed accounts the purge tick moves to purging per call. |
+| accountLifecycle.purgeEnabled | bool | `false` | Whether closed accounts are purged once due. While off, nothing is deleted. |
+| accountLifecycle.purgeLeaseSeconds | int | `900` | Seconds a purge step owns its account before the purge tick may re-dispatch it. |
+| accountLifecycle.purgeMinDelayHours | int | `24` | The least hours between a close and its purge, even when the owner waived the retrieval window or an operator asked for an immediate purge. |
+| accountLifecycle.purgeStepBudgetSeconds | int | `120` | Wall-clock seconds one purge step may spend before handing the rest to the next step. |
+| accountLifecycle.retrievalPeriodDays | int | `30` | Days after a close before the account is purged: the window in which an operator can reopen it for the customer to retrieve their data. |
 | agent.annotationToolMaxIterations | int | `25` | Tool-call iterations an annotation operator's agent may take before it is cut off |
 | agent.cachedTokenWeight | float | `0.1` | Weight of a cache-read input token in the cost-weighted budget unit |
 | agent.callRetryBudgetSeconds | int | `120` | Seconds one interactive model call keeps retrying a shed or transient failure before the turn reports the model service busy |
@@ -510,7 +518,7 @@ Ragnerock research intelligence platform
 | maintenance.affinity | object | `{}` | Pod affinity rules (overrides `global.affinity`) |
 | maintenance.annotations | object | `{}` | Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence) |
 | maintenance.backoffLimit | int | `1` | Retries within one firing. The routes are idempotent and daily, so a transient failure is better left to tomorrow's run than retried hard. |
-| maintenance.enabled | bool | `true` | Run the maintenance CronJob. Disable only if you fire the internal `/api/endpoints/internal/*`, `/api/maintenance/internal/*`, `/ingest/internal/maintenance`, `/api/oauth/internal/prune` and `/api/assignments/internal/reap` routes some other way.  The job sends no credential. Those routes are guarded by a Google OIDC check that a Kubernetes CronJob cannot satisfy, and that check is inert unless `CALLBACK_AUTH_ENABLED` is true — which this chart never sets. In other words they are protected by network isolation: reachable only from inside the cluster, and the chart ships no ingress. If you turn `CALLBACK_AUTH_ENABLED` on through `api.extraEnv`, this job starts failing every night; disable it here and drive the routes yourself. |
+| maintenance.enabled | bool | `true` | Run the maintenance CronJob. Disable only if you fire the internal `/api/endpoints/internal/*`, `/api/maintenance/internal/*`, `/ingest/internal/maintenance`, `/api/oauth/internal/prune`, `/api/assignments/internal/reap` and `/api/accounts/internal/purge-tick` routes some other way. The purge tick starts the purges that came due, so with `accountLifecycle.purgeEnabled` on, a closed account is purged at the first firing after it is due.  The job sends no credential. Those routes are guarded by a Google OIDC check that a Kubernetes CronJob cannot satisfy, and that check is inert unless `CALLBACK_AUTH_ENABLED` is true — which this chart never sets. In other words they are protected by network isolation: reachable only from inside the cluster, and the chart ships no ingress. If you turn `CALLBACK_AUTH_ENABLED` on through `api.extraEnv`, this job starts failing every night; disable it here and drive the routes yourself. |
 | maintenance.failedJobsHistoryLimit | int | `3` |  |
 | maintenance.image.name | string | `"api"` |  |
 | maintenance.image.tag | string | `""` |  |
@@ -688,7 +696,8 @@ Ragnerock research intelligence platform
 | query | object | `{"assistQueryTimeoutSeconds":30,"metadataCacheTTLSeconds":10}` | Document-query layer (API and worker) |
 | query.assistQueryTimeoutSeconds | int | `30` | Statement timeout (seconds) for the query-assist sub-agent's probe queries |
 | query.metadataCacheTTLSeconds | int | `10` | Seconds the query-layer metadata (annotation schemas, agents, datasets) is cached per project in-process; 0 disables |
-| queue | object | `{"affinity":{},"annotations":{},"auditExportQueueName":"audit-export-runs","auditQueueName":"ragnerock-audit","autoscaling":{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80},"callbackQueueName":"ragnerock-callbacks","ingestRunsQueueName":"ingest-runs","jobQueueName":"ragnerock-document-jobs","port":8123,"queuePoolSize":100,"resources":{},"serviceAccount":{"annotations":{},"create":false,"name":""},"subtaskQueueName":"ragnerock-subtask-jobs","tolerations":[],"volumeMounts":[],"volumes":[]}` | Cloudtask configuration for use with in-cluster emulator |
+| queue | object | `{"accountPurgeQueueName":"account-purge","affinity":{},"annotations":{},"auditExportQueueName":"audit-export-runs","auditQueueName":"ragnerock-audit","autoscaling":{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80},"callbackQueueName":"ragnerock-callbacks","ingestRunsQueueName":"ingest-runs","jobQueueName":"ragnerock-document-jobs","port":8123,"queuePoolSize":100,"resources":{},"serviceAccount":{"annotations":{},"create":false,"name":""},"subtaskQueueName":"ragnerock-subtask-jobs","tolerations":[],"volumeMounts":[],"volumes":[]}` | Cloudtask configuration for use with in-cluster emulator |
+| queue.accountPurgeQueueName | string | `"account-purge"` | Queue account purge steps run on: the purge tick and each step publish the next step of a closed account's purge to the worker here |
 | queue.affinity | object | `{}` | Pod affinity rules for the queue deployment (overrides `global.affinity`) |
 | queue.annotations | object | `{}` | Annotations added to the queue deployment's metadata (merged with `global.annotations`; per-service keys take precedence) |
 | queue.auditExportQueueName | string | `"audit-export-runs"` | Queue the audit-service enqueues its own /audit/export-run tasks onto |

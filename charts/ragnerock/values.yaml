@@ -146,6 +146,9 @@ queue:
   auditExportQueueName: "audit-export-runs"
   # -- Queue the API sends ingest runs to the data-ingestor on
   ingestRunsQueueName: "ingest-runs"
+  # -- Queue account purge steps run on: the purge tick and each step publish
+  # the next step of a closed account's purge to the worker here
+  accountPurgeQueueName: "account-purge"
   queuePoolSize: 100
   port: 8123
   # -- Deployment resoruce contraints (i.e. requests/limits)
@@ -1003,8 +1006,11 @@ migrations:
 maintenance:
   # -- Run the maintenance CronJob. Disable only if you fire the internal
   # `/api/endpoints/internal/*`, `/api/maintenance/internal/*`,
-  # `/ingest/internal/maintenance`, `/api/oauth/internal/prune` and
-  # `/api/assignments/internal/reap` routes some other way.
+  # `/ingest/internal/maintenance`, `/api/oauth/internal/prune`,
+  # `/api/assignments/internal/reap` and `/api/accounts/internal/purge-tick`
+  # routes some other way. The purge tick starts the purges that came due, so
+  # with `accountLifecycle.purgeEnabled` on, a closed account is purged at the
+  # first firing after it is due.
   #
   # The job sends no credential. Those routes are guarded by a Google OIDC
   # check that a Kubernetes CronJob cannot satisfy, and that check is inert
@@ -1757,6 +1763,29 @@ agentHalts:
   # large workspace cannot write a notification row per member inside the
   # administrator's request.
   notifyMaxRecipients: 500
+
+# -- Closing and purging accounts. A closed account is inert and kept for the
+# retrieval window, then purged in bounded steps on the worker.
+accountLifecycle:
+  # -- Days after a close before the account is purged: the window in which an
+  # operator can reopen it for the customer to retrieve their data.
+  retrievalPeriodDays: 30
+  # -- The least hours between a close and its purge, even when the owner
+  # waived the retrieval window or an operator asked for an immediate purge.
+  purgeMinDelayHours: 24
+  # -- Whether closed accounts are purged once due. While off, nothing is
+  # deleted.
+  purgeEnabled: false
+  # -- Wall-clock seconds one purge step may spend before handing the rest to
+  # the next step.
+  purgeStepBudgetSeconds: 120
+  # -- Rows one purge delete statement removes.
+  purgeBatchSize: 5000
+  # -- Seconds a purge step owns its account before the purge tick may
+  # re-dispatch it.
+  purgeLeaseSeconds: 900
+  # -- Closed accounts the purge tick moves to purging per call.
+  purgeClaimBatchSize: 10
 
 # -- Agent assignments: an agent given a piece of work, run one turn at a time
 # in the worker under a renewable lease.

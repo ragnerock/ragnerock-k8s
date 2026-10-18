@@ -99,6 +99,7 @@ spec:
                       "/ingest/internal/maintenance",
                       "/api/oauth/internal/prune",
                       "/api/assignments/internal/reap",
+                      "/api/accounts/internal/purge-tick",
                   ]
                   failed = []
                   for route in routes:
