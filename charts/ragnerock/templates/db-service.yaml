@@ -60,8 +60,6 @@ spec:
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-audit
             - configMapRef:
-                name: {{ include "ragnerock.fullname" . }}-queue
-            - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-db
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-live-log

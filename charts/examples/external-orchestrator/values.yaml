@@ -1,0 +1,27 @@
+# Ragnerock values for an install whose workflow runs an external orchestrator
+# drives. Layer this file over the rest of your values:
+#
+#   helm upgrade --install ragnerock ./charts/ragnerock \
+#     -f my-values.yaml \
+#     -f charts/examples/external-orchestrator/values.yaml
+#
+# See README.md in this directory, and
+# docs/features/external-orchestrators/ for what changes.
+
+orchestrator:
+  backend: external
+  # The runs that stay on Ragnerock's own orchestrator: endpoint calls,
+  # which wait on a request deadline, and the runs uploads and ingest
+  # versions start, which arrive one per document. Remove an entry to send
+  # those runs to the orchestrator as well.
+  builtinTriggers:
+    - endpoint
+    - auto_run
+    - resource_check
+  # How long a run may wait for the orchestrator, to start or between nodes,
+  # before it fails. Keep it above the longest the orchestrator may queue a
+  # run before launching it.
+  dispatchTimeoutSeconds: 21600
+  # How long a run's orchestrator may go quiet before the run is offered to
+  # another of its runs, which picks up where the first stopped.
+  driverTakeoverSeconds: 600

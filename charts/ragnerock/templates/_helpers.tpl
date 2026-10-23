@@ -102,7 +102,7 @@ Usage: {{ include "ragnerock.webFetchBlocklist" . }}
 */}}
 {{- define "ragnerock.webFetchBlocklist" -}}
   {{- $fullname := include "ragnerock.fullname" . -}}
-  {{- $services := list "api" "worker" "subtask-worker" "model-service" "analysis-toolkit" "python-service" "frontend" "data-ingestor" "callback-delivery" "db-service" "audit-service" -}}
+  {{- $services := list "api" "worker" "subtask-worker" "model-service" "analysis-toolkit" "python-service" "frontend" "data-ingestor" "callback-delivery" "db-service" "audit-service" "queue-service" -}}
   {{- $hosts := list -}}
   {{- /* Every spelling an in-cluster name has: the bare Service name, the
   namespace-qualified forms, and the cluster FQDN. The blocklist
@@ -117,6 +117,29 @@ Usage: {{ include "ragnerock.webFetchBlocklist" . }}
   {{- end -}}
   {{- $hosts = concat $hosts .Values.webTools.fetchBlocklistExtra -}}
   {{- join "," $hosts -}}
+{{- end }}
+
+{{/*
+The hosts queue-service may deliver tasks to, as the JSON list its
+QUEUE_DISPATCH_ALLOWED_HOSTS setting reads: every service of this release a
+task is aimed at, by the bare Service name the publishers' URLs use, plus
+`queueService.extraAllowedHosts`. A task aimed anywhere else is given up on
+without a request, so a row written into the queue table cannot make
+queue-service POST wherever it says.
+Usage: {{ include "ragnerock.queueDispatchAllowedHosts" . }}
+*/}}
+{{- define "ragnerock.queueDispatchAllowedHosts" -}}
+  {{- $fullname := include "ragnerock.fullname" . -}}
+  {{- $hosts := list -}}
+  {{- /* api: scheduled ingest runs and the maintenance routes; worker and
+  subtask-worker: job and subtask deliveries; data-ingestor: ingest runs;
+  callback-delivery: endpoint callbacks; audit-service: audit batches, the
+  export runs and its maintenance routes. */ -}}
+  {{- range list "api" "worker" "subtask-worker" "data-ingestor" "callback-delivery" "audit-service" -}}
+    {{- $hosts = append $hosts (printf "%s-%s" $fullname .) -}}
+  {{- end -}}
+  {{- $hosts = concat $hosts (.Values.queueService.extraAllowedHosts | default list) -}}
+  {{- toJson $hosts -}}
 {{- end }}
 
 {{/*
@@ -404,6 +427,9 @@ the hand-maintained arithmetic that used to live in a comment.
     {{- $demand = add $demand (mul (int (include "ragnerock.maxReplicas" .Values.dbService)) (add .Values.dbService.defaultDBPoolSize .Values.dbService.defaultDBMaxOverflow)) -}}
     {{- $demand = add $demand (mul (int (include "ragnerock.maxReplicas" .Values.auditService)) (add .Values.auditService.database.poolSize .Values.auditService.database.maxOverflow)) -}}
     {{- $demand = add $demand (mul (int (include "ragnerock.maxReplicas" .Values.callbackDelivery)) (add .Values.callbackDelivery.database.poolSize .Values.callbackDelivery.database.maxOverflow)) -}}
+    {{- /* queue-service runs one pod, but a rolling update starts the new
+    one before the old stops (maxSurge 1), so two pools are open for a moment. */ -}}
+    {{- $demand = add $demand (mul 2 (add .Values.queueService.database.poolSize .Values.queueService.database.maxOverflow)) -}}
     {{- $budget := sub (int .Values.database.maxConnections) (add (int .Values.database.reservedConnections) (int .Values.database.opsConnectionHeadroom)) -}}
     {{- if gt $demand $budget -}}
       {{- fail (printf "Worst-case DB connection demand is %d, over the %d available (database.maxConnections %d less %d reserved and %d for operators). Shrink pools or replica ceilings, or raise database.maxConnections." $demand $budget (int .Values.database.maxConnections) (int .Values.database.reservedConnections) (int .Values.database.opsConnectionHeadroom)) -}}
@@ -436,5 +462,38 @@ values are not in the chart.
         {{- fail (printf "%s is a published placeholder, so anyone could sign with it. Generate one with `openssl rand -hex 22`. Changing auth.secretKey signs every user out." $name) -}}
       {{- end -}}
     {{- end -}}
+  {{- end -}}
+{{- end -}}
+
+{{/*
+Values earlier releases read that this one does not.
+
+An upgrade keeps the operator's values file, and Helm ignores a key no
+template reads. Each of these used to change behaviour, so dropping one
+silently would change the install without a word: a dry-run orphan cleanup
+would start deleting, a reconciler that was turned off would run again, and
+the emulator pod's placement would not carry over to queue-service. The chart
+refuses them instead, naming where each one went.
+*/}}
+{{- define "ragnerock.refuseRemovedValues" -}}
+  {{- $removed := list -}}
+  {{- if hasKey .Values "maintenance" -}}
+    {{- $removed = append $removed "maintenance.* (maintenance.orphanCleanup.* is now api.orphanCleanup.*; to stop queue-service firing the maintenance routes, set queueService.maintenanceSchedulesEnabled to false)" -}}
+  {{- end -}}
+  {{- $workers := .Values.workers | default dict -}}
+  {{- if hasKey $workers "reconcile" -}}
+    {{- $removed = append $removed "workers.reconcile.* (now queueService.reconcile.*)" -}}
+  {{- end -}}
+  {{- if hasKey $workers "subtaskPublishConcurrency" -}}
+    {{- $removed = append $removed "workers.subtaskPublishConcurrency (it applied only to Cloud Tasks)" -}}
+  {{- end -}}
+  {{- $queue := .Values.queue | default dict -}}
+  {{- range $key := list "port" "replicaCount" "resources" "autoscaling" "serviceAccount" "tolerations" "affinity" "annotations" "volumes" "volumeMounts" "publishConcurrency" -}}
+    {{- if hasKey $queue $key -}}
+      {{- $removed = append $removed (printf "queue.%s (it configured the Cloud Tasks emulator; set what queue-service needs under queueService)" $key) -}}
+    {{- end -}}
+  {{- end -}}
+  {{- if $removed -}}
+    {{- fail (printf "These values are no longer read. See \"Upgrading from a chart that ran the Cloud Tasks emulator\" in helm/README.md. %s" (join "; " $removed)) -}}
   {{- end -}}
 {{- end -}}

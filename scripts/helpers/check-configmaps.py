@@ -17,6 +17,7 @@ SERVICES = [
     "frontend",
     "model-service",
     "python-service",
+    "queue-service",
     "subtask-worker",
     "worker",
 ]

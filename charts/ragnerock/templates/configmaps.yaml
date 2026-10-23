@@ -20,6 +20,7 @@ metadata:
   name: {{ include "ragnerock.fullname" . }}-core
   {{- include "ragnerock.apiGateFitsPool" . }}
   {{- include "ragnerock.connectionBudget" . }}
+  {{- include "ragnerock.refuseRemovedValues" . }}
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
@@ -63,6 +64,15 @@ data:
   MEMORY_WRITE_BUDGET_ANNOTATION: "{{ include "ragnerock.number" .Values.memory.writeBudgetAnnotation }}"
   MEMORY_WRITE_BUDGET_NOTEBOOK: "{{ include "ragnerock.number" .Values.memory.writeBudgetNotebook }}"
   MEMORY_SEARCH_BUDGET_ANNOTATION: "{{ include "ragnerock.number" .Values.memory.searchBudgetAnnotation }}"
+  MEMORY_HOOKS_ENABLED: "{{ .Values.memory.hooksEnabled }}"
+  MEMORY_RETRIEVAL_MAX_ITERATIONS: "{{ include "ragnerock.number" .Values.memory.retrievalMaxIterations }}"
+  MEMORY_RETRIEVAL_SEARCH_BUDGET: "{{ include "ragnerock.number" .Values.memory.retrievalSearchBudget }}"
+  MEMORY_RETRIEVAL_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.memory.retrievalTimeoutSeconds }}"
+  MEMORY_WRITER_MAX_ITERATIONS: "{{ include "ragnerock.number" .Values.memory.writerMaxIterations }}"
+  MEMORY_CONTEXT_MAX_RECORDS: "{{ include "ragnerock.number" .Values.memory.contextMaxRecords }}"
+  MEMORY_CONTEXT_MAX_CHARS: "{{ include "ragnerock.number" .Values.memory.contextMaxChars }}"
+  MEMORY_HOOK_INPUT_MAX_CHARS: "{{ include "ragnerock.number" .Values.memory.hookInputMaxChars }}"
+  MEMORY_HOOK_TURN_TOKEN_BUDGET: "{{ include "ragnerock.number" .Values.memory.hookTurnTokenBudget }}"
   MESSAGE_BOARD_ENABLED: "{{ .Values.messageBoard.enabled }}"
   MESSAGE_BOARD_MAX_BODY_CHARS: "{{ include "ragnerock.number" .Values.messageBoard.maxBodyChars }}"
   MESSAGE_BOARD_INBOX_MAX_ENTRIES: "{{ include "ragnerock.number" .Values.messageBoard.inboxMaxEntries }}"
@@ -95,6 +105,8 @@ data:
   AGENT_TOOL_HEADER_VALUE_MAX_CHARS: "{{ include "ragnerock.number" .Values.agentTools.headerValueMaxChars }}"
   AGENT_TOOL_DESCRIPTION_MAX_CHARS: "{{ include "ragnerock.number" .Values.agentTools.descriptionMaxChars }}"
   AGENT_TOOL_PARAM_DESCRIPTION_MAX_CHARS: "{{ include "ragnerock.number" .Values.agentTools.paramDescriptionMaxChars }}"
+  AGENT_TOOL_LONG_DESCRIPTION_MAX_CHARS: "{{ include "ragnerock.number" .Values.agentTools.longDescriptionMaxChars }}"
+  AGENT_TOOL_LONG_PARAM_DESCRIPTION_MAX_CHARS: "{{ include "ragnerock.number" .Values.agentTools.longParamDescriptionMaxChars }}"
   AGENT_TOOL_SCHEMA_MAX_BYTES: "{{ include "ragnerock.number" .Values.agentTools.schemaMaxBytes }}"
   AGENT_TOOL_SCHEMA_MAX_DEPTH: "{{ include "ragnerock.number" .Values.agentTools.schemaMaxDepth }}"
   AGENT_TOOL_CALL_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.agentTools.callTimeoutSeconds }}"
@@ -345,6 +357,14 @@ data:
   # The query explorer's flat table list is unpaginated, so the catalog read
   # behind it is capped.
   QUERY_TABULAR_TABLES_LIST_LIMIT: "{{ include "ragnerock.number" .Values.api.queryTabularTablesListLimit }}"
+  PAGE_PREVIEW_MAX_DOCUMENT_BYTES: "{{ include "ragnerock.number" .Values.api.pagePreviewMaxDocumentBytes }}"
+  PAGE_PREVIEW_MAX_WIDTH_PX: "{{ include "ragnerock.number" .Values.api.pagePreviewMaxWidthPx }}"
+  PAGE_PREVIEW_MAX_PIXELS: "{{ include "ragnerock.number" .Values.api.pagePreviewMaxPixels }}"
+  PAGE_PREVIEW_FILE_CACHE_MAX_BYTES: "{{ include "ragnerock.number" .Values.api.pagePreviewFileCacheMaxBytes }}"
+  PAGE_PREVIEW_FILE_CACHE_IDLE_SECONDS: "{{ include "ragnerock.number" .Values.api.pagePreviewFileCacheIdleSeconds }}"
+  PAGE_PREVIEW_CACHE_SECONDS: "{{ include "ragnerock.number" .Values.api.pagePreviewCacheSeconds }}"
+  CELL_SOURCE_PASSAGE_MAX_CHARS: "{{ include "ragnerock.number" .Values.api.cellSourcePassageMaxChars }}"
+  CELL_SOURCE_RESOLVE_MAX_ANCHORS: "{{ include "ragnerock.number" .Values.api.cellSourceResolveMaxAnchors }}"
   # Static parsing only, but a schema import parses arbitrary pasted Python,
   # so the paste size is bounded (the rate is, in the rate-limits ConfigMap).
   PYDANTIC_SCHEMA_IMPORT_MAX_CHARS: "{{ include "ragnerock.number" .Values.api.pydanticSchemaImportMaxChars }}"
@@ -397,6 +417,9 @@ data:
   OAUTH_CLIENT_METADATA_CACHE_SECONDS: "{{ include "ragnerock.number" .Values.agentTools.oauthClientMetadataCacheSeconds }}"
   ENDPOINTS_MCP_URL_CONNECT_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.endpoints.mcp.urlConnectTimeoutSeconds }}"
   ENDPOINTS_MCP_ALLOW_PRIVATE_URL_INPUTS: "{{ .Values.endpoints.mcp.allowPrivateUrlInputs }}"
+  # Where AI provider endpoints may point. Only the API checks them.
+  BYOAI_PRIVATE_EGRESS_ALLOWLIST: "{{ .Values.byoai.privateEgressAllowlist }}"
+  BYOAI_ALLOW_PLAIN_HTTP: "{{ .Values.byoai.allowPlainHttp }}"
   ENDPOINTS_MCP_POLL_SECONDS: "{{ include "ragnerock.number" .Values.endpoints.mcp.pollSeconds }}"
   ENDPOINTS_MCP_KEEPALIVE_SECONDS: "{{ include "ragnerock.number" .Values.endpoints.mcp.keepaliveSeconds }}"
   ENDPOINTS_MCP_MAX_BODY_BYTES: "{{ include "ragnerock.number" .Values.endpoints.mcp.maxBodyBytes }}"
@@ -461,12 +484,15 @@ data:
   ASSIGNMENT_REAP_BATCH_SIZE: "{{ include "ragnerock.number" .Values.assignments.reapBatchSize }}"
   ASSIGNMENT_REAP_MAX_BATCHES: "{{ include "ragnerock.number" .Values.assignments.reapMaxBatches }}"
   ASSIGNMENT_REAP_RECHECK_DAYS: "{{ include "ragnerock.number" .Values.assignments.reapRecheckDays }}"
-  # Read by `/api/maintenance/internal/byodb-orphan-cleanup`, which the
-  # maintenance CronJob fires.
-  ORPHAN_CLEANUP_GRACE_PERIOD_HOURS: "{{ include "ragnerock.number" .Values.maintenance.orphanCleanup.gracePeriodHours }}"
-  ORPHAN_CLEANUP_BATCH_SIZE: "{{ include "ragnerock.number" .Values.maintenance.orphanCleanup.batchSize }}"
-  ORPHAN_CLEANUP_DRY_RUN: {{ .Values.maintenance.orphanCleanup.dryRun | quote }}
+  # Read by `/api/maintenance/internal/byodb-orphan-cleanup`, which
+  # queue-service fires daily.
+  ORPHAN_CLEANUP_GRACE_PERIOD_HOURS: "{{ include "ragnerock.number" .Values.api.orphanCleanup.gracePeriodHours }}"
+  ORPHAN_CLEANUP_BATCH_SIZE: "{{ include "ragnerock.number" .Values.api.orphanCleanup.batchSize }}"
+  ORPHAN_CLEANUP_DRY_RUN: {{ .Values.api.orphanCleanup.dryRun | quote }}
   SCHEDULE_TICK_TIME_BUDGET_SECONDS: "{{ include "ragnerock.number" .Values.schedules.tickTimeBudgetSeconds }}"
+  # Ingest schedules are rows in the app database, which queue-service fires.
+  SCHEDULER_TYPE: postgres
+  SCHEDULER_QUEUE_NAME: "{{ .Values.queue.schedulerQueueName }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -606,6 +632,8 @@ data:
   QUERY_DEFAULT_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.dbService.queryDefaultTimeoutSeconds }}"
   KEYWORD_SEARCH_REGEX_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.dbService.keywordSearchRegexTimeoutSeconds }}"
   QUERY_SLOW_LOG_THRESHOLD_MS: "{{ include "ragnerock.number" .Values.dbService.querySlowLogThresholdMs }}"
+  QUERY_PROVENANCE_ENABLED: "{{ .Values.dbService.queryProvenanceEnabled }}"
+  QUERY_PROVENANCE_MAX_ROWS: "{{ include "ragnerock.number" .Values.dbService.queryProvenanceMaxRows }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -933,6 +961,8 @@ data:
   GEMINI_THINKING_BUDGET_HIGH: "{{ include "ragnerock.number" .Values.model.geminiThinkingBudgetHigh }}"
   OPENAI_USE_RESPONSES_API: "{{ .Values.model.openaiUseResponsesApi }}"
 ---
+# Queue names, read by the services that publish. How a service publishes is
+# in `-queue-postgres` or `-queue-relay`, exactly one of which it mounts.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -940,14 +970,80 @@ metadata:
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
-  CLOUD_TASKS_ENABLED: "true"
-  CLOUD_TASKS_JOB_QUEUE_NAME: "{{ .Values.queue.jobQueueName }}"
-  CLOUD_TASKS_SUBTASK_QUEUE_NAME: "{{ .Values.queue.subtaskQueueName }}"
-  CLOUD_TASKS_CALLBACK_QUEUE: "{{ .Values.queue.callbackQueueName }}"
+  JOB_QUEUE_NAME: "{{ .Values.queue.jobQueueName }}"
+  SUBTASK_QUEUE_NAME: "{{ .Values.queue.subtaskQueueName }}"
+  CALLBACK_QUEUE_NAME: "{{ .Values.queue.callbackQueueName }}"
   QUEUE_POOL_SIZE: "{{ include "ragnerock.number" .Values.queue.queuePoolSize }}"
-  CLOUD_TASKS_ENDPOINT: {{ include "ragnerock.fullname" . }}-queue:{{ include "ragnerock.number" .Values.queue.port }}
-  CLOUD_TASKS_PROJECT_ID: local
-  CLOUD_TASKS_AUDIT_QUEUE: "{{ .Values.queue.auditQueueName }}"
+  AUDIT_QUEUE_NAME: "{{ .Values.queue.auditQueueName }}"
+---
+# The Postgres queue, for the services with an app database: they write their
+# tasks to it directly, and queue-service delivers them.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-queue-postgres
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  QUEUE_TYPE: postgres
+---
+# The same queue for the services with no app database (model-service, the
+# data-ingestor): they publish through queue-service's relay.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-queue-relay
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  QUEUE_TYPE: queue_service
+  QUEUE_SERVICE_URL: http://{{ include "ragnerock.fullname" . }}-queue-service:{{ include "ragnerock.number" .Values.queueService.service.port }}
+---
+# The job reconciler's thresholds. queue-service runs the sweep; the workers
+# read the same values (a regeneration ages a lost START the same way).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-reconcile
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  JOB_RECONCILE_ENABLED: "{{ .Values.queueService.reconcile.enabled }}"
+  JOB_RECONCILE_INTERVAL_SECONDS: "{{ include "ragnerock.number" .Values.queueService.reconcile.intervalSeconds }}"
+  JOB_RECONCILE_BATCH_SIZE: "{{ include "ragnerock.number" .Values.queueService.reconcile.batchSize }}"
+  JOB_RECONCILE_NOT_STARTED_AFTER_SECONDS: "{{ include "ragnerock.number" .Values.queueService.reconcile.notStartedAfterSeconds }}"
+  JOB_RECONCILE_IN_PROGRESS_AFTER_SECONDS: "{{ include "ragnerock.number" .Values.queueService.reconcile.inProgressAfterSeconds }}"
+  JOB_RECONCILE_TERMINAL_WRITE_AFTER_SECONDS: "{{ include "ragnerock.number" .Values.queueService.reconcile.terminalWriteAfterSeconds }}"
+---
+# queue-service's own settings: its pool, where it may deliver, and the
+# services its relay, scheduler and reconciler send to. Every in-cluster call
+# goes without a credential, as everywhere in this chart (AUTH_TYPE no_auth).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-queue-service
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  DB_POOL_SIZE: "{{ include "ragnerock.number" .Values.queueService.database.poolSize }}"
+  DB_MAX_OVERFLOW: "{{ include "ragnerock.number" .Values.queueService.database.maxOverflow }}"
+  DB_POOL_TIMEOUT: "{{ include "ragnerock.number" .Values.queueService.database.poolTimeout }}"
+  # Fixed geometry rather than a tunable: the isolated health server has to sit
+  # on a port other than the main app port (8080).
+  HEALTH_PORT: "8081"
+  # A JSON list, which is how pydantic reads a list setting from the environment.
+  QUEUE_DISPATCH_ALLOWED_HOSTS: {{ include "ragnerock.queueDispatchAllowedHosts" . | quote }}
+  AUDIT_INGEST_URL: http://{{ include "ragnerock.fullname" . }}-audit-service:{{ include "ragnerock.number" .Values.auditService.service.port }}/audit/ingest
+  AUDIT_IMAGE_INGEST_URL: http://{{ include "ragnerock.fullname" . }}-audit-service:{{ include "ragnerock.number" .Values.auditService.service.port }}/audit/images/ingest
+  AUDIT_SERVICE_URL: http://{{ include "ragnerock.fullname" . }}-audit-service:{{ include "ragnerock.number" .Values.auditService.service.port }}
+  AUDIT_SERVICE_AUDIENCE: http://{{ include "ragnerock.fullname" . }}-audit-service:{{ include "ragnerock.number" .Values.auditService.service.port }}
+  API_URL: http://{{ include "ragnerock.fullname" . }}-api:{{ include "ragnerock.number" .Values.api.service.port }}
+  API_AUDIENCE: http://{{ include "ragnerock.fullname" . }}-api:{{ include "ragnerock.number" .Values.api.service.port }}
+  WORKER_URL: http://{{ include "ragnerock.fullname" . }}-worker:{{ include "ragnerock.number" .Values.worker.service.port }}
+  WORKER_SERVICE_AUDIENCE: http://{{ include "ragnerock.fullname" . }}-worker:{{ include "ragnerock.number" .Values.worker.service.port }}
+  JOB_QUEUE_NAME: "{{ .Values.queue.jobQueueName }}"
+  SCHEDULER_QUEUE_NAME: "{{ .Values.queue.schedulerQueueName }}"
+  MAINTENANCE_SCHEDULES_ENABLED: "{{ .Values.queueService.maintenanceSchedulesEnabled }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -959,7 +1055,7 @@ data:
   MAX_CONCURRENT_SUBTASKS: "{{ include "ragnerock.number" .Values.limits.concurrency.maxConcurrentSubtasks }}"
   MAX_CONCURRENT_ANNOTATIONS: "{{ include "ragnerock.number" .Values.limits.concurrency.maxConcurrentAnnotations }}"
   MAX_CONCURRENT_TOOLLESS_ANNOTATIONS: "{{ include "ragnerock.number" .Values.limits.concurrency.maxConcurrentToollessAnnotations }}"
-  NOTIFICATION_NODE_MAX_PER_SUBTASK: "{{ include "ragnerock.number" .Values.limits.notificationNodeMaxPerSubtask }}"
+  NOTIFICATION_SINK_MAX_PER_SUBTASK: "{{ include "ragnerock.number" .Values.limits.notificationSinkMaxPerSubtask }}"
   CHANGE_REQUEST_RENOTIFY_COOLDOWN_HOURS: "{{ include "ragnerock.number" .Values.changeRequests.renotifyCooldownHours }}"
   MAX_CONCURRENT_JOBS: "{{ include "ragnerock.number" .Values.limits.concurrency.maxConcurrentJobs }}"
   # Only the job worker is targeted by the API's parse-sample calls; the
@@ -970,19 +1066,22 @@ data:
   TOOL_OPERATOR_SUBTASK_SIZE: "{{ include "ragnerock.number" .Values.limits.batches.toolOperatorSubtask }}"
   ROW_SUBTASK_GRAIN_ENABLED: "{{ .Values.limits.batches.rowSubtaskGrainEnabled }}"
   SUBTASK_TOOL_ELAPSED_CEILING_SECONDS: "{{ include "ragnerock.number" .Values.limits.batches.subtaskToolElapsedCeilingSeconds }}"
+  MEMORY_WRITER_PHASE_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.memory.writerPhaseTimeoutSeconds }}"
   SUBTASK_MAX_ATTEMPTS: "{{ include "ragnerock.number" .Values.limits.subtask.maxAttempts }}"
   SUBTASK_FAILURE_THRESHOLD: "{{ include "ragnerock.number" .Values.limits.subtask.failureThreshold }}"
   SUBTASK_HEARTBEAT_INTERVAL_SECONDS: "{{ include "ragnerock.number" .Values.limits.subtask.heartbeatIntervalSeconds }}"
   SUBTASK_CLAIM_STALE_SECONDS: "{{ include "ragnerock.number" .Values.limits.subtask.claimStaleSeconds }}"
   SUBTASK_STALE_THRESHOLD_MINUTES: "{{ include "ragnerock.number" .Values.limits.subtask.staleThresholdMinutes }}"
   JOB_WATCHDOG_SLACK_MINUTES: "{{ include "ragnerock.number" .Values.limits.job.watchdogSlackMinutes }}"
+  JOB_HEARTBEAT_INTERVAL_SECONDS: "{{ include "ragnerock.number" .Values.limits.job.heartbeatIntervalSeconds }}"
+  JOB_CLAIM_STALE_SECONDS: "{{ include "ragnerock.number" .Values.limits.job.claimStaleSeconds }}"
   CODE_OPERATOR_MAX_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.limits.codeOperator.maxTimeoutSeconds }}"
   CODE_OPERATOR_MAX_TIMEOUT_SECONDS_SHEET: "{{ include "ragnerock.number" .Values.limits.codeOperator.maxTimeoutSecondsSheet }}"
   CODE_OPERATOR_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.limits.codeOperator.timeoutSeconds }}"
 ---
 # Runtime geometry shared by the worker and subtask-worker: delivery-capacity
-# shedding, phase-advance concurrency, DB pool/threadpool sizing, the
-# job-reconciliation sweep, and the code-operator resource caps. Both run the
+# shedding, phase-advance concurrency, DB pool/threadpool sizing, and the
+# code-operator resource caps. Both run the
 # same job-processing code, so they are tuned as a pair.
 apiVersion: v1
 kind: ConfigMap
@@ -1010,7 +1109,6 @@ data:
   COMPLETION_LOCK_SLOW_MS: "{{ include "ragnerock.number" .Values.workers.database.completionLockSlowMs }}"
   TABULAR_ROW_INSERT_CHUNK_ROWS: "{{ include "ragnerock.number" .Values.workers.tabularIngest.rowInsertChunkRows }}"
   TABULAR_ROW_INSERT_CHUNK_BYTES: "{{ include "ragnerock.number" .Values.workers.tabularIngest.rowInsertChunkBytes }}"
-  SUBTASK_PUBLISH_CONCURRENCY: "{{ include "ragnerock.number" .Values.workers.subtaskPublishConcurrency }}"
   SUBTASK_ENQUEUE_STALE_MINUTES: "{{ include "ragnerock.number" .Values.workers.subtaskEnqueueStaleMinutes }}"
   SUBTASK_INSERT_CHUNK_ROWS: "{{ include "ragnerock.number" .Values.workers.subtaskInsertChunkRows }}"
   MAX_CONCURRENT_SPAWNS: "{{ include "ragnerock.number" .Values.workers.maxConcurrentSpawns }}"
@@ -1028,12 +1126,6 @@ data:
   # Fixed geometry rather than a tunable: the isolated health server has to sit
   # on a port other than the main app port (8080).
   HEALTH_PORT: "8081"
-  JOB_RECONCILE_ENABLED: "{{ .Values.workers.reconcile.enabled }}"
-  JOB_RECONCILE_INTERVAL_SECONDS: "{{ include "ragnerock.number" .Values.workers.reconcile.intervalSeconds }}"
-  JOB_RECONCILE_BATCH_SIZE: "{{ include "ragnerock.number" .Values.workers.reconcile.batchSize }}"
-  JOB_RECONCILE_NOT_STARTED_AFTER_SECONDS: "{{ include "ragnerock.number" .Values.workers.reconcile.notStartedAfterSeconds }}"
-  JOB_RECONCILE_IN_PROGRESS_AFTER_SECONDS: "{{ include "ragnerock.number" .Values.workers.reconcile.inProgressAfterSeconds }}"
-  JOB_RECONCILE_TERMINAL_WRITE_AFTER_SECONDS: "{{ include "ragnerock.number" .Values.workers.reconcile.terminalWriteAfterSeconds }}"
   # Notebook sandbox session-state sweep: idle purge plus orphan state-object
   # collection. TTL and grace are core settings read by the worker.
   CODE_SESSION_SWEEP_ENABLED: "{{ .Values.workers.codeSession.sweepEnabled }}"
@@ -1104,7 +1196,9 @@ metadata:
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
-  CALLBACK_DELIVERY_URL: http://{{ include "ragnerock.fullname" . }}-callback-delivery:{{ include "ragnerock.number" .Values.callbackDelivery.service.port }}
+  # The full delivery route, not the service's base URL: every reader queues
+  # deliveries to it as-is.
+  CALLBACK_DELIVERY_URL: http://{{ include "ragnerock.fullname" . }}-callback-delivery:{{ include "ragnerock.number" .Values.callbackDelivery.service.port }}/v1/deliver
 ---
 # The callback-delivery service's OWN settings, separate from the map above:
 # that one carries the service's URL and is mounted by everything that calls
@@ -1215,11 +1309,10 @@ data:
   AUDIT_EXPORT_WATERMARK_MINUTES: "{{ include "ragnerock.number" .Values.auditService.export.watermarkMinutes }}"
   AUDIT_EXPORT_SCAN_LOOKBACK_HOURS: "{{ include "ragnerock.number" .Values.auditService.export.scanLookbackHours }}"
   AUDIT_EXPORT_LAG_ALERT_MINUTES: "{{ include "ragnerock.number" .Values.auditService.export.lagAlertMinutes }}"
+  AUDIT_EXPORT_RUNNING_LEASE_MINUTES: "{{ include "ragnerock.number" .Values.auditService.export.runningLeaseMinutes }}"
+  AUDIT_EXPORT_HELD_RETRY_AFTER_SECONDS: "{{ include "ragnerock.number" .Values.auditService.export.heldRetryAfterSeconds }}"
   # Every live-log ingest batch asks whether a tail is open; this bounds how
   # often that question reaches the lease table. The rest of the live-log
   # settings this service reads come from the `-live-log` and `-core` maps.
   LIVE_LOG_TAIL_CACHE_SECONDS: "{{ include "ragnerock.number" .Values.liveLog.buffer.tailCacheSeconds }}"
-  CLOUD_TASKS_AUDIT_EXPORT_QUEUE_NAME: "{{ .Values.queue.auditExportQueueName }}"
-  CLOUD_TASKS_ENABLED: "true"
-  CLOUD_TASKS_PROJECT_ID: local
-  CLOUD_TASKS_ENDPOINT: {{ include "ragnerock.fullname" . }}-queue:{{ include "ragnerock.number" .Values.queue.port }}
+  AUDIT_EXPORT_QUEUE_NAME: "{{ .Values.queue.auditExportQueueName }}"

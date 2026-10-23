@@ -1,6 +1,6 @@
 # ragnerock
 
-![Version: 1.8.4](https://img.shields.io/badge/Version-1.8.4-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v2026.10.13](https://img.shields.io/badge/AppVersion-v2026.10.13-informational?style=flat-square)
+![Version: 1.8.5](https://img.shields.io/badge/Version-1.8.5-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v2026.10.23](https://img.shields.io/badge/AppVersion-v2026.10.23-informational?style=flat-square)
 
 Ragnerock research intelligence platform
 
@@ -45,7 +45,7 @@ Ragnerock research intelligence platform
 | agentInstances.heartbeatIntervalSeconds | int | `30` | How often a running loop refreshes its row. The reaper fails a row after three of these, so this is also how fast a crashed instance is told from a slow one. |
 | agentInstances.registryEnabled | bool | `true` | Write a registry row for every live agent loop. Set to false to write no rows; every loop still carries its instance id into audit rows, memory provenance and annotation metadata, so only the live view is lost. |
 | agentInstances.writeTimeoutSeconds | int | `5` | Ceiling on one registry write; past it the write is dropped with a warning and the reaper closes the row |
-| agentTools | object | `{"annotationQueueWaitSeconds":120,"annotationToolCallRecordResultMaxChars":40000,"auditResultMaxChars":8000,"buildTimeBudgetSeconds":600,"busyWaitSeconds":5,"callTimeoutMaxSeconds":120,"callTimeoutSeconds":30,"connectTimeoutSeconds":5,"connectors":{"clients":"","existingSecret":""},"connectorsDisabled":"","connectorsEnabled":"","descriptionMaxChars":1024,"discoveryTimeoutSeconds":20,"enabled":true,"executionLogEnabled":true,"executionLogWriteTimeoutSeconds":5,"headerValueMaxChars":4096,"maxCallsPerInvocation":10,"maxConcurrentCalls":20,"maxFunctionsPerAgent":40,"maxHeaders":20,"maxPerOperator":10,"maxResultImages":4,"maxUserToolsPerProject":25,"mcpMaxFunctions":30,"oauthClientMetadataCacheSeconds":3600,"oauthEnabled":true,"oauthFlowTtlSeconds":600,"oauthMetadataMaxBytes":65536,"oauthRefreshLeaseSeconds":30,"oauthRefreshSkewSeconds":60,"oauthStartDeadlineSeconds":30,"oauthTokenRequestTimeoutSeconds":10,"paramDescriptionMaxChars":256,"privateEgressAllowlist":"","requestBodyMaxBytes":262144,"responseMaxBytes":262144,"restMaxRoutes":30,"resultMaxChars":32000,"rowTimeBudgetSeconds":360,"schemaMaxBytes":16384,"schemaMaxDepth":5}` | Agent tools: the ops kill switch plus the size, time, and concurrency bounds for the MCP servers and REST APIs a project points its agents at. |
+| agentTools | object | `{"annotationQueueWaitSeconds":120,"annotationToolCallRecordResultMaxChars":40000,"auditResultMaxChars":8000,"buildTimeBudgetSeconds":600,"busyWaitSeconds":5,"callTimeoutMaxSeconds":120,"callTimeoutSeconds":30,"connectTimeoutSeconds":5,"connectors":{"clients":"","existingSecret":""},"connectorsDisabled":"","connectorsEnabled":"","descriptionMaxChars":1024,"discoveryTimeoutSeconds":20,"enabled":true,"executionLogEnabled":true,"executionLogWriteTimeoutSeconds":5,"headerValueMaxChars":4096,"longDescriptionMaxChars":4096,"longParamDescriptionMaxChars":2048,"maxCallsPerInvocation":10,"maxConcurrentCalls":20,"maxFunctionsPerAgent":80,"maxHeaders":20,"maxPerOperator":10,"maxResultImages":4,"maxUserToolsPerProject":25,"mcpMaxFunctions":30,"oauthClientMetadataCacheSeconds":3600,"oauthEnabled":true,"oauthFlowTtlSeconds":600,"oauthMetadataMaxBytes":65536,"oauthRefreshLeaseSeconds":30,"oauthRefreshSkewSeconds":60,"oauthStartDeadlineSeconds":30,"oauthTokenRequestTimeoutSeconds":10,"paramDescriptionMaxChars":256,"privateEgressAllowlist":"","requestBodyMaxBytes":262144,"responseMaxBytes":262144,"restMaxRoutes":30,"resultMaxChars":32000,"rowTimeBudgetSeconds":360,"schemaMaxBytes":16384,"schemaMaxDepth":5}` | Agent tools: the ops kill switch plus the size, time, and concurrency bounds for the MCP servers and REST APIs a project points its agents at. |
 | agentTools.annotationQueueWaitSeconds | int | `120` | How long an annotation call waits for the same semaphores. A refused call there is a failed row, so it queues; a row that still starves past this is classified retryable and costs a redelivery |
 | agentTools.annotationToolCallRecordResultMaxChars | int | `40000` | Cap on a stored annotation tool-call result (provenance, not replay) |
 | agentTools.auditResultMaxChars | int | `8000` | Cap on the result text carried in an external-tool audit payload |
@@ -64,9 +64,11 @@ Ragnerock research intelligence platform
 | agentTools.executionLogEnabled | bool | `true` | Record every MCP/REST call an agent makes as a row of the tool's tool_<slug> table in the customer's data DB (the audit trail is unaffected) |
 | agentTools.executionLogWriteTimeoutSeconds | int | `5` | Ceiling on one execution-log write; past it the row is dropped with a warning |
 | agentTools.headerValueMaxChars | int | `4096` | Maximum header value length in characters (a JWT fits) |
+| agentTools.longDescriptionMaxChars | int | `4096` | Function description length kept for a catalog connector whose descriptions carry the call contract (Notion) |
+| agentTools.longParamDescriptionMaxChars | int | `2048` | Per-parameter description length kept for such a connector |
 | agentTools.maxCallsPerInvocation | int | `10` | Default per-invocation call budget on every tool function |
 | agentTools.maxConcurrentCalls | int | `20` | Per-process concurrency semaphore and egress pool size |
-| agentTools.maxFunctionsPerAgent | int | `40` | Expanded tool functions one consumer may carry (the notebook, or one agent) |
+| agentTools.maxFunctionsPerAgent | int | `80` | Expanded tool functions one consumer may carry (the notebook, or one agent) |
 | agentTools.maxHeaders | int | `20` | Request headers configurable on one tool |
 | agentTools.maxPerOperator | int | `10` | Tools a single workflow agent may select |
 | agentTools.maxResultImages | int | `4` | MCP image blocks attached to a notebook tool result |
@@ -123,6 +125,8 @@ Ragnerock research intelligence platform
 | api.autoscaling.targetMemoryUtilizationPercentage | int | `80` | Target average memory utilization (% of requests). Set to null to disable. |
 | api.capacityRetryAfterSeconds | int | `2` | Retry-After sent with a shed 503, honoured by the frontend's reconnect, and with the 503 for a database connection lost to a failover |
 | api.capacityWaitSeconds | float | `5` | Seconds a request waits for capacity before it is rejected |
+| api.cellSourcePassageMaxChars | int | `2000` | Characters of a paragraph, or of a spreadsheet row's cells, a query cell's source card is sent |
+| api.cellSourceResolveMaxAnchors | int | `200` | Most anchors one request to resolve query cell sources may carry (a 100-row results page with two anchored sources is 200) |
 | api.dbServiceMaxConnections | int | `40` | Concurrent HTTP connections to db-service, bounding the source so a spike queues here rather than arriving as load db-service has to shed |
 | api.dbThreadpoolSize | int | `64` | Threads serving blocking DB work off the event loop |
 | api.documentDownloadChunkBytes | int | `1048576` | Size (bytes) of each chunk streamed back to the client on a document download |
@@ -144,6 +148,15 @@ Ragnerock research intelligence platform
 | api.maxConcurrentStreams | int | `40` | Concurrent streaming requests (SSE, NDJSON, MCP waiters) one pod admits. A separate class: a stream holds a request slot for minutes and a DB connection for almost none of it, and every logged-in browser tab holds two permanently |
 | api.operatorSample.maxFileBytes | int | `20971520` | Max workbench attachment size accepted by the parse-sample endpoint. The file rides to the worker as base64 JSON (~4/3 the size), so keep it at or below 20 MiB |
 | api.operatorSample.parseTimeoutSeconds | int | `300` | API-side read timeout on the synchronous worker parse call, in seconds. Whole-document OCR of a large PDF via an external backend takes minutes |
+| api.orphanCleanup.batchSize | int | `1000` | Rows per DELETE statement (1-1000). One run still clears an account's whole backlog. |
+| api.orphanCleanup.dryRun | bool | `false` | Count orphans and delete nothing. Useful on a first rollout to see the backlog before anything is removed. |
+| api.orphanCleanup.gracePeriodHours | int | `24` | Hours an orphan must have existed before it is swept. Chunks of a document deleted more recently, and newer revisions, are left alone. |
+| api.pagePreviewCacheSeconds | int | `3600` | Seconds a browser may cache a page preview |
+| api.pagePreviewFileCacheIdleSeconds | int | `300` | Seconds a previewed PDF stays in the instance's file cache after its last use |
+| api.pagePreviewFileCacheMaxBytes | int | `134217728` | Bytes of recently previewed PDFs each instance keeps in memory, so hovering down a column downloads each file once |
+| api.pagePreviewMaxDocumentBytes | int | `52428800` | Largest PDF a page preview opens, in bytes |
+| api.pagePreviewMaxPixels | int | `4000000` | Most pixels a page preview image may have, so a long, narrow page cannot render tens of thousands of pixels tall |
+| api.pagePreviewMaxWidthPx | int | `1600` | Widest page preview image rendered, in pixels |
 | api.platformOperatorDomains | list | `["localhost.local"]` | Email domains whose users are platform operators: the only users who can migrate and backfill the shared default data DB. The bootstrap admin is `admin@localhost.local`; add the domain your install's operators log in with |
 | api.pydanticSchemaImportMaxChars | int | `100000` | Largest Pydantic source paste a schema import accepts, in characters. Parsing is static (no code runs), but each request parses arbitrary pasted Python |
 | api.queryTabularTablesListLimit | int | `500` | Cap on tabular tables returned to the query explorer's flat table list. A project past this is better served by the paginated db-service catalog |
@@ -212,7 +225,9 @@ Ragnerock research intelligence platform
 | auditService.database.maxOverflow | int | `10` | Extra connections allowed beyond poolSize |
 | auditService.database.poolSize | int | `5` | Persistent DB connections held by the pool. SQLAlchemy's own default, named explicitly so the connection budget sums a visible number |
 | auditService.database.poolTimeout | int | `5` | Seconds a request waits for a connection before failing |
+| auditService.export.heldRetryAfterSeconds | int | `60` | Retry-After on the 409 a delivery gets while another is exporting the same run |
 | auditService.export.lagAlertMinutes | int | `120` | Oldest-incomplete-window age past which the scan logs a lag alert |
+| auditService.export.runningLeaseMinutes | int | `60` | How long a running export run belongs to the delivery that started it; a second delivery inside it is refused, and past it the run is taken over |
 | auditService.export.scanLookbackHours | int | `26` | Bounded catch-up horizon the export scan considers for missing windows |
 | auditService.export.watermarkMinutes | int | `15` | Ingest-lag settle time before an export window is declared complete |
 | auditService.extraEnv | list | `[]` | Extra container environment variables (list of Kubernetes EnvVar specs, so `valueFrom` works). Rendered after the chart's own, so an entry here overrides a variable of the same name the chart sets |
@@ -235,6 +250,9 @@ Ragnerock research intelligence platform
 | auth.existingSecret | string | `""` | Use a pre-existing secret (must provide keys `SECRET_KEY` and `ACCESS_KEY`) instead of generating one. When set, `secretKey`/`accessKey` are ignored. |
 | auth.lockoutMaxAttempts | int | `10` |  |
 | auth.secretKey | string | `""` | Generate with `openssl rand -hex 22` |
+| byoai | object | `{"allowPlainHttp":false,"privateEgressAllowlist":""}` | BYOAI egress: where AI, embedding, and image-summary provider endpoints may point. |
+| byoai.allowPlainHttp | bool | `false` | Accept http:// provider endpoints on public hosts too, such as an OpenAI-compatible proxy served without TLS. The provider's API key then crosses the network unencrypted. Cloud metadata endpoints and non-allowlisted private hosts are refused either way. |
+| byoai.privateEgressAllowlist | string | `""` | Comma-separated hostnames, hostname suffixes (".corp.internal"), or CIDRs a provider endpoint may reach even though they resolve to private addresses, and for which http:// is accepted. Empty means public hosts only. Separate from `agentTools.privateEgressAllowlist`. |
 | callbackDelivery.affinity | object | `{}` | Pod affinity rules (overrides `global.affinity`) |
 | callbackDelivery.annotations | object | `{}` | Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence) |
 | callbackDelivery.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
@@ -245,7 +263,7 @@ Ragnerock research intelligence platform
 | callbackDelivery.database.poolSize | int | `5` | Persistent DB connections held by the pool. SQLAlchemy's own default, named explicitly so the connection budget sums a visible number |
 | callbackDelivery.database.poolTimeout | int | `5` | Seconds a request waits for a connection before failing |
 | callbackDelivery.extraEnv | list | `[]` | Extra container environment variables (list of Kubernetes EnvVar specs, so `valueFrom` works). Rendered after the chart's own, so an entry here overrides a variable of the same name the chart sets |
-| callbackDelivery.image.name | string | `"api"` |  |
+| callbackDelivery.image.name | string | `"callback-delivery"` |  |
 | callbackDelivery.image.tag | string | `""` |  |
 | callbackDelivery.replicaCount | int | `1` |  |
 | callbackDelivery.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
@@ -334,6 +352,8 @@ Ragnerock research intelligence platform
 | dbService.podDisruptionBudget | object | `{"enabled":true,"maxUnavailable":1,"minAvailable":null}` | Pod disruption budget, on by default because every other service calls db-service synchronously. Set exactly one of `minAvailable`/`maxUnavailable`; the other must be null. Both accept an integer or a percentage string (e.g. `"50%"`). The default `maxUnavailable: 1` never blocks a node drain, so it only keeps db-service up through one when `replicaCount` is 2 or more. |
 | dbService.poolTimeout | int | `5` | Seconds a request waits for a DB connection before the app returns 503 POOL_EXHAUSTED. At least capacityWaitSeconds, so the gate sheds first |
 | dbService.queryDefaultTimeoutSeconds | int | `120` | Statement timeout (seconds) for a document query whose request carries none |
+| dbService.queryProvenanceEnabled | bool | `true` | Whether a document query may ask where its result's columns and rows came from (the Query Explorer's cell sources); false answers every such request "disabled" and runs the query as written |
+| dbService.queryProvenanceMaxRows | int | `10000` | How many rows of a document query's result carry provenance anchors |
 | dbService.querySlowLogThresholdMs | int | `5000` | A document query slower than this (ms) is logged with its shape and timings, never the SQL; 0 disables |
 | dbService.queryWorkMem | string | `"64MB"` | Postgres work_mem for a document query's transaction (a number with a kB/MB/GB unit); the annotation pivot spills to disk at the cluster default |
 | dbService.rateLimitMaxTokens | int | `100` | Per-customer-DB rate limit: token bucket capacity (the default data DB is exempt) |
@@ -394,7 +414,7 @@ Ragnerock research intelligence platform
 | endpoints.oauth.cimdTimeoutSeconds | int | `10` | Timeout on fetching a client ID metadata document, in seconds. API only |
 | endpoints.oauth.dcrMaxPerDayGlobal | int | `5000` | Dynamic client registrations the whole deployment accepts per day, whoever sends them: the bound that holds even where the edge passes `X-Forwarded-For` through. Legitimate use is a few a day. API only |
 | endpoints.oauth.dcrMaxPerIpPerDay | int | `20` | Dynamic client registrations one address may create per day. The MCP hosts register from shared egress addresses, so this is sized to survive a whole office behind one NAT. Keys on the client address the API sees, which is the left-most `X-Forwarded-For` entry: whatever fronts the API must set that header from the connection rather than pass a caller's own through, or a caller gets a fresh bucket per spoofed value. API only |
-| endpoints.oauth.dcrUnusedClientTtlDays | int | `30` | How long a registration nobody ever consented to is kept before the maintenance CronJob's prune deletes it, in days. API only |
+| endpoints.oauth.dcrUnusedClientTtlDays | int | `30` | How long a registration nobody ever consented to is kept before the daily prune queue-service fires deletes it, in days. API only |
 | endpoints.oauth.enabled | bool | `true` | Let a caller sign in to an endpoint MCP server instead of presenting a key. When false the well-known documents and every /api/oauth route answer 404 and existing tokens stop being accepted, so a host sees a deployment that never supported OAuth rather than one that advertises it and then refuses. Two install requirements, neither of which the chart can satisfy for you: `api.url` must be set, because it is the issuer every token is bound to; and **`/.well-known/*` on that host must reach the API**. The chart ships no ingress, so whatever fronts the API is what has to route those two paths — a client that cannot fetch them cannot start a sign-in at all, and sees a server with no OAuth rather than an error. API only |
 | endpoints.oauth.refreshTokenTtlDays | int | `30` | Lifetime of a refresh token, in days. Sliding: every rotation issues a fresh expiry, so an app in regular use never expires and one idle this long does. API only |
 | endpoints.oauth.registrationMaxBodyBytes | int | `16384` | Largest client registration body accepted, in bytes. API only |
@@ -466,8 +486,10 @@ Ragnerock research intelligence platform
 | limits.concurrency.maxConcurrentSubtasks | int | `50` |  |
 | limits.concurrency.maxConcurrentToollessAnnotations | int | `50` | Per-subtask concurrency of a function-shaped operator's tool-less calls on the unified loop (`unifiedLoop.operatorKinds` lists `function_shaped`); bounded process-wide by the annotation-target and agent-call gates |
 | limits.dbIdsPerRequest | int | `200` | Ids per request to a db-service '*-by-ids' endpoint, and the ceiling those endpoints enforce -- one value, because the client's chunk size and the server's limit are one decision. A URL byte budget: each id costs 41 bytes of request line, so 200 is about 8.2 KB, half the smallest limit in the path. |
+| limits.job.claimStaleSeconds | int | `300` | Seconds without a heartbeat before another delivery may take over a job being parsed; must be several times the interval and above the DB pool timeout |
+| limits.job.heartbeatIntervalSeconds | int | `30` | Seconds between claim heartbeats while a delivery parses a job's documents |
 | limits.job.watchdogSlackMinutes | int | `5` | Extra delay past the subtask claim lease (claimStaleSeconds) before the job watchdog reconciles |
-| limits.notificationNodeMaxPerSubtask | int | `50` | Most inbox notifications one notification-node subtask may create. The rest collapse into a single summary, so a row-scoped node over a large sheet cannot flood the run user's inbox |
+| limits.notificationSinkMaxPerSubtask | int | `50` | Most inbox notifications one notification output may create per subtask. The rest collapse into a single summary per recipient, so a row-scoped source over a large sheet cannot flood anyone's inbox |
 | limits.requiredFunctionsPerNode | int | `3` | Functions one workflow node may require its agent to call before it answers. Each can cost a forced model call per target, so the cap bounds that cost |
 | limits.subtask.claimStaleSeconds | int | `300` | Seconds without a heartbeat before an in-flight subtask may be re-claimed; must be several times the interval and above the DB pool timeout |
 | limits.subtask.failureThreshold | float | `0.05` |  |
@@ -515,32 +537,23 @@ Ragnerock research intelligence platform
 | llm.textract.maxConcurrency | int | `4` | Maximum concurrent Textract page requests per worker |
 | llm.textract.region | string | `""` | AWS region the Textract API is called in. Required when `pdfParserBackend` is `textract`. |
 | llm.textract.secretAccessKey | string | `""` | AWS secret access key. Required when `pdfParserBackend` is `textract`. |
-| maintenance.affinity | object | `{}` | Pod affinity rules (overrides `global.affinity`) |
-| maintenance.annotations | object | `{}` | Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence) |
-| maintenance.backoffLimit | int | `1` | Retries within one firing. The routes are idempotent and daily, so a transient failure is better left to tomorrow's run than retried hard. |
-| maintenance.enabled | bool | `true` | Run the maintenance CronJob. Disable only if you fire the internal `/api/endpoints/internal/*`, `/api/maintenance/internal/*`, `/ingest/internal/maintenance`, `/api/oauth/internal/prune`, `/api/assignments/internal/reap` and `/api/accounts/internal/purge-tick` routes some other way. The purge tick starts the purges that came due, so with `accountLifecycle.purgeEnabled` on, a closed account is purged at the first firing after it is due.  The job sends no credential. Those routes are guarded by a Google OIDC check that a Kubernetes CronJob cannot satisfy, and that check is inert unless `CALLBACK_AUTH_ENABLED` is true — which this chart never sets. In other words they are protected by network isolation: reachable only from inside the cluster, and the chart ships no ingress. If you turn `CALLBACK_AUTH_ENABLED` on through `api.extraEnv`, this job starts failing every night; disable it here and drive the routes yourself. |
-| maintenance.failedJobsHistoryLimit | int | `3` |  |
-| maintenance.image.name | string | `"api"` |  |
-| maintenance.image.tag | string | `""` |  |
-| maintenance.orphanCleanup.batchSize | int | `1000` | Rows per DELETE statement (1-1000). One run still clears an account's whole backlog. |
-| maintenance.orphanCleanup.dryRun | bool | `false` | Count orphans and delete nothing. Useful on a first rollout to see the backlog before anything is removed. |
-| maintenance.orphanCleanup.gracePeriodHours | int | `24` | Hours an orphan must have existed before it is swept. Chunks of a document deleted more recently, and newer revisions, are left alone. |
-| maintenance.resources | object | `{}` | Deployment resource constraints (i.e. requests/limits) |
-| maintenance.schedule | string | `"23 3 * * *"` | Cron schedule (cluster timezone). Daily, off-peak by default. An ingest run whose execution was lost keeps its source busy until this job fails it, so installs that ingest on a schedule may want it more often (every route is idempotent and bounded). |
-| maintenance.serviceAccount.annotations | object | `{}` | Annotations to add to the created service account (e.g. for workload identity) |
-| maintenance.serviceAccount.create | bool | `false` | Create a service account for the maintenance job's pods |
-| maintenance.serviceAccount.name | string | `""` | Service account name to use; if empty and `create` is true a name is generated |
-| maintenance.startingDeadlineSeconds | int | `600` | Skip a firing that could not start within this many seconds rather than piling up missed runs after a cluster outage. |
-| maintenance.successfulJobsHistoryLimit | int | `3` |  |
-| maintenance.timeoutSeconds | int | `300` | Per-route HTTP timeout. The prune and ingest maintenance routes work in bounded batches and resume at the next firing, so they never need a long one. |
-| maintenance.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
-| memory | object | `{"schemaHardCap":100,"schemaSoftCap":25,"searchBudgetAnnotation":8,"toolsEnabled":true,"writeBudgetAnnotation":12,"writeBudgetNotebook":8}` | Agentic memory: the ops kill switch, schema-proliferation caps, and the per-run write budgets that bound a single agent's memory writes. |
+| memory | object | `{"contextMaxChars":6000,"contextMaxRecords":15,"hookInputMaxChars":48000,"hookTurnTokenBudget":400000,"hooksEnabled":true,"retrievalMaxIterations":5,"retrievalSearchBudget":3,"retrievalTimeoutSeconds":60,"schemaHardCap":100,"schemaSoftCap":25,"searchBudgetAnnotation":8,"toolsEnabled":true,"writeBudgetAnnotation":12,"writeBudgetNotebook":8,"writerMaxIterations":16,"writerPhaseTimeoutSeconds":300}` | Agentic memory: the ops kill switch, schema-proliferation caps, and the per-run write budgets that bound a single agent's memory writes. |
+| memory.contextMaxChars | int | `6000` | Characters of memory a workflow agent is shown for one item |
+| memory.contextMaxRecords | int | `15` | Records a workflow agent is shown for one item |
+| memory.hookInputMaxChars | int | `48000` | Characters of an item's input sent to a memory subagent |
+| memory.hookTurnTokenBudget | int | `400000` | Cost-weighted token budget of one memory subagent run |
+| memory.hooksEnabled | bool | `true` | Run the workflow memory subagents. Set to false to stop their spend; workflow agents then have no memory, notebooks keep theirs |
+| memory.retrievalMaxIterations | int | `5` | Iteration cap of the memory retrieval subagent |
+| memory.retrievalSearchBudget | int | `3` | Memory searches one retrieval may make |
+| memory.retrievalTimeoutSeconds | int | `60` | Seconds one memory retrieval may take before the item runs without memory |
 | memory.schemaHardCap | int | `100` | Schemas per project past which creating another is refused |
 | memory.schemaSoftCap | int | `25` | Schemas per project past which creating another is discouraged |
 | memory.searchBudgetAnnotation | int | `8` | Memory searches allowed in a single annotation run |
 | memory.toolsEnabled | bool | `true` | Expose the memory tools to agents. Set to false to switch memory off entirely. |
 | memory.writeBudgetAnnotation | int | `12` | Memory writes allowed in a single annotation run |
 | memory.writeBudgetNotebook | int | `8` | Memory writes allowed in a single notebook turn |
+| memory.writerMaxIterations | int | `16` | Iteration cap of the memory writer subagent |
+| memory.writerPhaseTimeoutSeconds | int | `300` | Seconds one subtask's memory writer phase may take; writes still running are dropped and counted |
 | messageBoard | object | `{"enabled":true,"inboxMaxAgeDays":30,"inboxMaxEntries":10,"maxBodyChars":1000,"maxHandles":20,"writeBudget":4}` | Agent message board: the ops switch (independent of memory.toolsEnabled), the message body cap, and the bounds on the inbox listing and the write budget. |
 | messageBoard.enabled | bool | `true` | Expose the message board's tools to agents in projects that switch it on. |
 | messageBoard.inboxMaxAgeDays | int | `30` | Days after which a message is no longer listed for anyone |
@@ -696,22 +709,37 @@ Ragnerock research intelligence platform
 | query | object | `{"assistQueryTimeoutSeconds":30,"metadataCacheTTLSeconds":10}` | Document-query layer (API and worker) |
 | query.assistQueryTimeoutSeconds | int | `30` | Statement timeout (seconds) for the query-assist sub-agent's probe queries |
 | query.metadataCacheTTLSeconds | int | `10` | Seconds the query-layer metadata (annotation schemas, agents, datasets) is cached per project in-process; 0 disables |
-| queue | object | `{"accountPurgeQueueName":"account-purge","affinity":{},"annotations":{},"auditExportQueueName":"audit-export-runs","auditQueueName":"ragnerock-audit","autoscaling":{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80},"callbackQueueName":"ragnerock-callbacks","ingestRunsQueueName":"ingest-runs","jobQueueName":"ragnerock-document-jobs","port":8123,"queuePoolSize":100,"resources":{},"serviceAccount":{"annotations":{},"create":false,"name":""},"subtaskQueueName":"ragnerock-subtask-jobs","tolerations":[],"volumeMounts":[],"volumes":[]}` | Cloudtask configuration for use with in-cluster emulator |
+| queue | object | `{"accountPurgeQueueName":"account-purge","auditExportQueueName":"audit-export-runs","auditQueueName":"ragnerock-audit","callbackQueueName":"ragnerock-callbacks","ingestRunsQueueName":"ingest-runs","jobQueueName":"ragnerock-document-jobs","queuePoolSize":100,"schedulerQueueName":"scheduled-jobs","subtaskQueueName":"ragnerock-subtask-jobs"}` | Queue names every service publishes to. Background work is queued in the app database and delivered by queue-service (`queueService`). |
 | queue.accountPurgeQueueName | string | `"account-purge"` | Queue account purge steps run on: the purge tick and each step publish the next step of a closed account's purge to the worker here |
-| queue.affinity | object | `{}` | Pod affinity rules for the queue deployment (overrides `global.affinity`) |
-| queue.annotations | object | `{}` | Annotations added to the queue deployment's metadata (merged with `global.annotations`; per-service keys take precedence) |
 | queue.auditExportQueueName | string | `"audit-export-runs"` | Queue the audit-service enqueues its own /audit/export-run tasks onto |
-| queue.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
-| queue.autoscaling.targetCPUUtilizationPercentage | int | `80` | Target average CPU utilization (% of requests). Set to null to disable. |
-| queue.autoscaling.targetMemoryUtilizationPercentage | int | `80` | Target average memory utilization (% of requests). Set to null to disable. |
 | queue.ingestRunsQueueName | string | `"ingest-runs"` | Queue the API sends ingest runs to the data-ingestor on |
-| queue.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
-| queue.serviceAccount.annotations | object | `{}` | Annotations to add to the created service account (e.g. for workload identity) |
-| queue.serviceAccount.create | bool | `false` | Create a service account for this deployment's pods |
-| queue.serviceAccount.name | string | `""` | Service account name to use; if empty and `create` is true a name is generated |
-| queue.tolerations | list | `[]` | Pod tolerations for the queue deployment (overrides `global.tolerations`) |
-| queue.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
-| queue.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
+| queue.queuePoolSize | int | `100` | Size of the shared pool of per-account queues. Each account is hashed onto one queue of each kind from the pool; 0 gives every account queues of its own |
+| queue.schedulerQueueName | string | `"scheduled-jobs"` | Queue the scheduler's recurring jobs fire onto: each ingest schedule and the maintenance jobs |
+| queueService | object | `{"affinity":{},"annotations":{},"database":{"maxOverflow":5,"poolSize":5,"poolTimeout":5},"extraAllowedHosts":[],"extraEnv":[],"image":{"name":"queue-service","tag":""},"maintenanceSchedulesEnabled":true,"networkPolicy":{"enabled":true},"reconcile":{"batchSize":100,"enabled":true,"inProgressAfterSeconds":2700,"intervalSeconds":300,"notStartedAfterSeconds":900,"terminalWriteAfterSeconds":300},"resources":{},"service":{"port":8080,"type":"ClusterIP"},"serviceAccount":{"annotations":{},"create":false,"name":""},"terminationGracePeriodSeconds":45,"tolerations":[],"volumeMounts":[],"volumes":[]}` | queue-service: delivers the background work queued in the app database, fires the recurring jobs (ingest schedules and maintenance), and runs the job reconciler. It runs as a single pod. |
+| queueService.affinity | object | `{}` | Pod affinity rules (overrides `global.affinity`) |
+| queueService.annotations | object | `{}` | Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence) |
+| queueService.database.maxOverflow | int | `5` | Extra connections allowed beyond poolSize |
+| queueService.database.poolSize | int | `5` | Persistent DB connections held by the pool. Its loops run one statement at a time each, so a small pool covers them |
+| queueService.database.poolTimeout | int | `5` | Seconds a loop waits for a connection before it backs off |
+| queueService.extraAllowedHosts | list | `[]` | Hosts tasks may be delivered to besides this release's own services. A task aimed anywhere else is given up on without a request |
+| queueService.extraEnv | list | `[]` | Extra container environment variables (list of Kubernetes EnvVar specs, so `valueFrom` works). Rendered after the chart's own, so an entry here overrides a variable of the same name the chart sets |
+| queueService.maintenanceSchedulesEnabled | bool | `true` | Fire the maintenance jobs (pruning, reaping, the account purge tick, audit partition upkeep and export). Disable only if you fire those routes some other way; queue-service then deletes the jobs it wrote. Ingest schedules fire either way |
+| queueService.networkPolicy.enabled | bool | `true` | Only model-service and the data-ingestor publish through the queue-service relay. With this on, a NetworkPolicy lets only they reach its application port; the health port stays open for probes. Takes effect only on a CNI that enforces NetworkPolicy |
+| queueService.reconcile | object | `{"batchSize":100,"enabled":true,"inProgressAfterSeconds":2700,"intervalSeconds":300,"notStartedAfterSeconds":900,"terminalWriteAfterSeconds":300}` | Periodic DB sweep that re-sends jobs whose deliveries were lost after exhausting their retries. The workers read the same thresholds |
+| queueService.reconcile.batchSize | int | `100` | Jobs each kind of stuck job takes per sweep |
+| queueService.reconcile.enabled | bool | `true` | Run the reconciliation sweep |
+| queueService.reconcile.inProgressAfterSeconds | int | `2700` | Seconds a job may sit in progress before the sweep re-enqueues it |
+| queueService.reconcile.intervalSeconds | int | `300` | Seconds between sweeps |
+| queueService.reconcile.notStartedAfterSeconds | int | `900` | Seconds a job may sit unstarted before the sweep re-enqueues it |
+| queueService.reconcile.terminalWriteAfterSeconds | int | `300` | Seconds after it started a job may sit at a terminal phase with its status still in progress before the sweep has its outcome written |
+| queueService.resources | object | `{}` | Deployment resource constraints (i.e. requests/limits) |
+| queueService.serviceAccount.annotations | object | `{}` | Annotations to add to the created service account (e.g. for workload identity) |
+| queueService.serviceAccount.create | bool | `false` | Create a service account for this deployment's pods |
+| queueService.serviceAccount.name | string | `""` | Service account name to use; if empty and `create` is true a name is generated |
+| queueService.terminationGracePeriodSeconds | int | `45` | Seconds Kubernetes waits after SIGTERM. Open deliveries get 20 of them to finish before their tasks are handed back for redelivery |
+| queueService.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
+| queueService.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
+| queueService.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
 | ragnerock.safetyEnabled | bool | `true` | Should Ragnerock treat all prompts as unsafe |
 | rateLimits.adminMutationPerMinute | int | `40` |  |
 | rateLimits.agentPerMinute | int | `20` |  |
@@ -876,7 +904,7 @@ Ragnerock research intelligence platform
 | worker.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | worker.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
 | worker.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
-| workers | object | `{"capacityRetryAfterSeconds":5,"capacityWaitSeconds":5,"chunkThreadpoolSize":2,"codeSession":{"sweepBatchSize":200,"sweepEnabled":true,"sweepGraceHours":24,"sweepIntervalSeconds":3600,"ttlDays":30},"database":{"completionLockSlowMs":1000,"lockTimeoutSeconds":30,"maxOverflow":null,"poolHeadroom":5,"poolSize":null,"poolTimeout":10,"subtaskMaxOverflow":null,"subtaskPoolSize":null},"dbServiceMaxConnections":40,"dbThreadpoolSize":80,"maxChunkTokens":1500,"maxConcurrentJobAdvances":10,"maxConcurrentSpawns":5,"maxInstanceRequestConcurrency":"","reconcile":{"batchSize":100,"enabled":true,"inProgressAfterSeconds":2700,"intervalSeconds":300,"notStartedAfterSeconds":900,"terminalWriteAfterSeconds":300},"spawn":{"pageSize":1000,"planningStaleSeconds":900,"timeBudgetSeconds":300},"subtaskEnqueueStaleMinutes":15,"subtaskInsertChunkRows":5000,"subtaskPublishConcurrency":32,"tabularIngest":{"maxRowsPerSheet":100000,"rowInsertChunkBytes":8000000,"rowInsertChunkRows":1000,"rowRefsPageSize":10000}}` | Settings shared by the worker and subtask-worker deployments. Both run the same job-processing code, so they are tuned together. |
+| workers | object | `{"capacityRetryAfterSeconds":5,"capacityWaitSeconds":5,"chunkThreadpoolSize":2,"codeSession":{"sweepBatchSize":200,"sweepEnabled":true,"sweepGraceHours":24,"sweepIntervalSeconds":3600,"ttlDays":30},"database":{"completionLockSlowMs":1000,"lockTimeoutSeconds":30,"maxOverflow":null,"poolHeadroom":5,"poolSize":null,"poolTimeout":10,"subtaskMaxOverflow":null,"subtaskPoolSize":null},"dbServiceMaxConnections":40,"dbThreadpoolSize":80,"maxChunkTokens":1500,"maxConcurrentJobAdvances":10,"maxConcurrentSpawns":5,"maxInstanceRequestConcurrency":"","spawn":{"pageSize":1000,"planningStaleSeconds":900,"timeBudgetSeconds":300},"subtaskEnqueueStaleMinutes":15,"subtaskInsertChunkRows":5000,"tabularIngest":{"maxRowsPerSheet":100000,"rowInsertChunkBytes":8000000,"rowInsertChunkRows":1000,"rowRefsPageSize":10000}}` | Settings shared by the worker and subtask-worker deployments. Both run the same job-processing code, so they are tuned together. |
 | workers.capacityRetryAfterSeconds | int | `5` | Retry-After sent with a shed, pool-exhausted, or lost-connection 503; the queue honours it as backoff, so a saturated instance gets a delayed redelivery rather than an immediate one that finds it just as full |
 | workers.capacityWaitSeconds | float | `5` | Seconds a task waits for local capacity before it is deferred |
 | workers.chunkThreadpoolSize | int | `2` | Threads for chunking parsed pages. Chunking is CPU work, so more threads than CPUs only adds contention |
@@ -900,19 +928,11 @@ Ragnerock research intelligence platform
 | workers.maxConcurrentJobAdvances | int | `10` | Concurrent job phase-advances a worker process may run |
 | workers.maxConcurrentSpawns | int | `5` | Concurrent spawn continuations a worker process may run. A node whose subtasks take longer than `spawn.timeBudgetSeconds` to publish continues on a later delivery; those get their own pool so one large job's paging cannot queue behind every other job's phase advances. |
 | workers.maxInstanceRequestConcurrency | string | `""` | Requests one pod is allowed to serve at once, as configured on the platform. Caps the derived DB pool at what can actually arrive; empty leaves the derivation to the concurrency semaphores alone |
-| workers.reconcile | object | `{"batchSize":100,"enabled":true,"inProgressAfterSeconds":2700,"intervalSeconds":300,"notStartedAfterSeconds":900,"terminalWriteAfterSeconds":300}` | Periodic DB sweep that re-enqueues jobs whose queue deliveries were dropped after exhausting their retry budget. |
-| workers.reconcile.batchSize | int | `100` | Jobs examined per sweep |
-| workers.reconcile.enabled | bool | `true` | Run the reconciliation sweep |
-| workers.reconcile.inProgressAfterSeconds | int | `2700` | Seconds a job may sit in progress before the sweep re-enqueues it |
-| workers.reconcile.intervalSeconds | int | `300` | Seconds between sweeps |
-| workers.reconcile.notStartedAfterSeconds | int | `900` | Seconds a job may sit unstarted before the sweep re-enqueues it |
-| workers.reconcile.terminalWriteAfterSeconds | int | `300` | Seconds after it started a job may sit at a terminal phase with its status still in progress before the sweep writes its outcome |
 | workers.spawn.pageSize | int | `1000` | Subtasks published per page of a spawn |
 | workers.spawn.planningStaleSeconds | int | `900` | Seconds a claimed-but-unfinished plan may sit before another delivery takes it over, so a planner that died cannot hang the node forever |
 | workers.spawn.timeBudgetSeconds | int | `300` | Wall clock one spawn delivery may spend publishing before handing the rest to a continuation. Must stay well under the queue's dispatch deadline, or the delivery is killed mid-page instead of stopping cleanly. |
 | workers.subtaskEnqueueStaleMinutes | int | `15` | Minutes after a subtask's publish past which reconciliation republishes it |
 | workers.subtaskInsertChunkRows | int | `5000` | Subtask rows per multi-row INSERT when a plan is persisted. The plan still commits in one transaction; this bounds each statement in it. |
-| workers.subtaskPublishConcurrency | int | `32` | Concurrent Cloud Tasks publishes during a subtask spawn |
 | workers.tabularIngest.maxRowsPerSheet | int | `100000` | Rows a single parsed sheet may hold before the parse fails explicitly |
 | workers.tabularIngest.rowInsertChunkBytes | int | `8000000` | Byte ceiling per tabular row-insert request (binds first on a wide sheet) |
 | workers.tabularIngest.rowInsertChunkRows | int | `1000` | Rows per db-service insert request when ingesting a tabular document |

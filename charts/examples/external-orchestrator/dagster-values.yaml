@@ -1,0 +1,62 @@
+# Values for Dagster's own Helm chart (repository
+# https://dagster-io.github.io/helm, chart `dagster`), adding a code location
+# that drives Ragnerock's workflow runs. Checked against chart 1.13.26.
+#
+#   helm upgrade --install dagster dagster/dagster \
+#     -f charts/examples/external-orchestrator/dagster-values.yaml
+#
+# Merge the parts you need into your own Dagster values. See README.md in this
+# directory for the image and the Secret.
+
+dagster-user-deployments:
+  enabled: true
+  deployments:
+    - name: ragnerock
+      image:
+        # Your code location image: Python 3.12 or later, with
+        # ragnerock-orchestrator-dagster, dagster-postgres and dagster-k8s.
+        repository: registry.example.com/dagster/ragnerock
+        tag: "1"
+        pullPolicy: Always
+      # The adapter's definitions, configured by the environment below.
+      dagsterApiGrpcArgs:
+        - "-m"
+        - "ragnerock_orchestrator_dagster.definitions"
+      port: 3030
+      # The runs launched from this code location get the same environment
+      # and token mount, which they need to reach Ragnerock.
+      includeConfigInLaunchedRuns:
+        enabled: true
+      env:
+        # In the same cluster, the Ragnerock API's Service (release
+        # `ragnerock` in namespace `ragnerock`); otherwise its public address.
+        - name: RAGNEROCK_URL
+          value: http://ragnerock-api.ragnerock.svc.cluster.local:8080
+        - name: RAGNEROCK_DRIVER_TOKEN_FILE
+          value: /var/run/secrets/ragnerock/driver-token
+        # Only for starting Ragnerock workflows from Dagster; leave it out
+        # if the Secret has no api-token.
+        - name: RAGNEROCK_API_TOKEN_FILE
+          value: /var/run/secrets/ragnerock/api-token
+        # Dagster's address as a browser reaches it, for the link on each
+        # Ragnerock job.
+        - name: DAGSTER_WEBSERVER_URL
+          value: https://dagster.example.com
+      # The tokens, as files: the adapter reads them each time it connects,
+      # so rotating the Secret needs no restart.
+      volumes:
+        - name: ragnerock-tokens
+          secret:
+            secretName: ragnerock-tokens
+      volumeMounts:
+        - name: ragnerock-tokens
+          mountPath: /var/run/secrets/ragnerock
+          readOnly: true
+
+dagsterDaemon:
+  # Retry a run whose worker crashed, which then carries on with the same
+  # Ragnerock run. The adapter tags its runs so that a run that failed because
+  # its Ragnerock job did is not retried.
+  runRetries:
+    enabled: true
+    maxRetries: 2

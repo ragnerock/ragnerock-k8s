@@ -83,6 +83,10 @@ spec:
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-queue
             - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-queue-postgres
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-reconcile
+            - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-audit
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-iam

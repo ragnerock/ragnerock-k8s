@@ -1,0 +1,179 @@
+{{- /*
+queue-service: delivers the background work the other services queue in the
+app database, fires the recurring jobs (ingest schedules and the maintenance
+routes), runs the job reconciler, and serves the relay model-service and the
+data-ingestor publish through.
+
+One pod, by design. Its loops claim with row locks, so a second replica would
+be safe, but readiness is the loops' freshness and the connection budget
+counts one pod (two during a rolling update), so it is left out of the HPA
+and PDB templates. A rolling update starts the new pod before stopping the
+old, so deliveries continue across it; the old pod gives its open deliveries
+20 seconds, then hands their tasks back for redelivery.
+
+Migrations run as a pre-install/pre-upgrade hook, so the queue tables exist
+before this pod starts.
+*/ -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-queue-service
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+    {{- include "ragnerock.selectorLabels" (dict "context" . "component" "queue-service") | nindent 4 }}
+{{- with (include "ragnerock.annotations" (dict "context" . "config" .Values.queueService)) }}
+  annotations:
+    {{- . | nindent 4 }}
+{{- end }}
+spec:
+  replicas: 1
+  revisionHistoryLimit: {{ .Values.global.revisionHistoryLimit }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      {{- include "ragnerock.selectorLabels" (dict "context" . "component" "queue-service") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "ragnerock.labels" . | nindent 8 }}
+        {{- include "ragnerock.selectorLabels" (dict "context" . "component" "queue-service") | nindent 8 }}
+    spec:
+      terminationGracePeriodSeconds: {{ .Values.queueService.terminationGracePeriodSeconds }}
+{{- with (include "ragnerock.serviceAccountName" (dict "context" . "config" .Values.queueService.serviceAccount "component" "queue-service")) }}
+      serviceAccountName: {{ . }}
+{{- end }}
+{{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+{{- end }}
+{{- with .Values.queueService.tolerations | default .Values.global.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+{{- end }}
+{{- with .Values.queueService.affinity | default .Values.global.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+{{- end }}
+      containers:
+        - name: queue-service
+          image: {{ include "ragnerock.image" (dict "global" .Values.global "image" .Values.queueService.image "chart" .Chart) }}
+          imagePullPolicy: {{ .Values.global.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+            # The isolated health server (HEALTH_PORT in the configmap): it
+            # reports each loop's freshness, so a stuck loop turns the pod
+            # unready.
+            - name: health
+              containerPort: 8081
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-config
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-core
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-db
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-otel
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-queue-postgres
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-queue-service
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-reconcile
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-license
+            - secretRef:
+                name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "db" "existingSecret" .Values.database.existingSecret) }}
+            - secretRef:
+                name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "otel" "existingSecret" .Values.otel.existingSecret) }}
+            - secretRef:
+                name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "license" "existingSecret" .Values.licenseExistingSecret) }}
+          env:
+            {{- include "ragnerock.otelEnv" (dict "context" . "service" "queue-service") | nindent 12 }}
+{{- with .Values.queueService.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+{{- end }}
+{{- with .Values.queueService.volumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+{{- end }}
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: health
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: health
+            initialDelaySeconds: 5
+            periodSeconds: 10
+{{- with .Values.queueService.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+{{- end }}
+{{- with .Values.queueService.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+{{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-queue-service
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+    {{- include "ragnerock.selectorLabels" (dict "context" . "component" "queue-service") | nindent 4 }}
+spec:
+  type: {{ .Values.queueService.service.type }}
+  ports:
+    - port: {{ .Values.queueService.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "ragnerock.selectorLabels" (dict "context" . "component" "queue-service") | nindent 4 }}
+{{- if .Values.queueService.networkPolicy.enabled }}
+---
+  {{- /*
+  The relay takes tasks from model-service and the data-ingestor and inserts
+  them as given; it checks no credential yet. This policy lets only those two
+  reach the application port. The health port stays open, for the kubelet's
+  probes.
+  */}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-queue-service
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+    {{- include "ragnerock.selectorLabels" (dict "context" . "component" "queue-service") | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "ragnerock.selectorLabels" (dict "context" . "component" "queue-service") | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "ragnerock.selectorLabels" (dict "context" . "component" "model-service") | nindent 14 }}
+        - podSelector:
+            matchLabels:
+              {{- include "ragnerock.selectorLabels" (dict "context" . "component" "data-ingestor") | nindent 14 }}
+      ports:
+        - port: http
+          protocol: TCP
+    - ports:
+        - port: health
+          protocol: TCP
+{{- end }}

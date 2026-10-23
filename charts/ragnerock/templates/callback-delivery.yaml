@@ -65,6 +65,8 @@ spec:
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-queue
             - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-queue-postgres
+            - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-audience
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-db

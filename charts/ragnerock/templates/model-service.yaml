@@ -60,6 +60,8 @@ spec:
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-queue
             - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-queue-relay
+            - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-db-conn
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-audit

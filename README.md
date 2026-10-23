@@ -29,6 +29,8 @@ If you would prefer to use an in-cluster database or bucket, see the supporting 
 
 > NOTE: Ragnerock does not guarantee anything regarding the usage of these in-cluster resources, they are for example purposes and are not production-grade out of the box (e.g. cloudserver does not persist data in the event of a restart)
 
+If your team runs Dagster and wants it to drive Ragnerock's workflow runs, see `charts/examples/external-orchestrator`, which holds the values for both charts.
+
 ### Configuration
 
 Now that you have everything ready, copy the values file from `charts/examples/minimal/values.yaml` and place it wherever you want to store that for your deployment. Edit the values as follows:
@@ -146,3 +148,28 @@ If you want to store your non-application (e.g. job statuses, configurations) da
 **Bring Your Own Blob Storage**
 
 To configure the location which Ragnerock will store raw document files, click on the profile button on the bottom left and select `Settings` from the menu that appears. From within the settings page, click on `Storage` under the integrations menu to bring up the BYOBS configuration screen. Click on `Add Storage` to bring up the configuration modal. Configure your blob storage as desired (GCP bucket, S3, or Azure blob storage) and click on `Create Configuration`. Once the configuration has been created, click on the `Validate` button to the right of your configuration to setup the bucket and validate the configuration. Finally, clickj on the `...` to the right of your configuration and select `Activate` to begin using the blob storage provider.
+
+## Upgrading from a chart that ran the Cloud Tasks emulator
+
+Earlier chart releases queued background work in an in-cluster Cloud Tasks emulator, which kept every task in memory, and fired the maintenance routes from a nightly CronJob. This release replaces both. Background work is now queued in tables in your Postgres database and delivered by a new `queue-service` Deployment. queue-service also fires the maintenance routes, each on its own schedule, and keeps ingest schedules in the database, so they survive a restart of the API. It runs two maintenance routes the CronJob never did: the audit partition upkeep and the audit export scan.
+
+Before you upgrade, check your values file for these. The chart refuses to render while any of them is set, and names each one it finds:
+
+- `queue.port`, `queue.replicaCount`, `queue.resources`, `queue.autoscaling`, `queue.serviceAccount`, `queue.tolerations`, `queue.affinity`, `queue.annotations`, `queue.volumes` and `queue.volumeMounts` configured the emulator and are gone. Set what you need under `queueService` instead, for the new pod. Its tolerations and affinity matter most: on a cluster whose nodes all carry taints, queue-service waits for a node until you give it the emulator's.
+- `queue.publishConcurrency` and `workers.subtaskPublishConcurrency` are gone. They only applied to Cloud Tasks.
+- `workers.reconcile.*` moved to `queueService.reconcile.*`.
+- `maintenance.orphanCleanup.*` moved to `api.orphanCleanup.*`. Carry `dryRun` over if you set it, or the cleanup starts deleting.
+- The rest of `maintenance.*` (`enabled`, `schedule`, `timeoutSeconds` and the job settings) is gone. To stop queue-service firing the maintenance routes, set `queueService.maintenanceSchedulesEnabled` to `false`. Ingest schedules still fire, and still come back after the upgrade.
+- The queue names under `queue` are unchanged.
+
+If you mirror images into your own registry (`global.image.registry`), mirror two more: `queue-service`, which is new, and `callback-delivery`, which used to run the `api` image. Until queue-service's image pulls, nothing in the background runs.
+
+What to expect during the upgrade:
+
+- Tasks waiting in the emulator are lost when it goes away. Upgrade while the install is quiet if you can. The job reconciler re-sends any job whose delivery was lost: one that never started within 15 minutes, one stuck partway within 45. Two kinds of task are not re-sent: a webhook retry that was waiting in the emulator, and an audit batch that was queued but not yet delivered. Neither is counted anywhere.
+- Endpoint webhooks start firing. Earlier releases ran the API image in the callback-delivery Deployment, which never delivered a webhook. Callers that set a callback URL begin receiving them after this upgrade.
+- The migrations run before any pod is replaced, so the queue tables exist by the time queue-service starts.
+- Ingest sources with a schedule get it back within five minutes of queue-service starting. You don't need to save them again.
+- queue-service holds up to 10 database connections, and 20 for the moment a rolling update runs two pods. If you set `database.maxConnections`, the chart counts them.
+- The chart now creates a NetworkPolicy that lets only model-service and the data-ingestor reach queue-service's relay port. It has no effect unless your cluster's CNI enforces NetworkPolicy. Set `queueService.networkPolicy.enabled` to `false` to leave it out.
+- queue-service calls the API's scheduled-run and maintenance routes without a credential, as the CronJob and the API's in-memory scheduler did before it. If you turned on `CALLBACK_AUTH_ENABLED` through `api.extraEnv`, those calls are refused, so turn it back off.

@@ -58,8 +58,6 @@ spec:
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-callback-delivery
             - configMapRef:
-                name: {{ include "ragnerock.fullname" . }}-queue
-            - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-live-log
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-license

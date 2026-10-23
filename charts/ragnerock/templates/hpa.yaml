@@ -1,7 +1,8 @@
 {{- /*
 Optional HorizontalPodAutoscalers for the application deployments.
 Each component is rendered only when its `autoscaling.enabled` is true.
-The `queue` (single-instance emulator) and `migrations` (Job) are excluded.
+`queue-service` (one pod by design: its readiness is its loops' freshness)
+and `migrations` (Job) are excluded.
 */ -}}
 {{- $components := dict
 "api" .Values.api

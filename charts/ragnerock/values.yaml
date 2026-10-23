@@ -136,7 +136,8 @@ otel:
   # -- Use a pre-existing secret (must provide key `OTEL_EXPORTER_OTLP_HEADERS`) instead of generating one. When set, `authHeader` is ignored.
   existingSecret: ""
 
-# -- Cloudtask configuration for use with in-cluster emulator
+# -- Queue names every service publishes to. Background work is queued in the
+# app database and delivered by queue-service (`queueService`).
 queue:
   jobQueueName: "ragnerock-document-jobs"
   subtaskQueueName: "ragnerock-subtask-jobs"
@@ -149,21 +150,67 @@ queue:
   # -- Queue account purge steps run on: the purge tick and each step publish
   # the next step of a closed account's purge to the worker here
   accountPurgeQueueName: "account-purge"
+  # -- Queue the scheduler's recurring jobs fire onto: each ingest schedule
+  # and the maintenance jobs
+  schedulerQueueName: "scheduled-jobs"
+  # -- Size of the shared pool of per-account queues. Each account is hashed
+  # onto one queue of each kind from the pool; 0 gives every account queues
+  # of its own
   queuePoolSize: 100
-  port: 8123
-  # -- Deployment resoruce contraints (i.e. requests/limits)
+
+# -- queue-service: delivers the background work queued in the app database,
+# fires the recurring jobs (ingest schedules and maintenance), and runs the
+# job reconciler. It runs as a single pod.
+queueService:
+  image:
+    name: queue-service
+    tag: ""
+  service:
+    type: ClusterIP
+    port: 8080
+  database:
+    # -- Persistent DB connections held by the pool. Its loops run one
+    # statement at a time each, so a small pool covers them
+    poolSize: 5
+    # -- Extra connections allowed beyond poolSize
+    maxOverflow: 5
+    # -- Seconds a loop waits for a connection before it backs off
+    poolTimeout: 5
+  # -- Hosts tasks may be delivered to besides this release's own services.
+  # A task aimed anywhere else is given up on without a request
+  extraAllowedHosts: []
+  # -- Fire the maintenance jobs (pruning, reaping, the account purge tick,
+  # audit partition upkeep and export). Disable only if you fire those routes
+  # some other way; queue-service then deletes the jobs it wrote. Ingest
+  # schedules fire either way
+  maintenanceSchedulesEnabled: true
+  # -- Periodic DB sweep that re-sends jobs whose deliveries were lost after
+  # exhausting their retries. The workers read the same thresholds
+  reconcile:
+    # -- Run the reconciliation sweep
+    enabled: true
+    # -- Seconds between sweeps
+    intervalSeconds: 300
+    # -- Jobs each kind of stuck job takes per sweep
+    batchSize: 100
+    # -- Seconds a job may sit unstarted before the sweep re-enqueues it
+    notStartedAfterSeconds: 900
+    # -- Seconds a job may sit in progress before the sweep re-enqueues it
+    inProgressAfterSeconds: 2700
+    # -- Seconds after it started a job may sit at a terminal phase with its
+    # status still in progress before the sweep has its outcome written
+    terminalWriteAfterSeconds: 300
+  networkPolicy:
+    # -- Only model-service and the data-ingestor publish through the
+    # queue-service relay. With this on, a NetworkPolicy lets only they reach
+    # its application port; the health port stays open for probes. Takes
+    # effect only on a CNI that enforces NetworkPolicy
+    enabled: true
+  # -- Seconds Kubernetes waits after SIGTERM. Open deliveries get 20 of them
+  # to finish before their tasks are handed back for redelivery
+  terminationGracePeriodSeconds: 45
+  # -- Deployment resource constraints (i.e. requests/limits)
   resources: {}
-  # -- Optional horizontal pod autoscaler. Requires CPU/memory requests to be
-  # set under `resources` for the targeted metrics to work. When enabled,
-  # `replicaCount` is ignored (the HPA manages the replica count).
-  autoscaling:
-    enabled: false
-    minReplicas: 1
-    maxReplicas: 5
-    # -- Target average CPU utilization (% of requests). Set to null to disable.
-    targetCPUUtilizationPercentage: 80
-    # -- Target average memory utilization (% of requests). Set to null to disable.
-    targetMemoryUtilizationPercentage: 80
   serviceAccount:
     # -- Create a service account for this deployment's pods
     create: false
@@ -171,16 +218,20 @@ queue:
     name: ""
     # -- Annotations to add to the created service account (e.g. for workload identity)
     annotations: {}
-  # -- Pod tolerations for the queue deployment (overrides `global.tolerations`)
-  tolerations: []
-  # -- Pod affinity rules for the queue deployment (overrides `global.affinity`)
-  affinity: {}
-  # -- Annotations added to the queue deployment's metadata (merged with `global.annotations`; per-service keys take precedence)
-  annotations: {}
+  # -- Extra container environment variables (list of Kubernetes EnvVar specs, so
+  # `valueFrom` works). Rendered after the chart's own, so an entry here overrides
+  # a variable of the same name the chart sets
+  extraEnv: []
   # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
   volumes: []
   # -- Container volume mounts (list of Kubernetes volumeMount specs)
   volumeMounts: []
+  # -- Pod tolerations (overrides `global.tolerations`)
+  tolerations: []
+  # -- Pod affinity rules (overrides `global.affinity`)
+  affinity: {}
+  # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
+  annotations: {}
 
 auth:
   # -- Generate with `openssl rand -hex 22`
@@ -426,6 +477,22 @@ api:
     - localhost.local
   # -- Cap on tabular tables returned to the query explorer's flat table list. A project past this is better served by the paginated db-service catalog
   queryTabularTablesListLimit: 500
+  # -- Largest PDF a page preview opens, in bytes
+  pagePreviewMaxDocumentBytes: 52428800
+  # -- Widest page preview image rendered, in pixels
+  pagePreviewMaxWidthPx: 1600
+  # -- Most pixels a page preview image may have, so a long, narrow page cannot render tens of thousands of pixels tall
+  pagePreviewMaxPixels: 4000000
+  # -- Bytes of recently previewed PDFs each instance keeps in memory, so hovering down a column downloads each file once
+  pagePreviewFileCacheMaxBytes: 134217728
+  # -- Seconds a previewed PDF stays in the instance's file cache after its last use
+  pagePreviewFileCacheIdleSeconds: 300
+  # -- Seconds a browser may cache a page preview
+  pagePreviewCacheSeconds: 3600
+  # -- Characters of a paragraph, or of a spreadsheet row's cells, a query cell's source card is sent
+  cellSourcePassageMaxChars: 2000
+  # -- Most anchors one request to resolve query cell sources may carry (a 100-row results page with two anchored sources is 200)
+  cellSourceResolveMaxAnchors: 200
   # -- Largest Pydantic source paste a schema import accepts, in characters. Parsing is static (no code runs), but each request parses arbitrary pasted Python
   pydanticSchemaImportMaxChars: 100000
   # -- How long a passing AI-settings validation lets a save of the same settings skip re-testing, in seconds
@@ -452,6 +519,18 @@ api:
   embeddingDocumentTestMaxConcurrentPerAccount: 2
   # -- Retry-After sent, in seconds, when an account is already running its share of embedding document tests
   embeddingDocumentTestRetryAfterSeconds: 30
+  # The BYODB orphan cleanup, which queue-service fires daily
+  # (`/api/maintenance/internal/byodb-orphan-cleanup`).
+  orphanCleanup:
+    # -- Hours an orphan must have existed before it is swept. Chunks of a
+    # document deleted more recently, and newer revisions, are left alone.
+    gracePeriodHours: 24
+    # -- Rows per DELETE statement (1-1000). One run still clears an account's
+    # whole backlog.
+    batchSize: 1000
+    # -- Count orphans and delete nothing. Useful on a first rollout to see the
+    # backlog before anything is removed.
+    dryRun: false
   operatorSample:
     # -- Max workbench attachment size accepted by the parse-sample endpoint. The file rides to the worker as base64 JSON (~4/3 the size), so keep it at or below 20 MiB
     maxFileBytes: 20971520
@@ -502,7 +581,7 @@ api:
 callbackDelivery:
   replicaCount: 1
   image:
-    name: api
+    name: callback-delivery
     tag: ""
   service:
     type: ClusterIP
@@ -875,6 +954,10 @@ dbService:
   keywordSearchRegexTimeoutSeconds: 30
   # -- A document query slower than this (ms) is logged with its shape and timings, never the SQL; 0 disables
   querySlowLogThresholdMs: 5000
+  # -- Whether a document query may ask where its result's columns and rows came from (the Query Explorer's cell sources); false answers every such request "disabled" and runs the query as written
+  queryProvenanceEnabled: true
+  # -- How many rows of a document query's result carry provenance anchors
+  queryProvenanceMaxRows: 10000
   # -- Deployment resoruce contraints (i.e. requests/limits)
   resources: {}
   # -- Optional horizontal pod autoscaler. Requires CPU/memory requests to be
@@ -998,75 +1081,6 @@ migrations:
   # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
   annotations: {}
 
-# Periodic maintenance, fired in-cluster. On GCP these routes are driven by
-# Cloud Scheduler; a self-hosted install has no equivalent, so without this
-# compat execution history, uncollected ephemeral results, finished agent
-# assignments' transcripts and orphaned rows in BYODB customer databases are
-# never cleaned up, and ingest runs whose execution was lost are never failed.
-maintenance:
-  # -- Run the maintenance CronJob. Disable only if you fire the internal
-  # `/api/endpoints/internal/*`, `/api/maintenance/internal/*`,
-  # `/ingest/internal/maintenance`, `/api/oauth/internal/prune`,
-  # `/api/assignments/internal/reap` and `/api/accounts/internal/purge-tick`
-  # routes some other way. The purge tick starts the purges that came due, so
-  # with `accountLifecycle.purgeEnabled` on, a closed account is purged at the
-  # first firing after it is due.
-  #
-  # The job sends no credential. Those routes are guarded by a Google OIDC
-  # check that a Kubernetes CronJob cannot satisfy, and that check is inert
-  # unless `CALLBACK_AUTH_ENABLED` is true — which this chart never sets. In
-  # other words they are protected by network isolation: reachable only from
-  # inside the cluster, and the chart ships no ingress. If you turn
-  # `CALLBACK_AUTH_ENABLED` on through `api.extraEnv`, this job starts
-  # failing every night; disable it here and drive the routes yourself.
-  enabled: true
-  # -- Cron schedule (cluster timezone). Daily, off-peak by default. An ingest
-  # run whose execution was lost keeps its source busy until this job fails it,
-  # so installs that ingest on a schedule may want it more often (every route is
-  # idempotent and bounded).
-  schedule: "23 3 * * *"
-  image:
-    name: api
-    tag: ""
-  # -- Per-route HTTP timeout. The prune and ingest maintenance routes work in
-  # bounded batches and resume at the next firing, so they never need a long one.
-  timeoutSeconds: 300
-  # -- Retries within one firing. The routes are idempotent and daily, so a
-  # transient failure is better left to tomorrow's run than retried hard.
-  backoffLimit: 1
-  # The BYODB orphan cleanup the job fires. These are read by the API, which
-  # serves the route.
-  orphanCleanup:
-    # -- Hours an orphan must have existed before it is swept. Chunks of a
-    # document deleted more recently, and newer revisions, are left alone.
-    gracePeriodHours: 24
-    # -- Rows per DELETE statement (1-1000). One run still clears an account's
-    # whole backlog.
-    batchSize: 1000
-    # -- Count orphans and delete nothing. Useful on a first rollout to see the
-    # backlog before anything is removed.
-    dryRun: false
-  # -- Skip a firing that could not start within this many seconds rather
-  # than piling up missed runs after a cluster outage.
-  startingDeadlineSeconds: 600
-  successfulJobsHistoryLimit: 3
-  failedJobsHistoryLimit: 3
-  # -- Deployment resource constraints (i.e. requests/limits)
-  resources: {}
-  serviceAccount:
-    # -- Create a service account for the maintenance job's pods
-    create: false
-    # -- Service account name to use; if empty and `create` is true a name is generated
-    name: ""
-    # -- Annotations to add to the created service account (e.g. for workload identity)
-    annotations: {}
-  # -- Pod tolerations (overrides `global.tolerations`)
-  tolerations: []
-  # -- Pod affinity rules (overrides `global.affinity`)
-  affinity: {}
-  # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
-  annotations: {}
-
 limits:
   # -- Ids per request to a db-service '*-by-ids' endpoint, and the ceiling
   # those endpoints enforce -- one value, because the client's chunk size and
@@ -1076,8 +1090,8 @@ limits:
   dbIdsPerRequest: 200
   # -- Functions one workflow node may require its agent to call before it answers. Each can cost a forced model call per target, so the cap bounds that cost
   requiredFunctionsPerNode: 3
-  # -- Most inbox notifications one notification-node subtask may create. The rest collapse into a single summary, so a row-scoped node over a large sheet cannot flood the run user's inbox
-  notificationNodeMaxPerSubtask: 50
+  # -- Most inbox notifications one notification output may create per subtask. The rest collapse into a single summary per recipient, so a row-scoped source over a large sheet cannot flood anyone's inbox
+  notificationSinkMaxPerSubtask: 50
   concurrency:
     maxConcurrentSubtasks: 50
     maxConcurrentAnnotations: 10
@@ -1113,6 +1127,10 @@ limits:
   job:
     # -- Extra delay past the subtask claim lease (claimStaleSeconds) before the job watchdog reconciles
     watchdogSlackMinutes: 5
+    # -- Seconds between claim heartbeats while a delivery parses a job's documents
+    heartbeatIntervalSeconds: 30
+    # -- Seconds without a heartbeat before another delivery may take over a job being parsed; must be several times the interval and above the DB pool timeout
+    claimStaleSeconds: 300
   # -- Largest upstream row count an LLM aggregation node may drain into one request
   aggregationMaxUpstreamRows: 10000
   codeOperator:
@@ -1234,7 +1252,7 @@ endpoints:
     # `X-Forwarded-For` through. Legitimate use is a few a day. API only
     dcrMaxPerDayGlobal: 5000
     # -- How long a registration nobody ever consented to is kept before the
-    # maintenance CronJob's prune deletes it, in days. API only
+    # daily prune queue-service fires deletes it, in days. API only
     dcrUnusedClientTtlDays: 30
     # -- Largest client registration body accepted, in bytes. API only
     registrationMaxBodyBytes: 16384
@@ -1351,6 +1369,26 @@ memory:
   writeBudgetNotebook: 8
   # -- Memory searches allowed in a single annotation run
   searchBudgetAnnotation: 8
+  # -- Run the workflow memory subagents. Set to false to stop their spend; workflow agents then have no memory, notebooks keep theirs
+  hooksEnabled: true
+  # -- Iteration cap of the memory retrieval subagent
+  retrievalMaxIterations: 5
+  # -- Memory searches one retrieval may make
+  retrievalSearchBudget: 3
+  # -- Seconds one memory retrieval may take before the item runs without memory
+  retrievalTimeoutSeconds: 60
+  # -- Iteration cap of the memory writer subagent
+  writerMaxIterations: 16
+  # -- Records a workflow agent is shown for one item
+  contextMaxRecords: 15
+  # -- Characters of memory a workflow agent is shown for one item
+  contextMaxChars: 6000
+  # -- Characters of an item's input sent to a memory subagent
+  hookInputMaxChars: 48000
+  # -- Cost-weighted token budget of one memory subagent run
+  hookTurnTokenBudget: 400000
+  # -- Seconds one subtask's memory writer phase may take; writes still running are dropped and counted
+  writerPhaseTimeoutSeconds: 300
 
 # -- Agent message board: the ops switch (independent of memory.toolsEnabled),
 # the message body cap, and the bounds on the inbox listing and the write budget.
@@ -1626,7 +1664,7 @@ agentTools:
   # -- Tools a single workflow agent may select
   maxPerOperator: 10
   # -- Expanded tool functions one consumer may carry (the notebook, or one agent)
-  maxFunctionsPerAgent: 40
+  maxFunctionsPerAgent: 80
   # -- Routes a single REST tool may declare
   restMaxRoutes: 30
   # -- Discovered functions kept per MCP server
@@ -1639,6 +1677,10 @@ agentTools:
   descriptionMaxChars: 1024
   # -- Maximum per-parameter description length
   paramDescriptionMaxChars: 256
+  # -- Function description length kept for a catalog connector whose descriptions carry the call contract (Notion)
+  longDescriptionMaxChars: 4096
+  # -- Per-parameter description length kept for such a connector
+  longParamDescriptionMaxChars: 2048
   # -- Maximum serialized size of one function's parameter schema
   schemaMaxBytes: 16384
   # -- Maximum nesting depth of one function's parameter schema
@@ -1922,6 +1964,19 @@ changeRequests:
   # -- Seconds after which an in-flight proposal generation is considered abandoned
   generationTimeoutSeconds: 300
 
+# -- BYOAI egress: where AI, embedding, and image-summary provider endpoints may point.
+byoai:
+  # -- Comma-separated hostnames, hostname suffixes (".corp.internal"), or CIDRs
+  # a provider endpoint may reach even though they resolve to private addresses,
+  # and for which http:// is accepted. Empty means public hosts only. Separate
+  # from `agentTools.privateEgressAllowlist`.
+  privateEgressAllowlist: ""
+  # -- Accept http:// provider endpoints on public hosts too, such as an
+  # OpenAI-compatible proxy served without TLS. The provider's API key then
+  # crosses the network unencrypted. Cloud metadata endpoints and
+  # non-allowlisted private hosts are refused either way.
+  allowPlainHttp: false
+
 # -- BYOAI fallback chains: how far a chain may reach and how long the
 # model-service will spend working through one.
 fallback:
@@ -2005,8 +2060,6 @@ workers:
   maxChunkTokens: 1500
   # -- Threads for chunking parsed pages. Chunking is CPU work, so more threads than CPUs only adds contention
   chunkThreadpoolSize: 2
-  # -- Concurrent Cloud Tasks publishes during a subtask spawn
-  subtaskPublishConcurrency: 32
   # -- Minutes after a subtask's publish past which reconciliation republishes it
   subtaskEnqueueStaleMinutes: 15
   # -- Subtask rows per multi-row INSERT when a plan is persisted. The plan
@@ -2053,22 +2106,6 @@ workers:
     subtaskMaxOverflow: ~
     # -- Explicit overflow above the pool size. Falls back to `poolHeadroom` when null.
     maxOverflow: ~
-  # -- Periodic DB sweep that re-enqueues jobs whose queue deliveries were
-  # dropped after exhausting their retry budget.
-  reconcile:
-    # -- Run the reconciliation sweep
-    enabled: true
-    # -- Seconds between sweeps
-    intervalSeconds: 300
-    # -- Jobs examined per sweep
-    batchSize: 100
-    # -- Seconds a job may sit unstarted before the sweep re-enqueues it
-    notStartedAfterSeconds: 900
-    # -- Seconds a job may sit in progress before the sweep re-enqueues it
-    inProgressAfterSeconds: 2700
-    # -- Seconds after it started a job may sit at a terminal phase with its
-    # status still in progress before the sweep writes its outcome
-    terminalWriteAfterSeconds: 300
   # -- Periodic sweep of notebook sandbox session state: idle purge plus
   # collection of state objects no session references any more.
   codeSession:
@@ -2241,6 +2278,10 @@ auditService:
     scanLookbackHours: 26
     # -- Oldest-incomplete-window age past which the scan logs a lag alert
     lagAlertMinutes: 120
+    # -- How long a running export run belongs to the delivery that started it; a second delivery inside it is refused, and past it the run is taken over
+    runningLeaseMinutes: 60
+    # -- Retry-After on the 409 a delivery gets while another is exporting the same run
+    heldRetryAfterSeconds: 60
   # -- Deployment resoruce contraints (i.e. requests/limits)
   resources: {}
   # -- Optional horizontal pod autoscaler. Requires CPU/memory requests to be

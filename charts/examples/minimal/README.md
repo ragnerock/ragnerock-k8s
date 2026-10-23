@@ -1,8 +1,8 @@
 # Ragnerock Minimal Install
 
 Minimal, fully in-cluster install of Ragnerock on Kubernetes. No GCP-managed
-services are used: Postgres, the Cloud Tasks queue, and blob storage all run
-inside the cluster. AI is BYOAI — Ragnerock does not ship a default Gemini
+services are used: Postgres, the background-work queue (tables in Postgres,
+delivered by queue-service), and blob storage all run inside the cluster. AI is BYOAI — Ragnerock does not ship a default Gemini
 account; you supply your own keys at install time and/or via the workspace
 admin UI after install.
 
@@ -12,7 +12,7 @@ admin UI after install.
 | ----------------- | ----------------------------------- |
 | Postgres + vector | `pgvector.yaml` (StatefulSet)       |
 | S3-compatible blob storage | `cloudserver.yaml` (Zenko CloudServer + bucket-init Job) |
-| API / worker / subtask-worker / model-service / analysis-toolkit / data-ingestor / frontend / migrations/ queue service | The `ragnerock` chart |
+| API / worker / subtask-worker / model-service / analysis-toolkit / data-ingestor / frontend / migrations / queue-service | The `ragnerock` chart |
 
 There is no GCS bucket, no Cloud SQL instance, no Cloud Tasks project. The
 chart's default blob path falls back to in-pod `LocalBlobStorage`, which is
