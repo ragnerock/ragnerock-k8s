@@ -1,6 +1,6 @@
 # ragnerock
 
-![Version: 1.8.5](https://img.shields.io/badge/Version-1.8.5-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v2026.10.23](https://img.shields.io/badge/AppVersion-v2026.10.23-informational?style=flat-square)
+![Version: 1.8.6](https://img.shields.io/badge/Version-1.8.6-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v2026.10.26](https://img.shields.io/badge/AppVersion-v2026.10.26-informational?style=flat-square)
 
 Ragnerock research intelligence platform
 
