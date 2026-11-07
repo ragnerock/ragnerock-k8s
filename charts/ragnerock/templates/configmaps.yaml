@@ -59,7 +59,6 @@ data:
   # embedding model in use, so it is an install-time knob.
   SEMANTIC_SEARCH_SIMILARITY_THRESHOLD: "{{ include "ragnerock.number" .Values.search.similarityThreshold }}"
   MEMORY_TOOLS_ENABLED: "{{ .Values.memory.toolsEnabled }}"
-  MEMORY_SCHEMA_SOFT_CAP: "{{ include "ragnerock.number" .Values.memory.schemaSoftCap }}"
   MEMORY_SCHEMA_HARD_CAP: "{{ include "ragnerock.number" .Values.memory.schemaHardCap }}"
   MEMORY_WRITE_BUDGET_ANNOTATION: "{{ include "ragnerock.number" .Values.memory.writeBudgetAnnotation }}"
   MEMORY_WRITE_BUDGET_NOTEBOOK: "{{ include "ragnerock.number" .Values.memory.writeBudgetNotebook }}"
@@ -161,6 +160,10 @@ data:
   ASSIGNMENT_MAX_ACTIVE_PER_PROJECT: "{{ include "ragnerock.number" .Values.assignments.maxActivePerProject }}"
   ASSIGNMENT_WAIT_DEFAULT_DAYS: "{{ include "ragnerock.number" .Values.assignments.waitDefaultDays }}"
   ASSIGNMENT_WAIT_MAX_DAYS: "{{ include "ragnerock.number" .Values.assignments.waitMaxDays }}"
+  WORKFLOW_DESIGNER_ASK_DEFAULT_HOURS: "{{ include "ragnerock.number" .Values.assignments.designerAskDefaultHours }}"
+  SUBAGENT_DEFAULT_TOKEN_BUDGET: "{{ include "ragnerock.number" .Values.assignments.subagentDefaultTokenBudget }}"
+  SUBAGENT_MAX_ACTIVE_PER_USER: "{{ include "ragnerock.number" .Values.assignments.subagentMaxActivePerUser }}"
+  WORKFLOW_DESIGNER_TOKEN_BUDGET: "{{ include "ragnerock.number" .Values.assignments.designerTokenBudget }}"
   ASSIGNMENT_COMPACTION_HIGH_WATER_TOKENS: "{{ include "ragnerock.number" .Values.assignments.compactionHighWaterTokens }}"
   ASSIGNMENT_TOKEN_BUDGET: "{{ include "ragnerock.number" .Values.assignments.tokenBudget }}"
   ASSIGNMENT_MAX_TURNS: "{{ include "ragnerock.number" .Values.assignments.maxTurns }}"
@@ -351,9 +354,16 @@ data:
   CHANGE_REQUEST_PROMPT_MAX_SIGNALS: "{{ include "ragnerock.number" .Values.changeRequests.promptMaxSignals }}"
   CHANGE_REQUEST_PROMPT_EXAMPLE_DOCUMENTS: "{{ include "ragnerock.number" .Values.changeRequests.promptExampleDocuments }}"
   CHANGE_REQUEST_GENERATION_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.changeRequests.generationTimeoutSeconds }}"
+  # A step's Context preview cuts a file input where the workers' runs do
+  # (core.settings), so it reads the workers' value.
+  RESOURCE_CONTEXT_MAX_CHARS: "{{ include "ragnerock.number" .Values.workflowResources.contextMaxChars }}"
   # Users in these email domains run the install and maintain the shared
   # default data DB. Comma-separated; empty means nobody.
   PLATFORM_OPERATOR_DOMAINS: {{ join "," .Values.api.platformOperatorDomains | quote }}
+  # Whether Ragnerock's default AI runs here: the model service has a Gemini
+  # key of its own, given inline or in the existing LLM secret. Without one,
+  # every organization needs its own AI key, and the app says so.
+  DEFAULT_AI_AVAILABLE: {{ ternary "true" "false" (or (ne .Values.llm.gemini.apiKey "") (ne .Values.llm.existingSecret "")) | quote }}
   # The query explorer's flat table list is unpaginated, so the catalog read
   # behind it is capped.
   QUERY_TABULAR_TABLES_LIST_LIMIT: "{{ include "ragnerock.number" .Values.api.queryTabularTablesListLimit }}"
@@ -424,6 +434,23 @@ data:
   ENDPOINTS_MCP_KEEPALIVE_SECONDS: "{{ include "ragnerock.number" .Values.endpoints.mcp.keepaliveSeconds }}"
   ENDPOINTS_MCP_MAX_BODY_BYTES: "{{ include "ragnerock.number" .Values.endpoints.mcp.maxBodyBytes }}"
   ENDPOINTS_MCP_MAX_WAITERS: "{{ include "ragnerock.number" .Values.endpoints.mcp.maxWaiters }}"
+  # The platform MCP server (ragnerock-mcp design), in the same stream slot
+  # class as the endpoint MCP waiters.
+  PLATFORM_MCP_ENABLED: "{{ .Values.platformMcp.enabled }}"
+  PLATFORM_MCP_OAUTH_ENABLED: "{{ .Values.platformMcp.oauthEnabled }}"
+  PLATFORM_MCP_DEFAULT_WAIT_SECONDS: "{{ include "ragnerock.number" .Values.platformMcp.defaultWaitSeconds }}"
+  PLATFORM_MCP_MAX_WAIT_SECONDS: "{{ include "ragnerock.number" .Values.platformMcp.maxWaitSeconds }}"
+  PLATFORM_MCP_POLL_SECONDS: "{{ include "ragnerock.number" .Values.platformMcp.pollSeconds }}"
+  PLATFORM_MCP_KEEPALIVE_SECONDS: "{{ include "ragnerock.number" .Values.platformMcp.keepaliveSeconds }}"
+  PLATFORM_MCP_MAX_STREAMS: "{{ include "ragnerock.number" .Values.platformMcp.maxStreams }}"
+  PLATFORM_MCP_MAX_BODY_BYTES: "{{ include "ragnerock.number" .Values.platformMcp.maxBodyBytes }}"
+  PLATFORM_MCP_RESULT_MAX_BYTES: "{{ include "ragnerock.number" .Values.platformMcp.resultMaxBytes }}"
+  PLATFORM_MCP_RATE_LIMIT_PER_MINUTE: "{{ include "ragnerock.number" .Values.platformMcp.rateLimitPerMinute }}"
+  PLATFORM_MCP_MANIFEST_RATE_LIMIT_PER_MINUTE: "{{ include "ragnerock.number" .Values.platformMcp.manifestRateLimitPerMinute }}"
+  PLATFORM_MCP_LIST_MAX_ITEMS: "{{ include "ragnerock.number" .Values.platformMcp.listMaxItems }}"
+  PLATFORM_MCP_QUERY_MAX_ROWS: "{{ include "ragnerock.number" .Values.platformMcp.queryMaxRows }}"
+  PLATFORM_MCP_READ_MAX_PAGES: "{{ include "ragnerock.number" .Values.platformMcp.readMaxPages }}"
+  PLATFORM_MCP_MAX_RUNS_PER_CALL: "{{ include "ragnerock.number" .Values.platformMcp.maxRunsPerCall }}"
   # Execution-API long-polls (plugin-orchestrator §6.3), in the same stream
   # slot class as the endpoint MCP waiters.
   ORCHESTRATOR_MAX_WAITERS: "{{ include "ragnerock.number" .Values.orchestrator.maxWaiters }}"
@@ -443,6 +470,22 @@ data:
   OAUTH_CIMD_CACHE_SECONDS: "{{ include "ragnerock.number" .Values.endpoints.oauth.cimdCacheSeconds }}"
   OAUTH_CIMD_MAX_BYTES: "{{ include "ragnerock.number" .Values.endpoints.oauth.cimdMaxBytes }}"
   OAUTH_CIMD_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.endpoints.oauth.cimdTimeoutSeconds }}"
+  # Single sign-on and the daily auth maintenance job that prunes its rows and
+  # refreshes IdP metadata, both of which only the API runs.
+  SSO_FLOW_TTL_SECONDS: "{{ include "ragnerock.number" .Values.auth.sso.flowTtlSeconds }}"
+  SSO_LOGIN_CODE_TTL_SECONDS: "{{ include "ragnerock.number" .Values.auth.sso.loginCodeTtlSeconds }}"
+  SSO_CLOCK_SKEW_SECONDS: "{{ include "ragnerock.number" .Values.auth.sso.clockSkewSeconds }}"
+  SSO_HTTP_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.auth.sso.httpTimeoutSeconds }}"
+  SSO_JWKS_MIN_REFETCH_SECONDS: "{{ include "ragnerock.number" .Values.auth.sso.jwksMinRefetchSeconds }}"
+  SSO_METADATA_REFRESH_HOURS: "{{ include "ragnerock.number" .Values.auth.sso.metadataRefreshHours }}"
+  SSO_METADATA_REFRESH_CONCURRENCY: "{{ include "ragnerock.number" .Values.auth.sso.metadataRefreshConcurrency }}"
+  SSO_CERT_EXPIRY_WARNING_DAYS: "{{ include "ragnerock.number" .Values.auth.sso.certExpiryWarningDays }}"
+  SSO_SIGN_IN_EVENT_RETENTION_DAYS: "{{ include "ragnerock.number" .Values.auth.sso.signInEventRetentionDays }}"
+  SSO_ENFORCEMENT_TEST_WINDOW_HOURS: "{{ include "ragnerock.number" .Values.auth.sso.enforcementTestWindowHours }}"
+  SSO_SP_CERT_VALIDITY_DAYS: "{{ include "ragnerock.number" .Values.auth.sso.spCertValidityDays }}"
+  SSO_RECONCILE_BATCH_SIZE: "{{ include "ragnerock.number" .Values.auth.sso.reconcileBatchSize }}"
+  AUTH_MAINTENANCE_PRUNE_BATCH_SIZE: "{{ include "ragnerock.number" .Values.auth.maintenance.pruneBatchSize }}"
+  AUTH_MAINTENANCE_PRUNE_MAX_BATCHES: "{{ include "ragnerock.number" .Values.auth.maintenance.pruneMaxBatches }}"
   # GitOps apply, which only the API serves.
   GITOPS_MAX_MANIFEST_BYTES: "{{ include "ragnerock.number" .Values.gitops.maxManifestBytes }}"
   GITOPS_CODE_REVIEW_BUDGET_SECONDS: "{{ include "ragnerock.number" .Values.gitops.codeReviewBudgetSeconds }}"
@@ -455,14 +498,17 @@ data:
   CODE_OPERATOR_MAX_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.limits.codeOperator.maxTimeoutSeconds }}"
   CODE_OPERATOR_MAX_TIMEOUT_SECONDS_SHEET: "{{ include "ragnerock.number" .Values.limits.codeOperator.maxTimeoutSecondsSheet }}"
   CODE_OPERATOR_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.limits.codeOperator.timeoutSeconds }}"
-  # Workflow workbench (chat, try-it-out, auto mode) — API-only: the workers
-  # never serve a workbench session. The auto caps bound one autonomous
-  # session; the retentions prune its restore points and debug sessions.
-  WORKBENCH_AUTO_ENABLED: "{{ .Values.workbench.autoEnabled }}"
-  WORKBENCH_AUTO_MAX_ITERATIONS: "{{ include "ragnerock.number" .Values.workbench.autoMaxIterations }}"
-  WORKBENCH_AUTO_MAX_CYCLES: "{{ include "ragnerock.number" .Values.workbench.autoMaxCycles }}"
-  WORKBENCH_AUTO_TOKEN_BUDGET: "{{ include "ragnerock.number" .Values.workbench.autoTokenBudget }}"
-  WORKBENCH_AUTO_MAX_TARGETS: "{{ include "ragnerock.number" .Values.workbench.autoMaxTargets }}"
+  # Auto mode (the notebook's try-until-it-matches loop, and the workbench's)
+  # — API-only: the workers never drive a session. The caps bound one
+  # session, and the API enforces them.
+  AUTO_MODE_ENABLED: "{{ .Values.autoMode.enabled }}"
+  AUTO_MODE_MAX_ITERATIONS: "{{ include "ragnerock.number" .Values.autoMode.maxIterations }}"
+  AUTO_MODE_MAX_CYCLES: "{{ include "ragnerock.number" .Values.autoMode.maxCycles }}"
+  AUTO_MODE_TOKEN_BUDGET: "{{ include "ragnerock.number" .Values.autoMode.tokenBudget }}"
+  AUTO_MODE_MAX_SAMPLE_ITEMS: "{{ include "ragnerock.number" .Values.autoMode.maxSampleItems }}"
+  # Workflow workbench (chat, try-it-out) — API-only: the workers never serve
+  # a workbench session. The retentions prune its restore points and debug
+  # sessions.
   WORKBENCH_RUN_RESULT_MAX_CHARS_PER_NODE: "{{ include "ragnerock.number" .Values.workbench.runResultMaxCharsPerNode }}"
   WORKBENCH_SNAPSHOT_RETENTION: "{{ include "ragnerock.number" .Values.workbench.snapshotRetention }}"
   WORKBENCH_DEBUG_SESSION_RETENTION: "{{ include "ragnerock.number" .Values.workbench.debugSessionRetention }}"
@@ -471,6 +517,8 @@ data:
   # one every service loads.
   NOTEBOOK_RUN_WORKFLOW_ENABLED: {{ .Values.notebook.runWorkflowEnabled | quote }}
   NOTEBOOK_WORKBENCH_TOOLS_ENABLED: {{ .Values.notebook.workbenchToolsEnabled | quote }}
+  NOTEBOOK_PLATFORM_TOOLS_ENABLED: {{ .Values.notebook.platformToolsEnabled | quote }}
+  NOTEBOOK_PLATFORM_TOOLS_MAX_WAIT_SECONDS: "{{ include "ragnerock.number" .Values.notebook.platformToolsMaxWaitSeconds }}"
   # The schedule tick, which only the API drives. Pods run continuously, so
   # every API replica runs the in-process ticker and the chart ships no
   # CronJob: the claim partitions with SKIP LOCKED, so N replicas ticking is
@@ -525,12 +573,13 @@ data:
   RATE_LIMIT_AGENT_TOOL_OAUTH_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.agentToolOauthPerMinute }}"
   RATE_LIMIT_OAUTH_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.oauthPerMinute }}"
   RATE_LIMIT_OAUTH_AUTHORIZE_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.oauthAuthorizePerMinute }}"
+  RATE_LIMIT_SSO_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.ssoPerMinute }}"
+  RATE_LIMIT_SCIM_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.scimPerMinute }}"
   RATE_LIMIT_WEB_SEARCH_PROBES_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.webSearchProbesPerMinute }}"
   RATE_LIMIT_SCHEDULE_PREVIEW_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.schedulePreviewPerMinute }}"
   RATE_LIMIT_ANNOTATION_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.annotationPerMinute }}"
   RATE_LIMIT_DEBUG_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.debugPerMinute }}"
   RATE_LIMIT_PYDANTIC_SCHEMA_IMPORT_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.pydanticSchemaImportPerMinute }}"
-  RATE_LIMIT_WORKBENCH_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.workbenchPerMinute }}"
   RATE_LIMIT_METRICS_SCRAPE_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.metricsScrapePerMinute }}"
   RATE_LIMIT_CHANGE_REQUEST_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.changeRequestPerMinute }}"
   RATE_LIMIT_WORKFLOW_TEST_CONDITION_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.workflowTestConditionPerMinute }}"
@@ -1123,6 +1172,9 @@ data:
   SPAWN_PLANNING_STALE_SECONDS: "{{ include "ragnerock.number" .Values.workers.spawn.planningStaleSeconds }}"
   ROW_REFS_PAGE_SIZE: "{{ include "ragnerock.number" .Values.workers.tabularIngest.rowRefsPageSize }}"
   MAX_ROWS_PER_SHEET: "{{ include "ragnerock.number" .Values.workers.tabularIngest.maxRowsPerSheet }}"
+  ODS_MAX_CONTENT_BYTES: "{{ include "ragnerock.number" .Values.workers.tabularIngest.odsMaxContentBytes }}"
+  ODS_MAX_CELLS_PER_SHEET: "{{ include "ragnerock.number" .Values.workers.tabularIngest.odsMaxCellsPerSheet }}"
+  ODS_MAX_TEXT_CHARS_PER_SHEET: "{{ include "ragnerock.number" .Values.workers.tabularIngest.odsMaxTextCharsPerSheet }}"
   # Fixed geometry rather than a tunable: the isolated health server has to sit
   # on a port other than the main app port (8080).
   HEALTH_PORT: "8081"

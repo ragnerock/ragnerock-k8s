@@ -243,6 +243,52 @@ auth:
   accessTokenExpireMinutes: 10080
   accessCodeExpireMinutes: 10080
   lockoutMaxAttempts: 10
+  maintenance:
+    # -- Expired session, sign-in flow, login code and replay rows deleted per
+    # batch by the daily auth maintenance job. API only
+    pruneBatchSize: 5000
+    # -- Batches the daily auth maintenance job deletes per table in one run.
+    # API only
+    pruneMaxBatches: 100
+  # Single sign-on through the customer's IdP (OIDC or SAML). API only.
+  sso:
+    # -- How long a sign-in started at the IdP may take to come back, in
+    # seconds: long enough to sign in with MFA, short enough that an abandoned
+    # one isn't a standing authorization. API only
+    flowTtlSeconds: 600
+    # -- Life of the one-time code the frontend exchanges for a session after
+    # a validated sign-in, in seconds. It crosses one redirect and is spent
+    # immediately. API only
+    loginCodeTtlSeconds: 60
+    # -- Allowed clock difference with the IdP for token and assertion
+    # validity windows, in seconds; also how long replay records outlive a
+    # token. API only
+    clockSkewSeconds: 120
+    # -- Timeout on every outbound call to an IdP (discovery, JWKS, token,
+    # metadata), in seconds. API only
+    httpTimeoutSeconds: 10
+    # -- Least time between JWKS refetches on an unknown key ID, in seconds, so
+    # forged key IDs can't make every request a refetch. API only
+    jwksMinRefetchSeconds: 60
+    # -- How old a URL-sourced discovery document or SAML metadata may get
+    # before the maintenance job refreshes it, in hours. API only
+    metadataRefreshHours: 24
+    # -- IdP metadata refreshes the maintenance job runs at once. API only
+    metadataRefreshConcurrency: 8
+    # -- How far ahead IdP and SP certificate expiry is warned about, in days.
+    # API only
+    certExpiryWarningDays: 30
+    # -- How long sign-in events are kept for the admin log, in days. API only
+    signInEventRetentionDays: 90
+    # -- Requiring SSO needs an active connection that passed a test within
+    # this many hours. API only
+    enforcementTestWindowHours: 24
+    # -- Life of the self-signed certificates Ragnerock generates for SAML
+    # signing and encryption and for private_key_jwt, in days. API only
+    spCertValidityDays: 1825
+    # -- Users reconciled per batch when a group mapping is added or removed.
+    # API only
+    reconcileBatchSize: 500
 
 cloudflare:
   apiToken: ""
@@ -296,7 +342,6 @@ rateLimits:
   annotationPerMinute: 120
   debugPerMinute: 20
   pydanticSchemaImportPerMinute: 30
-  workbenchPerMinute: 10
   # -- Per-principal scrapes per minute of the endpoint metrics route
   metricsScrapePerMinute: 12
   # -- Per-minute rate limit for workflow change-request proposal generation
@@ -326,6 +371,12 @@ rateLimits:
   liveLogStreamPerMinute: 10
   # -- Per-user limit on the browser log relay endpoint
   liveLogClientPerMinute: 30
+  # -- Per-IP limit on the SSO sign-in routes (start, OIDC callback, SAML ACS,
+  # code exchange)
+  ssoPerMinute: 30
+  # -- Per-IP limit on the SCIM provisioning API. An IdP's initial sync pushes
+  # every user and group, so this is sized for bursts
+  scimPerMinute: 600
 
 # -- Identity and access management
 iam:
@@ -1216,8 +1267,8 @@ endpoints:
     keepaliveSeconds: 15
     # -- JSON-RPC request-body ceiling, in bytes. Bounds base64 file inputs
     maxBodyBytes: 16777216
-    # -- Concurrent waiting calls one API instance will hold before answering `processing` immediately. Keep at or below half of `api.maxConcurrentStreams`: every logged-in browser tab holds two stream slots
-    maxWaiters: 16
+    # -- Concurrent waiting calls one API instance will hold before answering `processing` immediately. With `platformMcp.maxStreams` and `orchestrator.maxWaiters` it must sum to at most half of `api.maxConcurrentStreams` (the API refuses to start otherwise): every logged-in browser tab holds two stream slots
+    maxWaiters: 8
   oauth:
     # -- Let a caller sign in to an endpoint MCP server instead of presenting a
     # key. When false the well-known documents and every /api/oauth route
@@ -1337,10 +1388,14 @@ notebook:
   compactionTimeoutSeconds: 120
   # -- Persist a turn's cells as the turn happens (tool calls, results, sandbox code) instead of diffing the finished turn afterwards; off restores the post-hoc write byte-for-byte
   incrementalPersistence: true
-  # -- Give the notebook agent the run_workflow tool: a conversation can start workflow runs in the background under the user's own permissions and usage limit, and hears back on the message board
-  runWorkflowEnabled: false
-  # -- Give the notebook agent the workflow-authoring tools (propose, apply, try on a document), so a conversation can build a workflow and try it out; what it creates is a creator-private draft
-  workbenchToolsEnabled: false
+  # -- Give the notebook agent the propose_run tool: a conversation can propose a workflow run, which the user starts in the run dialog beside the notebook after seeing its cost, under their own permissions and usage limit; a run they start reports back on the message board
+  runWorkflowEnabled: true
+  # -- Give the notebook agent the agent-authoring tools (propose an agent as a draft beside the notebook, try it on a document), so a conversation can build an agent and try it out; it writes only drafts, which the person keeps or discards
+  workbenchToolsEnabled: true
+  # -- Give the notebook agent the platform's read tools (endpoints, agents, workflows as manifests, workflow jobs, the data catalog) beside its own
+  platformToolsEnabled: true
+  # -- The longest a platform read tool waits in a notebook turn (a workflow job's), in seconds
+  platformToolsMaxWaitSeconds: 60
 
 # -- Semantic search over document embeddings, and how the agents' search
 # tool runs the queries of one call.
@@ -1359,8 +1414,6 @@ search:
 memory:
   # -- Expose the memory tools to agents. Set to false to switch memory off entirely.
   toolsEnabled: true
-  # -- Schemas per project past which creating another is discouraged
-  schemaSoftCap: 25
   # -- Schemas per project past which creating another is refused
   schemaHardCap: 100
   # -- Memory writes allowed in a single annotation run
@@ -1438,6 +1491,43 @@ skills:
   # -- load_skill calls allowed in a single run
   loadMaxCalls: 10
 
+# -- The platform MCP server at `/api/mcp`: a person's own agent (Claude,
+# Codex, Antigravity) using the workspace as them, through one account-wide
+# MCP server.
+platformMcp:
+  # -- Serve the platform MCP server. Off by default: turn it on when this
+  # install is ready for outside agents to act in its workspaces. When false
+  # the route answers 404
+  enabled: false
+  # -- Let hosts sign in with OAuth (Claude Cowork and Desktop accept nothing else). Needs `api.url`, the issuer
+  oauthEnabled: true
+  # -- Wait budget, in seconds, for a waiting tool's call that omits `wait_seconds`. Under the TypeScript MCP SDK's absolute 60 s request timeout
+  defaultWaitSeconds: 55
+  # -- Ceiling, in seconds, on a call's `wait_seconds`, measured from request arrival
+  maxWaitSeconds: 240
+  # -- How often, in seconds, a waiting tool re-reads the job or assignment it waits on
+  pollSeconds: 2
+  # -- Idle seconds between keepalives on a streaming call. Under Cloudflare's 100 s ceiling on a silent origin
+  keepaliveSeconds: 15
+  # -- Streaming calls one API instance holds before waiting tools answer at once. Shares half of `api.maxConcurrentStreams` with `endpoints.mcp.maxWaiters` and `orchestrator.maxWaiters`
+  maxStreams: 4
+  # -- JSON-RPC request-body ceiling, in bytes. Manifests are the largest legitimate argument
+  maxBodyBytes: 4194304
+  # -- Serialized tool-result cap, in bytes; also the result-size hint published to hosts
+  resultMaxBytes: 98304
+  # -- Tool calls one person may make per minute
+  rateLimitPerMinute: 120
+  # -- validate_manifest and apply_manifest calls one person may make per minute; a dry run executes every importer
+  manifestRateLimitPerMinute: 20
+  # -- The `limit` ceiling of every list tool
+  listMaxItems: 200
+  # -- The `limit` ceiling of the query tool; the result size cap usually binds first
+  queryMaxRows: 1000
+  # -- The most pages one read_document call returns
+  readMaxPages: 10
+  # -- The most run specs one run_agent call takes; each spec is a run
+  maxRunsPerCall: 100
+
 # -- The orchestrator that paces workflow runs.
 orchestrator:
   # -- The orchestrator backend: `builtin`, Ragnerock's own queue-driven
@@ -1459,8 +1549,8 @@ orchestrator:
   # queue wait before a run launches.
   dispatchTimeoutSeconds: 21600
   # -- Execution-API calls one API instance holds open waiting before
-  # answering 503 with Retry-After. Shares `api.maxConcurrentStreams` with
-  # `endpoints.mcp.maxWaiters` and two slots per browser tab.
+  # answering 503 with Retry-After. Shares half of `api.maxConcurrentStreams`
+  # with `endpoints.mcp.maxWaiters` and `platformMcp.maxStreams`.
   maxWaiters: 8
   # -- The longest, in seconds, an execution-API call is held open waiting;
   # under common ingress idle timeouts.
@@ -1902,6 +1992,14 @@ assignments:
   turnMaxIterations: 40
   # -- Seconds a failed turn waits before it is retried from its checkpoint.
   retryDelaySeconds: 60
+  # -- How long the workflow designer waits for a reply to its proposal, in hours; both its default and its cap.
+  designerAskDefaultHours: 24
+  # -- Cost-weighted tokens a subagent an outside agent starts may spend when it asks for no budget; never more than the account's assignment budget.
+  subagentDefaultTokenBudget: 500000
+  # -- Active subagents and design sessions one person may have in one project at once.
+  subagentMaxActivePerUser: 10
+  # -- The workflow designer's budget, in cost-weighted tokens.
+  designerTokenBudget: 300000
 
 # -- Operator kinds whose calls run on the unified loop (RunnerModel over
 # /agent) instead of the annotate path, comma-separated. Accepted values:
@@ -2012,22 +2110,25 @@ workflowResources:
   # -- Byte budget for the worker's per-process cache of materialized code resources
   codeCacheMaxBytes: 256000000
 
+autoMode:
+  # -- Kill switch for auto mode, the notebook's try-until-it-matches loop.
+  # Disabled, the notebook's other authoring tools and sample runs keep
+  # working; only the autonomous loop is refused.
+  enabled: true
+  # -- Backstop: max agent-loop iterations (model calls) for one auto mode session
+  maxIterations: 40
+  # -- Max tries on the sample (and max applies) per auto mode session
+  maxCycles: 5
+  # -- Cost-weighted token budget for one auto mode session. Charged the
+  # sample runs' real model spend, not just agent-side tokens.
+  tokenBudget: 300000
+  # -- Items each node of an auto mode try on the sample runs on, at most
+  maxSampleItems: 5
+
 workbench:
-  # -- Kill switch for the workbench auto-iterate loop. Disabled, the chat and
-  # try-it-out surfaces keep working; only the autonomous loop is refused.
-  autoEnabled: true
-  # -- Runner backstop: max agent-loop iterations for one auto session
-  autoMaxIterations: 40
-  # -- Max apply/run tool calls per workbench auto session
-  autoMaxCycles: 5
-  # -- Cost-weighted token budget for one workbench auto session. Charged the
-  # run's real model spend, not just agent-side tokens.
-  autoTokenBudget: 300000
-  # -- Clamp on the per-run target count in workbench auto mode
-  autoMaxTargets: 5
-  # -- Per-node cap when condensing a workbench run's debug steps for the agent, in characters
+  # -- Per-node cap when condensing a notebook sample run's debug steps for the agent, in characters
   runResultMaxCharsPerNode: 4000
-  # -- How many workbench restore points to keep per workflow
+  # -- How many restore points to keep per workflow
   snapshotRetention: 10
   # -- How many DebugSessions to keep per (workflow, user)
   debugSessionRetention: 20
@@ -2084,6 +2185,13 @@ workers:
     rowRefsPageSize: 10000
     # -- Rows a single parsed sheet may hold before the parse fails explicitly
     maxRowsPerSheet: 100000
+    # -- Uncompressed bytes an ODS file's content.xml may hold (the reader builds
+    # a full DOM of it before any row limit applies)
+    odsMaxContentBytes: 104857600
+    # -- Cells one ODS sheet may expand to once repeat counts are expanded
+    odsMaxCellsPerSheet: 10000000
+    # -- Characters of text one ODS sheet may expand to once repeat counts are expanded
+    odsMaxTextCharsPerSheet: 200000000
   database:
     # -- Seconds a statement waits on a row lock before erroring
     lockTimeoutSeconds: 30
