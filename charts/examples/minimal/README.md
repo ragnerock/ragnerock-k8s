@@ -43,7 +43,7 @@ demo install.
 The model-service used Gemini-specific embeddings, as such a Gemini API key (set to `GEMINI_API_KEY` in our examples) is required
 Additionally, Mistral is required for PDF parsing, so a Mistral API key (set to `MISTRAL_API_KEY` in our examples) is also required
 
-Agent/operator LLMs are configurable with respect to the provider and can be configured in-app via the BYOAI functionality
+Agent/task LLMs are configurable with respect to the provider and can be configured in-app via the BYOAI functionality
 
 ## Required Cloudflare credentials
 

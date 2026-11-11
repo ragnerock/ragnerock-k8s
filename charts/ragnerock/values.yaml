@@ -97,6 +97,21 @@ llm:
   # -- Extract embedded images from PDFs during parsing (for multimodal summarization)
   pdfExtractImages: true
 
+# -- Document parsing: the saved-parse cache and how a parse is retried and stopped.
+parsing:
+  # -- Save each parse and reuse it when the same file is parsed again, so a
+  # retried or re-run document is not sent to the paid parser twice
+  cacheEnabled: true
+  # -- Hours an unused saved parse is kept before the maintenance pass deletes it
+  cacheOrphanGraceHours: 24
+  # -- The most unused saved parses one maintenance pass deletes
+  cacheGcBatchSize: 200
+  # -- How many times a document may be sent to the parser before its run
+  # fails instead of trying again
+  maxAttempts: 3
+  # -- Seconds between checks, during a parse, of whether its run was stopped
+  stopCheckIntervalSeconds: 15
+
 encryption:
   # -- Key Encryption Key (KEK) ring, generate a key with python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'. A single key is fine; during a rotation this is a comma-separated `<id>:<key>` list, primary first. Pass it with `--set-string` and escaped commas, or in a values file, since `--set` splits on commas. Changing it does not restart pods; `kubectl rollout restart` every deployment that mounts it. See docs/operations/master-key-rotation.md
   kek: ""
@@ -139,7 +154,7 @@ otel:
 # -- Queue names every service publishes to. Background work is queued in the
 # app database and delivered by queue-service (`queueService`).
 queue:
-  jobQueueName: "ragnerock-document-jobs"
+  runQueueName: "ragnerock-document-jobs"
   subtaskQueueName: "ragnerock-subtask-jobs"
   callbackQueueName: "ragnerock-callbacks"
   auditQueueName: "ragnerock-audit"
@@ -187,7 +202,8 @@ queueService:
   # -- Periodic DB sweep that re-sends jobs whose deliveries were lost after
   # exhausting their retries. The workers read the same thresholds
   reconcile:
-    # -- Run the reconciliation sweep
+    # -- Run the reconciliation sweep. Off also turns off the run time limit
+    # (`runs.maxRuntimeMinutes`), which the sweep enforces
     enabled: true
     # -- Seconds between sweeps
     intervalSeconds: 300
@@ -308,7 +324,7 @@ rateLimits:
   authRequestCodePerMinute: 5
   authValidateCodePerMinute: 15
   authChangePasswordPerMinute: 5
-  agentPerMinute: 20
+  loopPerMinute: 20
   notebookCodeFeedbackPerMinute: 40
   notebookCompactionPerMinute: 10
   # -- Per-user limit on server-side notebook cell runs; each holds a
@@ -319,13 +335,13 @@ rateLimits:
   # -- Regex-mode searches, counted on top of searchPerMinute. A regex cannot use the full-text index, so each one scans every row in scope
   searchRegexPerMinute: 10
   ingestTriggerPerMinute: 20
-  toolsPerMinute: 60
-  # -- Agent-tool probes (REST route test, MCP discovery preview)
-  agentToolProbesPerMinute: 30
+  debugToolsPerMinute: 60
+  # -- Tool probes (REST route test, MCP discovery preview)
+  toolProbesPerMinute: 30
   # -- Per-user limit on starting a sign-in for an MCP tool; each start is a
   # metadata fetch, an authorization-server fetch, and often a client
   # registration at a third party
-  agentToolOauthPerMinute: 10
+  toolOauthPerMinute: 10
   # -- Per-IP limit on the public OAuth routes, whose callers are authorization
   # servers and carry no session
   oauthPerMinute: 30
@@ -346,7 +362,7 @@ rateLimits:
   metricsScrapePerMinute: 12
   # -- Per-minute rate limit for workflow change-request proposal generation
   changeRequestPerMinute: 10
-  workflowTestConditionPerMinute: 120
+  agentTestConditionPerMinute: 120
   configValidatePerMinute: 20
   # -- Per-user limit on embedding document tests, each of which embeds up to thousands of a document's chunks or rows
   embeddingDocumentTestPerMinute: 4
@@ -358,9 +374,9 @@ rateLimits:
   queryExecutePerMinute: 120
   queryValidatePerMinute: 60
   auditPayloadPerMinute: 30
-  operatorTestPerMinute: 60
+  taskTestPerMinute: 60
   # -- Per-user limit on workbench attachment parses. Each request can hold a synchronous worker OCR call for minutes, so the ceiling is deliberately low
-  operatorParseSamplePerMinute: 10
+  taskParseSamplePerMinute: 10
   backfillRunPerMinute: 30
   # -- Per-driver-token limit on the execution API's version, dispatch-list,
   # and claim calls; one token serves every run in the account
@@ -449,19 +465,19 @@ model:
   # failing in-band. The failure is classified retryable, so reaching it costs a
   # redelivery rather than a failed row
   annotateWaitSeconds: 120
-  # -- Concurrent POSTs to model-service /agent from one client process. A call
+  # -- Concurrent POSTs to model-service /loop from one client process. A call
   # holds its slot while the provider answers, not while the loop runs a tool
-  maxConcurrentAgentCalls: 50
-  # -- Seconds a client-side /agent call waits for one of those slots before
+  maxConcurrentLoopCalls: 50
+  # -- Seconds a client-side /loop call waits for one of those slots before
   # failing: retryable on the worker, a busy turn in a notebook
-  agentWaitSeconds: 120
+  loopWaitSeconds: 120
   # -- Annotation targets in flight at once across every subtask one worker
-  # process is serving. The per-row limiters (web tools, agent tools, the
+  # process is serving. The per-row limiters (web tools, MCP and REST tools, the
   # /annotate gate) are sized against this, not against
   # maxConcurrentSubtasks x maxConcurrentAnnotations
   maxConcurrentAnnotationTargets: 50
   # -- Agent attempts when no fallback chain is configured
-  agentNoChainMaxAttempts: 4
+  loopNoChainMaxAttempts: 4
   # -- Annotator attempts when no fallback chain is configured
   annotatorNoChainMaxAttempts: 8
   # -- Wall-clock budget for annotator retries, in seconds
@@ -554,8 +570,8 @@ api:
   documentIngestChangeBatchLimit: 1000
   # -- Most documents a status filter on a document listing may name before it is refused. Status comes from jobs, so the filter becomes a list of document ids
   documentStatusFilterMaxIds: 10000
-  # -- Most documents one manual-run request may fan out over, one job each. Jobs are created inside the request, so a larger run is refused rather than left to time out
-  manualJobMaxDocuments: 5000
+  # -- Most documents one manual-run request may fan out over, one run each. Runs are created inside the request, so a larger run is refused rather than left to time out
+  manualRunMaxDocuments: 5000
   # -- Chunks or rows an embedding document test covers by default, from the start of the document
   embeddingDocumentTestMaxItems: 200
   # -- Most chunks or rows an embedding document test covers when the whole document is tested
@@ -582,7 +598,7 @@ api:
     # -- Count orphans and delete nothing. Useful on a first rollout to see the
     # backlog before anything is removed.
     dryRun: false
-  operatorSample:
+  taskSample:
     # -- Max workbench attachment size accepted by the parse-sample endpoint. The file rides to the worker as base64 JSON (~4/3 the size), so keep it at or below 20 MiB
     maxFileBytes: 20971520
     # -- API-side read timeout on the synchronous worker parse call, in seconds. Whole-document OCR of a large PDF via an external backend takes minutes
@@ -749,13 +765,13 @@ subtaskWorker:
   # transient row failure redelivered like any other overload. Null falls
   # back to the shared value
   maxConcurrentAnnotationTargets: ~
-  # -- This deployment's own per-process limit on concurrent /agent calls,
-  # when it should differ from `model.maxConcurrentAgentCalls`. Every
+  # -- This deployment's own per-process limit on concurrent /loop calls,
+  # when it should differ from `model.maxConcurrentLoopCalls`. Every
   # unified-loop operator call takes one of these slots and one target slot,
   # so raise it with `maxConcurrentAnnotationTargets`: a target left waiting
-  # for an /agent slot costs its subtask a redelivery. Null falls back to the
+  # for an /loop slot costs its subtask a redelivery. Null falls back to the
   # shared value
-  maxConcurrentAgentCalls: ~
+  maxConcurrentLoopCalls: ~
   # -- This deployment's own per-process limiter for web tool calls, when it
   # should differ from `webTools.maxConcurrentCalls`. Raise it with
   # `maxConcurrentAnnotationTargets` to keep the ratio the annotation queue
@@ -995,6 +1011,12 @@ dbService:
   databricksInsertPageSize: 200
   # -- Databricks workspace host suffixes to accept besides Databricks' own, for private deployments. Each starts with "." (e.g. ".databricks.corp.example")
   databricksExtraHostSuffixes: []
+  # -- Most bytes one query job on a BigQuery BYODB connection may bill; a job that would scan more fails before it runs. BigQuery's own default is no limit
+  bigqueryMaxBytesBilled: 107374182400
+  # -- Ceiling for every query job on a BigQuery BYODB connection (seconds); BigQuery's own default is six hours
+  bigqueryJobTimeoutSeconds: 600
+  # -- Most delete batches one daily orphan-cleanup pass runs for an account; a larger backlog clears over several passes
+  dataOrphanSweepMaxBatchesPerAccount: 20
   # -- Rows per UPDATE when the updated-at backfill fills NULL updated_at on Postgres
   updatedAtBackfillBatchSize: 5000
   # -- Postgres work_mem for a document query's transaction (a number with a kB/MB/GB unit); the annotation pivot spills to disk at the cluster default
@@ -1142,13 +1164,13 @@ limits:
   # -- Functions one workflow node may require its agent to call before it answers. Each can cost a forced model call per target, so the cap bounds that cost
   requiredFunctionsPerNode: 3
   # -- Most inbox notifications one notification output may create per subtask. The rest collapse into a single summary per recipient, so a row-scoped source over a large sheet cannot flood anyone's inbox
-  notificationSinkMaxPerSubtask: 50
+  notificationOutputMaxPerSubtask: 50
   concurrency:
     maxConcurrentSubtasks: 50
     maxConcurrentAnnotations: 10
-    # -- Per-subtask concurrency of a function-shaped operator's tool-less calls on the unified loop (`unifiedLoop.operatorKinds` lists `function_shaped`); bounded process-wide by the annotation-target and agent-call gates
+    # -- Per-subtask concurrency of a function-shaped operator's tool-less calls on the unified loop (`unifiedLoop.taskKinds` lists `function_shaped`); bounded process-wide by the annotation-target and agent-call gates
     maxConcurrentToollessAnnotations: 50
-    maxConcurrentJobs: 10
+    maxConcurrentRuns: 10
     # -- Concurrent workbench attachment parses one worker pod accepts. These are synchronous API-originated calls sharing the pod with queue deliveries, so the pool is small; excess requests shed as 503
     maxConcurrentSampleParses: 2
   usage:
@@ -1160,7 +1182,7 @@ limits:
     embedding: 100
     annotation: 50
     # -- Items per annotation subtask when the operator carries tools
-    toolOperatorSubtask: 10
+    toolTaskSubtask: 10
     # -- Size ROW subtasks from settings rather than from the operator's
     # batch_size (which is rows per LLM call, not rows per subtask)
     rowSubtaskGrainEnabled: true
@@ -1175,16 +1197,16 @@ limits:
     claimStaleSeconds: 300
     # -- Fallback cutoff in minutes on started_at for subtasks claimed by a pre-heartbeat revision (rollout overlap only)
     staleThresholdMinutes: 35
-  job:
-    # -- Extra delay past the subtask claim lease (claimStaleSeconds) before the job watchdog reconciles
+  run:
+    # -- Extra delay past the subtask claim lease (claimStaleSeconds) before the run watchdog reconciles
     watchdogSlackMinutes: 5
-    # -- Seconds between claim heartbeats while a delivery parses a job's documents
+    # -- Seconds between claim heartbeats while a delivery parses a run's documents
     heartbeatIntervalSeconds: 30
-    # -- Seconds without a heartbeat before another delivery may take over a job being parsed; must be several times the interval and above the DB pool timeout
+    # -- Seconds without a heartbeat before another delivery may take over a run being parsed; must be several times the interval and above the DB pool timeout
     claimStaleSeconds: 300
   # -- Largest upstream row count an LLM aggregation node may drain into one request
   aggregationMaxUpstreamRows: 10000
-  codeOperator:
+  codeTask:
     # -- Wall-clock ceiling for a code operator's execution, in seconds
     timeoutSeconds: 30
     # -- Largest time limit an element-scope (Row/Page/Paragraph/Sentence) code operator may declare, in seconds
@@ -1334,6 +1356,11 @@ ingest:
   sqlAllowPrivateHosts: true
   # -- Databricks workspace host suffixes SQL sources accept besides Databricks' own, for private deployments. Each starts with "." (e.g. ".databricks.corp.example"). Private workspace hosts must also be in `privateEgressAllowlist` unless `sqlAllowPrivateHosts` is on
   sqlDatabricksExtraHostSuffixes: []
+  # -- The most pages one web source may crawl; a source's own limit is
+  # validated and clamped to it
+  webScrapeMaxPages: 1000
+  # -- The most linked files one web crawl may fetch
+  webScrapeMaxLinkedFiles: 500
 
 analysis:
   dataframeOpTimeout: 60
@@ -1346,12 +1373,12 @@ analysis:
     dimy: 16.0
   plotTimeoutSeconds: 60
 
-agent:
+loop:
   maxIterations: 10
   # -- Tool-call iterations an annotation operator's agent may take before it is cut off
   annotationToolMaxIterations: 25
   # -- One annotation target's token budget on the unified loop, in the same cost-weighted unit as turnTokenBudget. Sized to bind only on a runaway; reaching it forces a final answer. Empty disables it
-  operatorTurnTokenBudget: 1000000
+  taskTurnTokenBudget: 1000000
   # -- Seconds one interactive model call keeps retrying a shed or transient failure before the turn reports the model service busy
   callRetryBudgetSeconds: 120
   # -- Turn token budget in cost-weighted units (output + uncached input + cachedTokenWeight x cached input). Empty disables budget termination, leaving the iteration cap as the only backstop
@@ -1361,13 +1388,13 @@ agent:
   # -- Weight of a cache-read input token in the cost-weighted budget unit
   cachedTokenWeight: 0.1
   # -- A sub-runner's spend ceiling as a share of the parent turn's remaining budget at spawn
-  subAgentBudgetFraction: 0.5
+  subagentBudgetFraction: 0.5
   # -- Ops kill switch for reasoning/thinking: when false the API never sets a reasoning effort
   reasoningEnabled: true
   # -- Rollout flag for parallel tool-call draining: when true the Runner executes the whole tool-call batch before re-invoking
   drainToolCalls: false
-  # -- In-turn context-eviction trigger (previous call's input tokens). Empty disables eviction; intended production value 140000
-  contextEvictionHighWaterTokens: ""
+  # -- In-turn context-eviction trigger (previous call's input tokens). Empty disables eviction
+  contextEvictionHighWaterTokens: 140000
   # -- Context-eviction pass target, in tokens
   contextEvictionLowWaterTokens: 90000
   # -- Smallest tool-result content (chars) worth stubbing during eviction
@@ -1377,7 +1404,7 @@ agent:
 
 tools:
   codeToolTimeoutSeconds: 30
-  # -- Cap on images attached to a single agent tool result
+  # -- Cap on images attached to a single tool result
   maxResultImages: 10
 
 # -- Notebook agent rollout flags and the compaction-call timeout.
@@ -1389,7 +1416,7 @@ notebook:
   # -- Persist a turn's cells as the turn happens (tool calls, results, sandbox code) instead of diffing the finished turn afterwards; off restores the post-hoc write byte-for-byte
   incrementalPersistence: true
   # -- Give the notebook agent the propose_run tool: a conversation can propose a workflow run, which the user starts in the run dialog beside the notebook after seeing its cost, under their own permissions and usage limit; a run they start reports back on the message board
-  runWorkflowEnabled: true
+  runAgentEnabled: true
   # -- Give the notebook agent the agent-authoring tools (propose an agent as a draft beside the notebook, try it on a document), so a conversation can build an agent and try it out; it writes only drafts, which the person keeps or discards
   workbenchToolsEnabled: true
   # -- Give the notebook agent the platform's read tools (endpoints, agents, workflows as manifests, workflow jobs, the data catalog) beside its own
@@ -1462,7 +1489,7 @@ messageBoard:
 # -- The agent context block: what a conversation with an agent opens
 # knowing about that agent's own recent work. Delivered onto the user's turn,
 # never into the system prompt, so none of this touches the cached prefix.
-agentContext:
+taskRecord:
   # -- Open an agent conversation with that agent's own record. Off: the
   # conversation still runs as the agent, it just starts without the summary.
   blockEnabled: true
@@ -1487,7 +1514,7 @@ skills:
   # -- Maximum description length in characters (bounds catalog token cost)
   descriptionMaxChars: 512
   # -- Skills a single workflow agent may select
-  maxPerOperator: 10
+  maxPerTask: 10
   # -- load_skill calls allowed in a single run
   loadMaxCalls: 10
 
@@ -1528,6 +1555,45 @@ platformMcp:
   # -- The most run specs one run_agent call takes; each spec is a run
   maxRunsPerCall: 100
 
+# -- Run time and item limits. A run that goes on longer than its project's limit is
+# stopped by the run reconciler, within about one sweep interval
+# (`queueService.reconcile.intervalSeconds`). Turning the reconciler off turns
+# the limit off too
+runs:
+  # -- Minutes a run may take in a project that sets no limit of its own.
+  # Empty for no limit
+  maxRuntimeMinutes: 1440
+  # -- The largest limit, in minutes, a project may set
+  maxRuntimeMinutesCeiling: 10080
+  # -- Items a run may send to its tasks' models, counted across all of them,
+  # in a project that sets no limit of its own. Empty for no limit
+  maxItems: 250000
+  # -- The largest item limit a project may set
+  maxItemsCeiling: 5000000
+  # -- Hours a finished subtask's leftover item checkpoints are kept before
+  # the maintenance pass deletes them
+  checkpointOrphanGraceHours: 24
+  # -- The most subtasks one maintenance pass hands to the worker for
+  # checkpoint deletion, counted separately for finished and deleted subtasks
+  checkpointGcBatchSize: 200
+
+# -- Credit balance limits.
+credits:
+  # -- How far below zero, in credits, an account's balance may go while an
+  # automatic reload is in flight before work is refused
+  overdraftLimitCredits: 100
+
+# -- The hourly check that billed usage keeps up with audited model and parser usage.
+unbilledSpend:
+  # -- An account's hour alerts when its audited tokens exceed its billed
+  # tokens by this ratio and it audited more than the minimum
+  alertRatio: 1.5
+  # -- The fewest audited tokens in an hour before an account can alert
+  alertMinTokens: 5000000
+  # -- The fewest pages sent to an external parser in an hour before an
+  # account's parsing can alert
+  alertMinPages: 1000
+
 # -- The orchestrator that paces workflow runs.
 orchestrator:
   # -- The orchestrator backend: `builtin`, Ragnerock's own queue-driven
@@ -1540,7 +1606,7 @@ orchestrator:
   builtinTriggers:
     - endpoint
     - auto_run
-    - resource_check
+    - input_check
   # -- Seconds an external orchestrator may go without calling before its
   # dispatch can be claimed again.
   driverTakeoverSeconds: 600
@@ -1565,7 +1631,7 @@ schedules:
   enabled: true
   # -- Who drives the tick. Pods run continuously, so `inprocess` is right for
   # Kubernetes; `external` means something POSTs
-  # /api/jobs/internal/schedule-tick and the lifespan starts nothing.
+  # /api/runs/internal/schedule-tick and the lifespan starts nothing.
   tickSource: inprocess
   # -- How often each API replica ticks, in seconds.
   localTickSeconds: 60
@@ -1615,15 +1681,14 @@ connectionHealth:
 # -- Pull inputs: the bounds on what a workflow may fetch for itself on each
 # run, and the workers' budget for fetching it.
 pull:
-  # -- Pull-sourced resources per workflow; each is an external call on every
-  # run.
-  maxResourcesPerWorkflow: 10
+  # -- Pull-sourced inputs per agent; each is an external call on every run.
+  maxInputsPerAgent: 10
   # -- Retries per pull resource within one delivery. Bounds the multiplier on
   # calls to somebody else's server.
   maxFetchRetries: 10
   # -- Save-time cap on a tool_call source's rendered arguments, in bytes.
   toolCallArgumentsMaxBytes: 16384
-  # -- Per-attempt wall clock on one fetch, in seconds; the agent-tool call
+  # -- Per-attempt wall clock on one fetch, in seconds; the tool call
   # ceiling and the route or tool's own ceiling still apply.
   fetchTimeoutSeconds: 60
   # -- Per-fetch body cap, in bytes. A pull stores the payload as a document,
@@ -1654,7 +1719,7 @@ webTools:
   # -- Comma-separated hostnames, hostname suffixes (".corp.internal"), or CIDRs
   # a MODEL-CHOSEN url may reach even though they resolve to private addresses,
   # and which are exempt from the public-port rule. Empty means public only.
-  # Deliberately separate from `agentTools.privateEgressAllowlist`: that list is
+  # Deliberately separate from `projectTools.privateEgressAllowlist`: that list is
   # for URLs an editor typed, this one for URLs a search result suggested.
   privateEgressAllowlist: ""
   # -- Extra hostnames, hostname suffixes, or CIDRs web_fetch may never reach,
@@ -1692,7 +1757,7 @@ webTools:
   # -- Threads in the dedicated extraction executor
   fetchExtractThreads: 2
   # -- Per-process limiter for all web calls, separate from
-  # `agentTools.maxConcurrentCalls`; also sizes the web client's connection pool
+  # `projectTools.maxConcurrentCalls`; also sizes the web client's connection pool
   maxConcurrentCalls: 10
   # -- Pages held in the per-build web cache
   cacheMaxEntries: 64
@@ -1738,10 +1803,10 @@ webTools:
   # each workspace's search key is sent
   searchBraveUrl: "https://api.search.brave.com/res/v1/web/search"
 
-# -- Agent tools: the ops kill switch plus the size, time, and concurrency
+# -- Tools: the ops kill switch plus the size, time, and concurrency
 # bounds for the MCP servers and REST APIs a project points its agents at.
-agentTools:
-  # -- Serve user-defined agent tools. Set to false to build no MCP or REST tools
+projectTools:
+  # -- Serve user-defined tools. Set to false to build no MCP or REST tools
   # anywhere and ignore the system-tool rows (a full revert to the built-in list).
   enabled: true
   # -- Comma-separated hostnames, hostname suffixes (".corp.internal"), or CIDRs
@@ -1751,10 +1816,10 @@ agentTools:
   privateEgressAllowlist: ""
   # -- MCP + REST tools a single project may define
   maxUserToolsPerProject: 25
-  # -- Tools a single workflow agent may select
-  maxPerOperator: 10
-  # -- Expanded tool functions one consumer may carry (the notebook, or one agent)
-  maxFunctionsPerAgent: 80
+  # -- Tools a single task may select
+  maxPerTask: 10
+  # -- Expanded tool functions one consumer may carry (the notebook, or one task)
+  maxFunctionsPerTask: 80
   # -- Routes a single REST tool may declare
   restMaxRoutes: 30
   # -- Discovered functions kept per MCP server
@@ -1860,38 +1925,38 @@ agentTools:
     # Every tenant shares these apps, so only the API, worker, and
     # subtask-worker load them. Empty leaves those connectors unconfigured
     clients: ""
-    # -- Use a pre-existing secret (must provide key `AGENT_TOOL_CONNECTOR_CLIENTS`) instead of generating one. When set, `clients` is ignored.
+    # -- Use a pre-existing secret (must provide key `TOOL_CONNECTOR_CLIENTS`) instead of generating one. When set, `clients` is ignored.
     existingSecret: ""
 
-# -- The agent instance registry: one row per live agent loop, which is what
-# the activity view reads to say how many agents are running and what they are
-# doing.
-agentInstances:
-  # -- Write a registry row for every live agent loop. Set to false to write no
-  # rows; every loop still carries its instance id into audit rows, memory
+# -- The loop registry: one row per live model loop, which is what the
+# activity view reads to say how many agents are running and what they are
+# doing; and the deployment-wide switch that lets loops run at all.
+loops:
+  # -- Write a registry row for every live loop. Set to false to write no
+  # rows; every loop still carries its id into audit rows, memory
   # provenance and annotation metadata, so only the live view is lost.
   registryEnabled: true
   # -- How often a running loop refreshes its row. The reaper fails a row after
-  # three of these, so this is also how fast a crashed instance is told from a
+  # three of these, so this is also how fast a crashed loop is told from a
   # slow one.
   heartbeatIntervalSeconds: 30
   # -- Ceiling on one registry write; past it the write is dropped with a
   # warning and the reaper closes the row
-  writeTimeoutSeconds: 5
-
-# -- The agent kill switch: the platform operator's deployment-wide switch and
-# the halt check's cache window. The per-tenant switch is an ACCOUNT row in the
-# halt list, set from the product, not a value here.
-agentHalts:
-  # -- Allow agents to run at all in this deployment. Set to false to stop
-  # every agent loop at its next check and refuse new turns; every check ORs
-  # this with the tenant's own halts.
+  registryWriteTimeoutSeconds: 5
+  # -- Allow loops to run at all in this deployment: the platform operator's
+  # kill switch. Set to false to stop every loop at its next check and refuse
+  # new turns; every pause check ORs this with the tenant's own pauses, whose
+  # per-tenant switch is an ACCOUNT row in the pause list, set from the
+  # product, not a value here.
   executionEnabled: true
-  # -- How long a loop may reuse the answer to "am I halted?". A drained batch
+
+# -- The pause check's cache window and notification cap.
+pauses:
+  # -- How long a loop may reuse the answer to "am I paused?". A drained batch
   # of parallel tool calls then costs one lookup; also the worst-case delay
-  # before a halt lands.
+  # before a pause lands.
   checkTtlSeconds: 5
-  # -- Cap on how many people one halt notifies, so an account-wide halt in a
+  # -- Cap on how many people one pause notifies, so an account-wide pause in a
   # large workspace cannot write a notification row per member inside the
   # administrator's request.
   notifyMaxRecipients: 500
@@ -1927,7 +1992,7 @@ assignments:
   # mid-turn keeps the next one from reclaiming and resuming its turn.
   leaseTtlSeconds: 180
   # -- Allow agent assignments to be created. Off, the assignment routes
-  # answer 404; assignments already queued still run, since a halt is what
+  # answer 404; assignments already queued still run, since a pause is what
   # stops those.
   enabled: true
   # -- How many of a project's assignments may be queued, running or waiting
@@ -1947,6 +2012,19 @@ assignments:
   tokenBudget: 1500000
   # -- How many turns one assignment may take. Overridable per account.
   maxTurns: 50
+  # -- The largest notebook and agent turn token budget an account's AI config
+  # may set; larger values are refused, and a stored value above it is clamped
+  turnTokenBudgetCeiling: 2000000
+  # -- The largest assignment token budget an account's AI config may set
+  tokenBudgetCeiling: 50000000
+  # -- The largest assignment turn count an account's AI config may set
+  maxTurnsCeiling: 1000
+  # -- The deepest chain of assignments agents may start through the Ragnerock
+  # MCP server's start_subagent; the server refuses at this depth
+  maxMcpDepth: 3
+  # -- How many times in a row an assignment's lease may lapse without its
+  # turn making progress before the assignment pauses
+  maxLeaseReclaims: 3
   # -- Days an assignment may run for when given no deadline, and the latest
   # deadline it may be given. Overridable per account.
   maxAgeDays: 30
@@ -2002,13 +2080,13 @@ assignments:
   designerTokenBudget: 300000
 
 # -- Operator kinds whose calls run on the unified loop (RunnerModel over
-# /agent) instead of the annotate path, comma-separated. Accepted values:
+# /loop) instead of the annotate path, comma-separated. Accepted values:
 # tool_carrying (operators with tools of their own), function_shaped (operators
 # without), decorated (a node's judge, critic and decorator-bound runs). Empty
 # runs every operator on the annotate path, which is the rollback
 # (docs/operations/unified-loop.md).
 unifiedLoop:
-  operatorKinds: "tool_carrying"
+  taskKinds: "tool_carrying"
 
 # -- Node decorators (JUDGE/CHECK/CRITIC/TOKEN_BUDGET): the global kill switch
 # and the bounds that keep a decorated node's per-item cost bounded.
@@ -2042,7 +2120,7 @@ tabular:
   readRowsPerPage: 50
   # -- Columns a single Row- or Sheet-scoped operator may choose to be shown,
   # checked when the operator is saved
-  operatorInputColumnsMax: 500
+  taskInputColumnsMax: 500
 
 # -- Workflow change requests: a workflow's change-request node records the
 # documents it fires on, and a reviewer approves a proposed change.
@@ -2067,7 +2145,7 @@ byoai:
   # -- Comma-separated hostnames, hostname suffixes (".corp.internal"), or CIDRs
   # a provider endpoint may reach even though they resolve to private addresses,
   # and for which http:// is accepted. Empty means public hosts only. Separate
-  # from `agentTools.privateEgressAllowlist`.
+  # from `projectTools.privateEgressAllowlist`.
   privateEgressAllowlist: ""
   # -- Accept http:// provider endpoints on public hosts too, such as an
   # OpenAI-compatible proxy served without TLS. The provider's API key then
@@ -2085,29 +2163,29 @@ fallback:
   # -- Wall-clock budget for one annotation chain, in seconds
   chainBudgetSeconds: 420
   # -- Wall-clock budget for one agent chain, in seconds
-  agentChainBudgetSeconds: 120
+  loopChainBudgetSeconds: 120
   # -- Attempts against each provider in a chain before moving to the next
   perProviderAttempts: 2
 
 # -- Workflow node error handling.
-workflowNodes:
+agentNodes:
   # -- Upper bound on a node's max_retries (on_error RETRY); larger requests
   # are refused.
   maxRetries: 5
 
-# -- Workflow resources bound into operator runs and rendered into prompts.
-workflowResources:
-  # -- Ceiling on a value resource's serialized inline value, in bytes
+# -- Agent inputs bound into task runs and rendered into prompts.
+agentInputs:
+  # -- Ceiling on a value input's serialized inline value, in bytes
   valueMaxBytes: 262144
-  # -- Ceiling on the resource context rendered into one prompt, in characters
+  # -- Ceiling on the input context rendered into one prompt, in characters
   contextMaxChars: 200000
-  # -- Ceiling on a single code operator's returned resource, in bytes
+  # -- Ceiling on a single code task's input, in bytes
   codeMaxBytes: 20000000
-  # -- Ceiling on the rows a single code operator may return
+  # -- Ceiling on the rows of a single code task's tabular input
   codeMaxRows: 100000
-  # -- Ceiling on all code operator resources for one run, in bytes
+  # -- Ceiling on all of a code task's inputs for one run, in bytes
   codeTotalMaxBytes: 40000000
-  # -- Byte budget for the worker's per-process cache of materialized code resources
+  # -- Byte budget for the worker's per-process cache of materialized code inputs
   codeCacheMaxBytes: 256000000
 
 autoMode:
@@ -2150,8 +2228,8 @@ workers:
   maxInstanceRequestConcurrency: ""
   # -- Threads serving blocking DB work off the event loop
   dbThreadpoolSize: 80
-  # -- Concurrent job phase-advances a worker process may run
-  maxConcurrentJobAdvances: 10
+  # -- Concurrent run phase-advances a worker process may run
+  maxConcurrentRunAdvances: 10
   # -- Concurrent spawn continuations a worker process may run. A node whose
   # subtasks take longer than `spawn.timeBudgetSeconds` to publish continues on
   # a later delivery; those get their own pool so one large job's paging cannot
@@ -2386,10 +2464,8 @@ auditService:
     scanLookbackHours: 26
     # -- Oldest-incomplete-window age past which the scan logs a lag alert
     lagAlertMinutes: 120
-    # -- How long a running export run belongs to the delivery that started it; a second delivery inside it is refused, and past it the run is taken over
+    # -- How long a running export run belongs to the delivery that started it; a second delivery inside it is acknowledged without exporting, and past it the run is taken over
     runningLeaseMinutes: 60
-    # -- Retry-After on the 409 a delivery gets while another is exporting the same run
-    heldRetryAfterSeconds: 60
   # -- Deployment resoruce contraints (i.e. requests/limits)
   resources: {}
   # -- Optional horizontal pod autoscaler. Requires CPU/memory requests to be

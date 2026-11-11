@@ -287,7 +287,7 @@ drift apart.
   {{- if .Values.workers.database.poolSize -}}
 {{- .Values.workers.database.poolSize -}}
   {{- else -}}
-    {{- $inFlight := add .Values.limits.concurrency.maxConcurrentSubtasks .Values.limits.concurrency.maxConcurrentJobs .Values.workers.maxConcurrentJobAdvances .Values.workers.maxConcurrentSpawns -}}
+    {{- $inFlight := add .Values.limits.concurrency.maxConcurrentSubtasks .Values.limits.concurrency.maxConcurrentRuns .Values.workers.maxConcurrentRunAdvances .Values.workers.maxConcurrentSpawns -}}
     {{- if .Values.workers.maxInstanceRequestConcurrency -}}
       {{- $inFlight = min $inFlight (int .Values.workers.maxInstanceRequestConcurrency) -}}
     {{- end -}}
@@ -332,13 +332,13 @@ The subtask worker's annotation-target ceiling, falling back to the shared one.
 {{- end -}}
 
 {{/*
-The subtask worker's /agent call limit, falling back to the shared one.
+The subtask worker's /loop call limit, falling back to the shared one.
 */}}
-{{- define "ragnerock.subtaskWorkerAgentCalls" -}}
-  {{- if .Values.subtaskWorker.maxConcurrentAgentCalls -}}
-{{- .Values.subtaskWorker.maxConcurrentAgentCalls -}}
+{{- define "ragnerock.subtaskWorkerLoopCalls" -}}
+  {{- if .Values.subtaskWorker.maxConcurrentLoopCalls -}}
+{{- .Values.subtaskWorker.maxConcurrentLoopCalls -}}
   {{- else -}}
-{{- include "ragnerock.number" .Values.model.maxConcurrentAgentCalls -}}
+{{- include "ragnerock.number" .Values.model.maxConcurrentLoopCalls -}}
   {{- end -}}
 {{- end -}}
 

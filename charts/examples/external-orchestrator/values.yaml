@@ -17,7 +17,7 @@ orchestrator:
   builtinTriggers:
     - endpoint
     - auto_run
-    - resource_check
+    - input_check
   # How long a run may wait for the orchestrator, to start or between nodes,
   # before it fails. Keep it above the longest the orchestrator may queue a
   # run before launching it.

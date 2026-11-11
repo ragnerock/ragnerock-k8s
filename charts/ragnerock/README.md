@@ -16,81 +16,15 @@ Ragnerock research intelligence platform
 | accountLifecycle.purgeMinDelayHours | int | `24` | The least hours between a close and its purge, even when the owner waived the retrieval window or an operator asked for an immediate purge. |
 | accountLifecycle.purgeStepBudgetSeconds | int | `120` | Wall-clock seconds one purge step may spend before handing the rest to the next step. |
 | accountLifecycle.retrievalPeriodDays | int | `30` | Days after a close before the account is purged: the window in which an operator can reopen it for the customer to retrieve their data. |
-| agent.annotationToolMaxIterations | int | `25` | Tool-call iterations an annotation operator's agent may take before it is cut off |
-| agent.cachedTokenWeight | float | `0.1` | Weight of a cache-read input token in the cost-weighted budget unit |
-| agent.callRetryBudgetSeconds | int | `120` | Seconds one interactive model call keeps retrying a shed or transient failure before the turn reports the model service busy |
-| agent.contextEvictionHighWaterTokens | string | `""` | In-turn context-eviction trigger (previous call's input tokens). Empty disables eviction; intended production value 140000 |
-| agent.contextEvictionLowWaterTokens | int | `90000` | Context-eviction pass target, in tokens |
-| agent.contextEvictionMinChars | int | `2000` | Smallest tool-result content (chars) worth stubbing during eviction |
-| agent.drainToolCalls | bool | `false` | Rollout flag for parallel tool-call draining: when true the Runner executes the whole tool-call batch before re-invoking |
-| agent.maxIterations | int | `10` |  |
-| agent.operatorTurnTokenBudget | int | `1000000` | One annotation target's token budget on the unified loop, in the same cost-weighted unit as turnTokenBudget. Sized to bind only on a runaway; reaching it forces a final answer. Empty disables it |
-| agent.reasoningEnabled | bool | `true` | Ops kill switch for reasoning/thinking: when false the API never sets a reasoning effort |
-| agent.subAgentBudgetFraction | float | `0.5` | A sub-runner's spend ceiling as a share of the parent turn's remaining budget at spawn |
-| agent.tokenBudgetSoftFraction | float | `0.8` | Soft advisory threshold: at this fraction of the turn budget the Runner injects one non-forcing wrap-up message |
-| agent.toolResultImages | bool | `false` | Rollout flag: attach sandbox plots to tool results so the model sees them within the producing turn |
-| agent.turnTokenBudget | int | `150000` | Turn token budget in cost-weighted units (output + uncached input + cachedTokenWeight x cached input). Empty disables budget termination, leaving the iteration cap as the only backstop |
-| agentContext | object | `{"blockEnabled":true,"blockMaxChars":4000,"blockPriorConversations":5,"blockRecentAssignments":5,"blockRecentRuns":5,"blockTitleMaxChars":120}` | The agent context block: what a conversation with an agent opens knowing about that agent's own recent work. Delivered onto the user's turn, never into the system prompt, so none of this touches the cached prefix. |
-| agentContext.blockEnabled | bool | `true` | Open an agent conversation with that agent's own record. Off: the conversation still runs as the agent, it just starts without the summary. |
-| agentContext.blockMaxChars | int | `4000` | Ceiling on the whole block; past it the rows collapse to counts |
-| agentContext.blockPriorConversations | int | `5` | Earlier conversations between this user and this agent to name |
-| agentContext.blockRecentAssignments | int | `5` | The agent's assignments to name, most recently active first |
-| agentContext.blockRecentRuns | int | `5` | Jobs named in the recent-runs section, newest first |
-| agentContext.blockTitleMaxChars | int | `120` | Characters kept from one conversation title |
-| agentHalts | object | `{"checkTtlSeconds":5,"executionEnabled":true,"notifyMaxRecipients":500}` | The agent kill switch: the platform operator's deployment-wide switch and the halt check's cache window. The per-tenant switch is an ACCOUNT row in the halt list, set from the product, not a value here. |
-| agentHalts.checkTtlSeconds | int | `5` | How long a loop may reuse the answer to "am I halted?". A drained batch of parallel tool calls then costs one lookup; also the worst-case delay before a halt lands. |
-| agentHalts.executionEnabled | bool | `true` | Allow agents to run at all in this deployment. Set to false to stop every agent loop at its next check and refuse new turns; every check ORs this with the tenant's own halts. |
-| agentHalts.notifyMaxRecipients | int | `500` | Cap on how many people one halt notifies, so an account-wide halt in a large workspace cannot write a notification row per member inside the administrator's request. |
-| agentInstances | object | `{"heartbeatIntervalSeconds":30,"registryEnabled":true,"writeTimeoutSeconds":5}` | The agent instance registry: one row per live agent loop, which is what the activity view reads to say how many agents are running and what they are doing. |
-| agentInstances.heartbeatIntervalSeconds | int | `30` | How often a running loop refreshes its row. The reaper fails a row after three of these, so this is also how fast a crashed instance is told from a slow one. |
-| agentInstances.registryEnabled | bool | `true` | Write a registry row for every live agent loop. Set to false to write no rows; every loop still carries its instance id into audit rows, memory provenance and annotation metadata, so only the live view is lost. |
-| agentInstances.writeTimeoutSeconds | int | `5` | Ceiling on one registry write; past it the write is dropped with a warning and the reaper closes the row |
-| agentTools | object | `{"annotationQueueWaitSeconds":120,"annotationToolCallRecordResultMaxChars":40000,"auditResultMaxChars":8000,"buildTimeBudgetSeconds":600,"busyWaitSeconds":5,"callTimeoutMaxSeconds":120,"callTimeoutSeconds":30,"connectTimeoutSeconds":5,"connectors":{"clients":"","existingSecret":""},"connectorsDisabled":"","connectorsEnabled":"","descriptionMaxChars":1024,"discoveryTimeoutSeconds":20,"enabled":true,"executionLogEnabled":true,"executionLogWriteTimeoutSeconds":5,"headerValueMaxChars":4096,"longDescriptionMaxChars":4096,"longParamDescriptionMaxChars":2048,"maxCallsPerInvocation":10,"maxConcurrentCalls":20,"maxFunctionsPerAgent":80,"maxHeaders":20,"maxPerOperator":10,"maxResultImages":4,"maxUserToolsPerProject":25,"mcpMaxFunctions":30,"oauthClientMetadataCacheSeconds":3600,"oauthEnabled":true,"oauthFlowTtlSeconds":600,"oauthMetadataMaxBytes":65536,"oauthRefreshLeaseSeconds":30,"oauthRefreshSkewSeconds":60,"oauthStartDeadlineSeconds":30,"oauthTokenRequestTimeoutSeconds":10,"paramDescriptionMaxChars":256,"privateEgressAllowlist":"","requestBodyMaxBytes":262144,"responseMaxBytes":262144,"restMaxRoutes":30,"resultMaxChars":32000,"rowTimeBudgetSeconds":360,"schemaMaxBytes":16384,"schemaMaxDepth":5}` | Agent tools: the ops kill switch plus the size, time, and concurrency bounds for the MCP servers and REST APIs a project points its agents at. |
-| agentTools.annotationQueueWaitSeconds | int | `120` | How long an annotation call waits for the same semaphores. A refused call there is a failed row, so it queues; a row that still starves past this is classified retryable and costs a redelivery |
-| agentTools.annotationToolCallRecordResultMaxChars | int | `40000` | Cap on a stored annotation tool-call result (provenance, not replay) |
-| agentTools.auditResultMaxChars | int | `8000` | Cap on the result text carried in an external-tool audit payload |
-| agentTools.buildTimeBudgetSeconds | int | `600` | Total tool wall clock per subtask or notebook turn |
-| agentTools.busyWaitSeconds | int | `5` | How long a notebook call waits for a concurrency semaphore before failing in-band; a person is waiting on that path |
-| agentTools.callTimeoutMaxSeconds | int | `120` | Cap on a per-route or per-server timeout override |
-| agentTools.callTimeoutSeconds | int | `30` | Per-call wall clock when the route or server sets none |
-| agentTools.connectTimeoutSeconds | int | `5` | Connect timeout, so unreachable hosts fail fast |
-| agentTools.connectors.clients | string | `""` | The OAuth apps this deployment registered for the built-in connectors that have no dynamic registration (GitHub, Asana, Slack), as JSON keyed by connector: {"github": {"client_id": "...", "client_secret": "...", "install_url": "https://github.com/apps/<slug>/installations/new"}}. Every tenant shares these apps, so only the API, worker, and subtask-worker load them. Empty leaves those connectors unconfigured |
-| agentTools.connectors.existingSecret | string | `""` | Use a pre-existing secret (must provide key `AGENT_TOOL_CONNECTOR_CLIENTS`) instead of generating one. When set, `clients` is ignored. |
-| agentTools.connectorsDisabled | string | `""` | Built-in MCP connectors turned off on this deployment, comma-separated (for example "linear,slack"): hidden from the catalog, refused on create and start, and not built for existing tools. An unknown name stops the API and workers at startup. Set on the API, worker, and subtask-worker only |
-| agentTools.connectorsEnabled | string | `""` | Built-in MCP connectors that ship turned off and this deployment turns on, comma-separated (for example "gong"). Naming a connector that is already on does nothing, and connectorsDisabled wins over this list. An unknown name stops the API and workers at startup. Set on the API, worker, and subtask-worker only |
-| agentTools.descriptionMaxChars | int | `1024` | Maximum function description length (it rides every prompt) |
-| agentTools.discoveryTimeoutSeconds | int | `20` | Timeout for an MCP tools/list call at save or refresh |
-| agentTools.enabled | bool | `true` | Serve user-defined agent tools. Set to false to build no MCP or REST tools anywhere and ignore the system-tool rows (a full revert to the built-in list). |
-| agentTools.executionLogEnabled | bool | `true` | Record every MCP/REST call an agent makes as a row of the tool's tool_<slug> table in the customer's data DB (the audit trail is unaffected) |
-| agentTools.executionLogWriteTimeoutSeconds | int | `5` | Ceiling on one execution-log write; past it the row is dropped with a warning |
-| agentTools.headerValueMaxChars | int | `4096` | Maximum header value length in characters (a JWT fits) |
-| agentTools.longDescriptionMaxChars | int | `4096` | Function description length kept for a catalog connector whose descriptions carry the call contract (Notion) |
-| agentTools.longParamDescriptionMaxChars | int | `2048` | Per-parameter description length kept for such a connector |
-| agentTools.maxCallsPerInvocation | int | `10` | Default per-invocation call budget on every tool function |
-| agentTools.maxConcurrentCalls | int | `20` | Per-process concurrency semaphore and egress pool size |
-| agentTools.maxFunctionsPerAgent | int | `80` | Expanded tool functions one consumer may carry (the notebook, or one agent) |
-| agentTools.maxHeaders | int | `20` | Request headers configurable on one tool |
-| agentTools.maxPerOperator | int | `10` | Tools a single workflow agent may select |
-| agentTools.maxResultImages | int | `4` | MCP image blocks attached to a notebook tool result |
-| agentTools.maxUserToolsPerProject | int | `25` | MCP + REST tools a single project may define |
-| agentTools.mcpMaxFunctions | int | `30` | Discovered functions kept per MCP server |
-| agentTools.oauthClientMetadataCacheSeconds | int | `3600` | How long an authorization server may cache the client metadata document this deployment serves. API only |
-| agentTools.oauthEnabled | bool | `true` | Allow an MCP tool to sign in to its server with OAuth. Set to false to refuse the editing routes, build nothing from connected rows, and hide the option in the panel |
-| agentTools.oauthFlowTtlSeconds | int | `600` | Life of a pending sign-in: long enough to sign in at the provider and approve a consent screen, short enough that an abandoned click is not a standing authorization. API only |
-| agentTools.oauthMetadataMaxBytes | int | `65536` | Cap on a fetched OAuth metadata or token-response body |
-| agentTools.oauthRefreshLeaseSeconds | int | `30` | Lease held by the process performing a refresh. Must exceed the token request timeout, or two processes could spend one refresh token |
-| agentTools.oauthRefreshSkewSeconds | int | `60` | Refresh an access token proactively when it expires within this window; also the window inside which a second 401 is not retried |
-| agentTools.oauthStartDeadlineSeconds | int | `30` | One deadline over the whole start step (probe, protected-resource metadata, authorization-server metadata, registration), so a slow provider cannot hold the request for four timeouts in a row. API only |
-| agentTools.oauthTokenRequestTimeoutSeconds | int | `10` | Timeout for one OAuth metadata fetch, registration, or token request |
-| agentTools.paramDescriptionMaxChars | int | `256` | Maximum per-parameter description length |
-| agentTools.privateEgressAllowlist | string | `""` | Comma-separated hostnames, hostname suffixes (".corp.internal"), or CIDRs a tool may target even though they resolve to private addresses, and for which http:// is accepted. Empty means public HTTPS only. Name hosts rather than ranges: every service on an allowlisted host becomes reachable. |
-| agentTools.requestBodyMaxBytes | int | `262144` | Maximum request body, bounding argument egress |
-| agentTools.responseMaxBytes | int | `262144` | Streamed read cap, counted in decoded bytes |
-| agentTools.restMaxRoutes | int | `30` | Routes a single REST tool may declare |
-| agentTools.resultMaxChars | int | `32000` | Result text handed to the model, in characters |
-| agentTools.rowTimeBudgetSeconds | int | `360` | Each row's carve-out of its subtask's tool wall clock; a row that exhausts it fails rather than answering without its tools |
-| agentTools.schemaMaxBytes | int | `16384` | Maximum serialized size of one function's parameter schema |
-| agentTools.schemaMaxDepth | int | `5` | Maximum nesting depth of one function's parameter schema |
+| agentInputs | object | `{"codeCacheMaxBytes":256000000,"codeMaxBytes":20000000,"codeMaxRows":100000,"codeTotalMaxBytes":40000000,"contextMaxChars":200000,"valueMaxBytes":262144}` | Agent inputs bound into task runs and rendered into prompts. |
+| agentInputs.codeCacheMaxBytes | int | `256000000` | Byte budget for the worker's per-process cache of materialized code inputs |
+| agentInputs.codeMaxBytes | int | `20000000` | Ceiling on a single code task's input, in bytes |
+| agentInputs.codeMaxRows | int | `100000` | Ceiling on the rows of a single code task's tabular input |
+| agentInputs.codeTotalMaxBytes | int | `40000000` | Ceiling on all of a code task's inputs for one run, in bytes |
+| agentInputs.contextMaxChars | int | `200000` | Ceiling on the input context rendered into one prompt, in characters |
+| agentInputs.valueMaxBytes | int | `262144` | Ceiling on a value input's serialized inline value, in bytes |
+| agentNodes | object | `{"maxRetries":5}` | Workflow node error handling. |
+| agentNodes.maxRetries | int | `5` | Upper bound on a node's max_retries (on_error RETRY); larger requests are refused. |
 | analysis.dataframeOpTimeout | int | `60` |  |
 | analysis.maxColumns | int | `500` |  |
 | analysis.maxRows | int | `50000` |  |
@@ -143,11 +77,9 @@ Ragnerock research intelligence platform
 | api.extraEnv | list | `[]` | Extra container environment variables (list of Kubernetes EnvVar specs, so `valueFrom` works). Rendered after the chart's own, so an entry here overrides a variable of the same name the chart sets |
 | api.image.name | string | `"api"` |  |
 | api.image.tag | string | `""` |  |
-| api.manualJobMaxDocuments | int | `5000` | Most documents one manual-run request may fan out over, one job each. Jobs are created inside the request, so a larger run is refused rather than left to time out |
+| api.manualRunMaxDocuments | int | `5000` | Most documents one manual-run request may fan out over, one run each. Runs are created inside the request, so a larger run is refused rather than left to time out |
 | api.maxConcurrentRequests | int | `18` | In-flight ordinary requests one API pod accepts before it starts shedding. Sized to `database.poolSize + maxOverflow`, because a request in this class holds a connection for most of its life. On Kubernetes there is no platform concurrency behind it, so this gate is the ONLY bound -- which is why the chart checks it against the pool rather than trusting it |
 | api.maxConcurrentStreams | int | `40` | Concurrent streaming requests (SSE, NDJSON, MCP waiters) one pod admits. A separate class: a stream holds a request slot for minutes and a DB connection for almost none of it, and every logged-in browser tab holds two permanently |
-| api.operatorSample.maxFileBytes | int | `20971520` | Max workbench attachment size accepted by the parse-sample endpoint. The file rides to the worker as base64 JSON (~4/3 the size), so keep it at or below 20 MiB |
-| api.operatorSample.parseTimeoutSeconds | int | `300` | API-side read timeout on the synchronous worker parse call, in seconds. Whole-document OCR of a large PDF via an external backend takes minutes |
 | api.orphanCleanup.batchSize | int | `1000` | Rows per DELETE statement (1-1000). One run still clears an account's whole backlog. |
 | api.orphanCleanup.dryRun | bool | `false` | Count orphans and delete nothing. Useful on a first rollout to see the backlog before anything is removed. |
 | api.orphanCleanup.gracePeriodHours | int | `24` | Hours an orphan must have existed before it is swept. Chunks of a document deleted more recently, and newer revisions, are left alone. |
@@ -168,25 +100,30 @@ Ragnerock research intelligence platform
 | api.serviceAccount.annotations | object | `{}` | Annotations to add to the created service account (e.g. for workload identity) |
 | api.serviceAccount.create | bool | `false` | Create a service account for this deployment's pods |
 | api.serviceAccount.name | string | `""` | Service account name to use; if empty and `create` is true a name is generated |
+| api.taskSample.maxFileBytes | int | `20971520` | Max workbench attachment size accepted by the parse-sample endpoint. The file rides to the worker as base64 JSON (~4/3 the size), so keep it at or below 20 MiB |
+| api.taskSample.parseTimeoutSeconds | int | `300` | API-side read timeout on the synchronous worker parse call, in seconds. Whole-document OCR of a large PDF via an external backend takes minutes |
 | api.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | api.url | string | `""` | The address browsers and third parties reach the API at. Used for the frontend's `NEXT_PUBLIC_API_URL` and, as `PUBLIC_API_URL`, for the client metadata document an authorization server fetches while a user connects an MCP tool. The chart ships no ingress, so whatever fronts the API must let `/api/oauth/client-metadata` through unauthenticated for that path to work; leave this empty and sign-ins register a client dynamically instead |
 | api.validationStreamReadTimeoutSeconds | int | `120` | Read timeout between events of a streamed validation run, in seconds. One test can take a reasoning model most of a minute on large inputs |
 | api.validationTokenTtlSeconds | int | `900` | How long a passing AI-settings validation lets a save of the same settings skip re-testing, in seconds |
 | api.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
 | api.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
-| assignments | object | `{"compactionHighWaterTokens":140000,"compactionTimeoutSeconds":120,"designerAskDefaultHours":24,"designerTokenBudget":300000,"enabled":true,"leaseTtlSeconds":180,"maxActivePerProject":50,"maxAgeDays":30,"maxChildren":10,"maxConcurrentTurns":2,"maxConsecutiveFailures":3,"maxTurns":50,"questionReminderHours":24,"reapBatchSize":25,"reapMaxBatches":8,"reapRecheckDays":7,"retentionDays":365,"retryDelaySeconds":60,"strandedAfterMinutes":15,"subagentDefaultTokenBudget":500000,"subagentMaxActivePerUser":10,"tickBatchSize":50,"tokenBudget":1500000,"turnMaxIterations":40,"turnTimeBudgetSeconds":1500,"waitDefaultDays":7,"waitMaxDays":30}` | Agent assignments: an agent given a piece of work, run one turn at a time in the worker under a renewable lease. |
+| assignments | object | `{"compactionHighWaterTokens":140000,"compactionTimeoutSeconds":120,"designerAskDefaultHours":24,"designerTokenBudget":300000,"enabled":true,"leaseTtlSeconds":180,"maxActivePerProject":50,"maxAgeDays":30,"maxChildren":10,"maxConcurrentTurns":2,"maxConsecutiveFailures":3,"maxLeaseReclaims":3,"maxMcpDepth":3,"maxTurns":50,"maxTurnsCeiling":1000,"questionReminderHours":24,"reapBatchSize":25,"reapMaxBatches":8,"reapRecheckDays":7,"retentionDays":365,"retryDelaySeconds":60,"strandedAfterMinutes":15,"subagentDefaultTokenBudget":500000,"subagentMaxActivePerUser":10,"tickBatchSize":50,"tokenBudget":1500000,"tokenBudgetCeiling":50000000,"turnMaxIterations":40,"turnTimeBudgetSeconds":1500,"turnTokenBudgetCeiling":2000000,"waitDefaultDays":7,"waitMaxDays":30}` | Agent assignments: an agent given a piece of work, run one turn at a time in the worker under a renewable lease. |
 | assignments.compactionHighWaterTokens | int | `140000` | Estimated tokens an assignment's rebuilt history may reach before the worker compacts it at the start of a turn. |
 | assignments.compactionTimeoutSeconds | int | `120` | How long a turn-boundary compaction's summary call may take, in seconds. It runs before the turn's clock starts; together with turnTimeBudgetSeconds it must stay inside the 1800 s dispatch deadline. |
 | assignments.designerAskDefaultHours | int | `24` | How long the workflow designer waits for a reply to its proposal, in hours; both its default and its cap. |
 | assignments.designerTokenBudget | int | `300000` | The workflow designer's budget, in cost-weighted tokens. |
-| assignments.enabled | bool | `true` | Allow agent assignments to be created. Off, the assignment routes answer 404; assignments already queued still run, since a halt is what stops those. |
+| assignments.enabled | bool | `true` | Allow agent assignments to be created. Off, the assignment routes answer 404; assignments already queued still run, since a pause is what stops those. |
 | assignments.leaseTtlSeconds | int | `180` | How long a delivery's lease lasts without renewal. A running turn renews it every iteration, so this is how long a delivery that died mid-turn keeps the next one from reclaiming and resuming its turn. |
 | assignments.maxActivePerProject | int | `50` | How many of a project's assignments may be queued, running or waiting at once. A new assignment over the cap is refused. |
 | assignments.maxAgeDays | int | `30` | Days an assignment may run for when given no deadline, and the latest deadline it may be given. Overridable per account. |
 | assignments.maxChildren | int | `10` | Children one assignment may dispatch in its life. A child that names no budget takes the parent's remaining budget divided by the children it may still dispatch. |
 | assignments.maxConcurrentTurns | int | `2` | Maximum concurrent assignment turns per worker instance. Each holds its delivery for up to turnTimeBudgetSeconds, so the pool is small. |
 | assignments.maxConsecutiveFailures | int | `3` | Turns that may fail in a row before an assignment pauses and the person it runs as is notified; a failed turn short of it is retried. |
+| assignments.maxLeaseReclaims | int | `3` | How many times in a row an assignment's lease may lapse without its turn making progress before the assignment pauses |
+| assignments.maxMcpDepth | int | `3` | The deepest chain of assignments agents may start through the Ragnerock MCP server's start_subagent; the server refuses at this depth |
 | assignments.maxTurns | int | `50` | How many turns one assignment may take. Overridable per account. |
+| assignments.maxTurnsCeiling | int | `1000` | The largest assignment turn count an account's AI config may set |
 | assignments.questionReminderHours | int | `24` | Hours before an agent's question reaches its deadline that the person it was asked of is reminded, once, if it is still unanswered. |
 | assignments.reapBatchSize | int | `25` | Finished assignments the retention reaper takes per page. |
 | assignments.reapMaxBatches | int | `8` | Pages the retention reaper takes per run; a backlog drains over runs. |
@@ -198,8 +135,10 @@ Ragnerock research intelligence platform
 | assignments.subagentMaxActivePerUser | int | `10` | Active subagents and design sessions one person may have in one project at once. |
 | assignments.tickBatchSize | int | `50` | Rows each of the tick's assignment scans (due waits, lapsed leases) takes per pass. |
 | assignments.tokenBudget | int | `1500000` | What one assignment may spend, in cost-weighted tokens (output + uncached input + a fraction of cached input). Fixed when it is given; spending it fails the assignment. Overridable per account. |
+| assignments.tokenBudgetCeiling | int | `50000000` | The largest assignment token budget an account's AI config may set |
 | assignments.turnMaxIterations | int | `40` | Maximum loop iterations one turn may take across all its deliveries. |
 | assignments.turnTimeBudgetSeconds | int | `1500` | Wall clock for one delivery of a turn. Must stay well inside the 1800 s Cloud Tasks dispatch deadline: a delivery that reaches it hands the turn to the next one. |
+| assignments.turnTokenBudgetCeiling | int | `2000000` | The largest notebook and agent turn token budget an account's AI config may set; larger values are refused, and a stored value above it is clamped |
 | assignments.waitDefaultDays | int | `7` | Days an assignment waits when it names no deadline. |
 | assignments.waitMaxDays | int | `30` | The longest deadline a wait may name, in days. Cloud Tasks cannot schedule a delivery further out than 30 days. |
 | audit.batchMaxBytes | int | `819200` |  |
@@ -229,9 +168,8 @@ Ragnerock research intelligence platform
 | auditService.database.maxOverflow | int | `10` | Extra connections allowed beyond poolSize |
 | auditService.database.poolSize | int | `5` | Persistent DB connections held by the pool. SQLAlchemy's own default, named explicitly so the connection budget sums a visible number |
 | auditService.database.poolTimeout | int | `5` | Seconds a request waits for a connection before failing |
-| auditService.export.heldRetryAfterSeconds | int | `60` | Retry-After on the 409 a delivery gets while another is exporting the same run |
 | auditService.export.lagAlertMinutes | int | `120` | Oldest-incomplete-window age past which the scan logs a lag alert |
-| auditService.export.runningLeaseMinutes | int | `60` | How long a running export run belongs to the delivery that started it; a second delivery inside it is refused, and past it the run is taken over |
+| auditService.export.runningLeaseMinutes | int | `60` | How long a running export run belongs to the delivery that started it; a second delivery inside it is acknowledged without exporting, and past it the run is taken over |
 | auditService.export.scanLookbackHours | int | `26` | Bounded catch-up horizon the export scan considers for missing windows |
 | auditService.export.watermarkMinutes | int | `15` | Ingest-lag settle time before an export window is declared complete |
 | auditService.extraEnv | list | `[]` | Extra container environment variables (list of Kubernetes EnvVar specs, so `valueFrom` works). Rendered after the chart's own, so an entry here overrides a variable of the same name the chart sets |
@@ -275,7 +213,7 @@ Ragnerock research intelligence platform
 | autoMode.tokenBudget | int | `300000` | Cost-weighted token budget for one auto mode session. Charged the sample runs' real model spend, not just agent-side tokens. |
 | byoai | object | `{"allowPlainHttp":false,"privateEgressAllowlist":""}` | BYOAI egress: where AI, embedding, and image-summary provider endpoints may point. |
 | byoai.allowPlainHttp | bool | `false` | Accept http:// provider endpoints on public hosts too, such as an OpenAI-compatible proxy served without TLS. The provider's API key then crosses the network unencrypted. Cloud metadata endpoints and non-allowlisted private hosts are refused either way. |
-| byoai.privateEgressAllowlist | string | `""` | Comma-separated hostnames, hostname suffixes (".corp.internal"), or CIDRs a provider endpoint may reach even though they resolve to private addresses, and for which http:// is accepted. Empty means public hosts only. Separate from `agentTools.privateEgressAllowlist`. |
+| byoai.privateEgressAllowlist | string | `""` | Comma-separated hostnames, hostname suffixes (".corp.internal"), or CIDRs a provider endpoint may reach even though they resolve to private addresses, and for which http:// is accepted. Empty means public hosts only. Separate from `projectTools.privateEgressAllowlist`. |
 | callbackDelivery.affinity | object | `{}` | Pod affinity rules (overrides `global.affinity`) |
 | callbackDelivery.annotations | object | `{}` | Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence) |
 | callbackDelivery.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
@@ -315,6 +253,8 @@ Ragnerock research intelligence platform
 | connectionHealth.byobsUnhealthyMinOutageSeconds | int | `300` | BYOBS: how long the failure streak must have lasted, from its first failure, in seconds. |
 | connectionHealth.byodbUnhealthyAfterFailures | int | `5` | BYODB: failed connections in a row (health checks and db-service calls) before the database is marked unhealthy. |
 | connectionHealth.byodbUnhealthyMinOutageSeconds | int | `300` | BYODB: how long the failure streak must have lasted, from its first failure, in seconds. |
+| credits | object | `{"overdraftLimitCredits":100}` | Credit balance limits. |
+| credits.overdraftLimitCredits | int | `100` | How far below zero, in credits, an account's balance may go while an automatic reload is in flight before work is refused |
 | dataIngestor.affinity | object | `{}` | Pod affinity rules (overrides `global.affinity`) |
 | dataIngestor.annotations | object | `{}` | Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence) |
 | dataIngestor.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
@@ -355,8 +295,11 @@ Ragnerock research intelligence platform
 | dbService.autoscaling.targetCPUUtilizationPercentage | int | `80` | Target average CPU utilization (% of requests). Set to null to disable. |
 | dbService.autoscaling.targetMemoryUtilizationPercentage | int | `80` | Target average memory utilization (% of requests). Set to null to disable. |
 | dbService.batchLimit | int | `10000` |  |
+| dbService.bigqueryJobTimeoutSeconds | int | `600` | Ceiling for every query job on a BigQuery BYODB connection (seconds); BigQuery's own default is six hours |
+| dbService.bigqueryMaxBytesBilled | int | `107374182400` | Most bytes one query job on a BigQuery BYODB connection may bill; a job that would scan more fails before it runs. BigQuery's own default is no limit |
 | dbService.capacityRetryAfterSeconds | int | `2` | Retry-After sent with a shed, POOL_EXHAUSTED, or CONNECTION_FAILED 503 |
 | dbService.capacityWaitSeconds | float | `2` | Seconds a request waits for a capacity slot before being shed |
+| dbService.dataOrphanSweepMaxBatchesPerAccount | int | `20` | Most delete batches one daily orphan-cleanup pass runs for an account; a larger backlog clears over several passes |
 | dbService.databricksExtraHostSuffixes | list | `[]` | Databricks workspace host suffixes to accept besides Databricks' own, for private deployments. Each starts with "." (e.g. ".databricks.corp.example") |
 | dbService.databricksInsertPageSize | int | `200` | Rows per multi-row INSERT when SQLAlchemy pages an executemany batch on Databricks |
 | dbService.databricksRetryWindowSeconds | int | `50` | Total time the Databricks connector spends retrying one request (seconds); kept under the worker's 60 s write budget |
@@ -441,9 +384,9 @@ Ragnerock research intelligence platform
 | endpoints.oauth.enabled | bool | `true` | Let a caller sign in to an endpoint MCP server instead of presenting a key. When false the well-known documents and every /api/oauth route answer 404 and existing tokens stop being accepted, so a host sees a deployment that never supported OAuth rather than one that advertises it and then refuses. Two install requirements, neither of which the chart can satisfy for you: `api.url` must be set, because it is the issuer every token is bound to; and **`/.well-known/*` on that host must reach the API**. The chart ships no ingress, so whatever fronts the API is what has to route those two paths — a client that cannot fetch them cannot start a sign-in at all, and sees a server with no OAuth rather than an error. API only |
 | endpoints.oauth.refreshTokenTtlDays | int | `30` | Lifetime of a refresh token, in days. Sliding: every rotation issues a fresh expiry, so an app in regular use never expires and one idle this long does. API only |
 | endpoints.oauth.registrationMaxBodyBytes | int | `16384` | Largest client registration body accepted, in bytes. API only |
-| fallback | object | `{"agentChainBudgetSeconds":120,"chainBudgetSeconds":420,"maxChainCiphertextBytes":30720,"maxDepth":3,"perProviderAttempts":2}` | BYOAI fallback chains: how far a chain may reach and how long the model-service will spend working through one. |
-| fallback.agentChainBudgetSeconds | int | `120` | Wall-clock budget for one agent chain, in seconds |
+| fallback | object | `{"chainBudgetSeconds":420,"loopChainBudgetSeconds":120,"maxChainCiphertextBytes":30720,"maxDepth":3,"perProviderAttempts":2}` | BYOAI fallback chains: how far a chain may reach and how long the model-service will spend working through one. |
 | fallback.chainBudgetSeconds | int | `420` | Wall-clock budget for one annotation chain, in seconds |
+| fallback.loopChainBudgetSeconds | int | `120` | Wall-clock budget for one agent chain, in seconds |
 | fallback.maxChainCiphertextBytes | int | `30720` | Ceiling on the summed ciphertext of a chain's fallback leaves, in bytes |
 | fallback.maxDepth | int | `3` | Fallback hops allowed after the primary provider |
 | fallback.perProviderAttempts | int | `2` | Attempts against each provider in a chain before moving to the next |
@@ -483,6 +426,8 @@ Ragnerock research intelligence platform
 | ingest.privateEgressAllowlist | string | `""` | Comma-separated hostnames, hostname suffixes (".corp.internal"), or CIDRs ingest sources (files linked from scraped pages, SQL source databases) may reach even though they resolve to private addresses. The data-ingestor enforces it at execution and the API prechecks SQL source hosts against it at save and preview. Empty means public addresses only; cloud metadata endpoints are always refused. |
 | ingest.sqlAllowPrivateHosts | bool | `true` | Let SQL sources connect to databases on private addresses (RFC 1918, loopback, link-local, IPv6 unique local) without listing each host in `privateEgressAllowlist`. On by default because a self-hosted install usually ingests from databases on its own network. Applies to SQL sources only; cloud metadata endpoints are always refused. When `dataIngestor.networkPolicy.enabled` is also set, the NetworkPolicy lets the data-ingestor reach private ranges too. |
 | ingest.sqlDatabricksExtraHostSuffixes | list | `[]` | Databricks workspace host suffixes SQL sources accept besides Databricks' own, for private deployments. Each starts with "." (e.g. ".databricks.corp.example"). Private workspace hosts must also be in `privateEgressAllowlist` unless `sqlAllowPrivateHosts` is on |
+| ingest.webScrapeMaxLinkedFiles | int | `500` | The most linked files one web crawl may fetch |
+| ingest.webScrapeMaxPages | int | `1000` | The most pages one web source may crawl; a source's own limit is validated and clamped to it |
 | license | string | `""` | Ragnerock provided license key |
 | licenseCheck.enabled | bool | `true` | Enable license enforcement. Turning this off skips both the startup check and the periodic re-check; intended for air-gapped evaluation, not for production. |
 | licenseCheck.graceSeconds | int | `259200` | How long a service may keep serving without a successful validation before it stops (default: 3 days) |
@@ -499,21 +444,21 @@ Ragnerock research intelligence platform
 | limits.batches.embedding | int | `100` |  |
 | limits.batches.rowSubtaskGrainEnabled | bool | `true` | Size ROW subtasks from settings rather than from the operator's batch_size (which is rows per LLM call, not rows per subtask) |
 | limits.batches.subtaskToolElapsedCeilingSeconds | int | `900` | Ceiling on the elapsed user-tool time one subtask may spend |
-| limits.batches.toolOperatorSubtask | int | `10` | Items per annotation subtask when the operator carries tools |
-| limits.codeOperator.maxTimeoutSeconds | int | `30` | Largest time limit an element-scope (Row/Page/Paragraph/Sentence) code operator may declare, in seconds |
-| limits.codeOperator.maxTimeoutSecondsSheet | int | `300` | Largest time limit a Sheet- or Document-scope code operator may declare, in seconds |
-| limits.codeOperator.timeoutSeconds | int | `30` | Wall-clock ceiling for a code operator's execution, in seconds |
+| limits.batches.toolTaskSubtask | int | `10` | Items per annotation subtask when the operator carries tools |
+| limits.codeTask.maxTimeoutSeconds | int | `30` | Largest time limit an element-scope (Row/Page/Paragraph/Sentence) code operator may declare, in seconds |
+| limits.codeTask.maxTimeoutSecondsSheet | int | `300` | Largest time limit a Sheet- or Document-scope code operator may declare, in seconds |
+| limits.codeTask.timeoutSeconds | int | `30` | Wall-clock ceiling for a code operator's execution, in seconds |
 | limits.concurrency.maxConcurrentAnnotations | int | `10` |  |
-| limits.concurrency.maxConcurrentJobs | int | `10` |  |
+| limits.concurrency.maxConcurrentRuns | int | `10` |  |
 | limits.concurrency.maxConcurrentSampleParses | int | `2` | Concurrent workbench attachment parses one worker pod accepts. These are synchronous API-originated calls sharing the pod with queue deliveries, so the pool is small; excess requests shed as 503 |
 | limits.concurrency.maxConcurrentSubtasks | int | `50` |  |
-| limits.concurrency.maxConcurrentToollessAnnotations | int | `50` | Per-subtask concurrency of a function-shaped operator's tool-less calls on the unified loop (`unifiedLoop.operatorKinds` lists `function_shaped`); bounded process-wide by the annotation-target and agent-call gates |
+| limits.concurrency.maxConcurrentToollessAnnotations | int | `50` | Per-subtask concurrency of a function-shaped operator's tool-less calls on the unified loop (`unifiedLoop.taskKinds` lists `function_shaped`); bounded process-wide by the annotation-target and agent-call gates |
 | limits.dbIdsPerRequest | int | `200` | Ids per request to a db-service '*-by-ids' endpoint, and the ceiling those endpoints enforce -- one value, because the client's chunk size and the server's limit are one decision. A URL byte budget: each id costs 41 bytes of request line, so 200 is about 8.2 KB, half the smallest limit in the path. |
-| limits.job.claimStaleSeconds | int | `300` | Seconds without a heartbeat before another delivery may take over a job being parsed; must be several times the interval and above the DB pool timeout |
-| limits.job.heartbeatIntervalSeconds | int | `30` | Seconds between claim heartbeats while a delivery parses a job's documents |
-| limits.job.watchdogSlackMinutes | int | `5` | Extra delay past the subtask claim lease (claimStaleSeconds) before the job watchdog reconciles |
-| limits.notificationSinkMaxPerSubtask | int | `50` | Most inbox notifications one notification output may create per subtask. The rest collapse into a single summary per recipient, so a row-scoped source over a large sheet cannot flood anyone's inbox |
+| limits.notificationOutputMaxPerSubtask | int | `50` | Most inbox notifications one notification output may create per subtask. The rest collapse into a single summary per recipient, so a row-scoped source over a large sheet cannot flood anyone's inbox |
 | limits.requiredFunctionsPerNode | int | `3` | Functions one workflow node may require its agent to call before it answers. Each can cost a forced model call per target, so the cap bounds that cost |
+| limits.run.claimStaleSeconds | int | `300` | Seconds without a heartbeat before another delivery may take over a run being parsed; must be several times the interval and above the DB pool timeout |
+| limits.run.heartbeatIntervalSeconds | int | `30` | Seconds between claim heartbeats while a delivery parses a run's documents |
+| limits.run.watchdogSlackMinutes | int | `5` | Extra delay past the subtask claim lease (claimStaleSeconds) before the run watchdog reconciles |
 | limits.subtask.claimStaleSeconds | int | `300` | Seconds without a heartbeat before an in-flight subtask may be re-claimed; must be several times the interval and above the DB pool timeout |
 | limits.subtask.failureThreshold | float | `0.05` |  |
 | limits.subtask.heartbeatIntervalSeconds | int | `30` | Seconds between claim heartbeats on an in-flight subtask |
@@ -560,6 +505,25 @@ Ragnerock research intelligence platform
 | llm.textract.maxConcurrency | int | `4` | Maximum concurrent Textract page requests per worker |
 | llm.textract.region | string | `""` | AWS region the Textract API is called in. Required when `pdfParserBackend` is `textract`. |
 | llm.textract.secretAccessKey | string | `""` | AWS secret access key. Required when `pdfParserBackend` is `textract`. |
+| loop.annotationToolMaxIterations | int | `25` | Tool-call iterations an annotation operator's agent may take before it is cut off |
+| loop.cachedTokenWeight | float | `0.1` | Weight of a cache-read input token in the cost-weighted budget unit |
+| loop.callRetryBudgetSeconds | int | `120` | Seconds one interactive model call keeps retrying a shed or transient failure before the turn reports the model service busy |
+| loop.contextEvictionHighWaterTokens | int | `140000` | In-turn context-eviction trigger (previous call's input tokens). Empty disables eviction |
+| loop.contextEvictionLowWaterTokens | int | `90000` | Context-eviction pass target, in tokens |
+| loop.contextEvictionMinChars | int | `2000` | Smallest tool-result content (chars) worth stubbing during eviction |
+| loop.drainToolCalls | bool | `false` | Rollout flag for parallel tool-call draining: when true the Runner executes the whole tool-call batch before re-invoking |
+| loop.maxIterations | int | `10` |  |
+| loop.reasoningEnabled | bool | `true` | Ops kill switch for reasoning/thinking: when false the API never sets a reasoning effort |
+| loop.subagentBudgetFraction | float | `0.5` | A sub-runner's spend ceiling as a share of the parent turn's remaining budget at spawn |
+| loop.taskTurnTokenBudget | int | `1000000` | One annotation target's token budget on the unified loop, in the same cost-weighted unit as turnTokenBudget. Sized to bind only on a runaway; reaching it forces a final answer. Empty disables it |
+| loop.tokenBudgetSoftFraction | float | `0.8` | Soft advisory threshold: at this fraction of the turn budget the Runner injects one non-forcing wrap-up message |
+| loop.toolResultImages | bool | `false` | Rollout flag: attach sandbox plots to tool results so the model sees them within the producing turn |
+| loop.turnTokenBudget | int | `150000` | Turn token budget in cost-weighted units (output + uncached input + cachedTokenWeight x cached input). Empty disables budget termination, leaving the iteration cap as the only backstop |
+| loops | object | `{"executionEnabled":true,"heartbeatIntervalSeconds":30,"registryEnabled":true,"registryWriteTimeoutSeconds":5}` | The loop registry: one row per live model loop, which is what the activity view reads to say how many agents are running and what they are doing; and the deployment-wide switch that lets loops run at all. |
+| loops.executionEnabled | bool | `true` | Allow loops to run at all in this deployment: the platform operator's kill switch. Set to false to stop every loop at its next check and refuse new turns; every pause check ORs this with the tenant's own pauses, whose per-tenant switch is an ACCOUNT row in the pause list, set from the product, not a value here. |
+| loops.heartbeatIntervalSeconds | int | `30` | How often a running loop refreshes its row. The reaper fails a row after three of these, so this is also how fast a crashed loop is told from a slow one. |
+| loops.registryEnabled | bool | `true` | Write a registry row for every live loop. Set to false to write no rows; every loop still carries its id into audit rows, memory provenance and annotation metadata, so only the live view is lost. |
+| loops.registryWriteTimeoutSeconds | int | `5` | Ceiling on one registry write; past it the write is dropped with a warning and the reaper closes the row |
 | memory | object | `{"contextMaxChars":6000,"contextMaxRecords":15,"hookInputMaxChars":48000,"hookTurnTokenBudget":400000,"hooksEnabled":true,"retrievalMaxIterations":5,"retrievalSearchBudget":3,"retrievalTimeoutSeconds":60,"schemaHardCap":100,"searchBudgetAnnotation":8,"toolsEnabled":true,"writeBudgetAnnotation":12,"writeBudgetNotebook":8,"writerMaxIterations":16,"writerPhaseTimeoutSeconds":300}` | Agentic memory: the ops kill switch, schema-proliferation caps, and the per-run write budgets that bound a single agent's memory writes. |
 | memory.contextMaxChars | int | `6000` | Characters of memory a workflow agent is shown for one item |
 | memory.contextMaxRecords | int | `15` | Records a workflow agent is shown for one item |
@@ -592,8 +556,6 @@ Ragnerock research intelligence platform
 | migrations.serviceAccount.create | bool | `false` | Create a service account for the migrations job's pods |
 | migrations.serviceAccount.name | string | `""` | Service account name to use; if empty and `create` is true a name is generated |
 | migrations.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
-| model.agentNoChainMaxAttempts | int | `4` | Agent attempts when no fallback chain is configured |
-| model.agentWaitSeconds | int | `120` | Seconds a client-side /agent call waits for one of those slots before failing: retryable on the worker, a busy turn in a notebook |
 | model.annotateWaitSeconds | int | `120` | Seconds a client-side /annotate call waits for one of those slots before failing in-band. The failure is classified retryable, so reaching it costs a redelivery rather than a failed row |
 | model.annotatorNoChainMaxAttempts | int | `8` | Annotator attempts when no fallback chain is configured |
 | model.annotatorRetryBudgetSeconds | int | `420` | Wall-clock budget for annotator retries, in seconds |
@@ -621,9 +583,11 @@ Ragnerock research intelligence platform
 | model.geminiThinkingLevel | string | `"LOW"` | Gemini thinking budget: `LOW`, `MEDIUM`, or `HIGH` |
 | model.geminiTruncationRetries | int | `1` | Retries when a Gemini response comes back truncated |
 | model.httpTimeoutSeconds | int | `180` |  |
-| model.maxConcurrentAgentCalls | int | `50` | Concurrent POSTs to model-service /agent from one client process. A call holds its slot while the provider answers, not while the loop runs a tool |
+| model.loopNoChainMaxAttempts | int | `4` | Agent attempts when no fallback chain is configured |
+| model.loopWaitSeconds | int | `120` | Seconds a client-side /loop call waits for one of those slots before failing: retryable on the worker, a busy turn in a notebook |
 | model.maxConcurrentAnnotateCalls | int | `50` | Concurrent POSTs to model-service /annotate from one client process |
-| model.maxConcurrentAnnotationTargets | int | `50` | Annotation targets in flight at once across every subtask one worker process is serving. The per-row limiters (web tools, agent tools, the /annotate gate) are sized against this, not against maxConcurrentSubtasks x maxConcurrentAnnotations |
+| model.maxConcurrentAnnotationTargets | int | `50` | Annotation targets in flight at once across every subtask one worker process is serving. The per-row limiters (web tools, MCP and REST tools, the /annotate gate) are sized against this, not against maxConcurrentSubtasks x maxConcurrentAnnotations |
+| model.maxConcurrentLoopCalls | int | `50` | Concurrent POSTs to model-service /loop from one client process. A call holds its slot while the provider answers, not while the loop runs a tool |
 | model.maxConcurrentProviderCalls | int | `50` | Provider calls the model-service will have in flight at once |
 | model.openaiUseResponsesApi | bool | `false` | Route OpenAI calls through the Responses API (enables encrypted reasoning items) |
 | model.providerCallRetryAfterSeconds | int | `5` | Retry-After sent on a provider-call shed |
@@ -651,17 +615,17 @@ Ragnerock research intelligence platform
 | modelService.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
 | modelService.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
 | nameOverride | string | `nil` |  |
-| notebook | object | `{"auditTurnSnapshot":false,"compactionTimeoutSeconds":120,"incrementalPersistence":true,"platformToolsEnabled":true,"platformToolsMaxWaitSeconds":60,"runWorkflowEnabled":true,"workbenchToolsEnabled":true}` | Notebook agent rollout flags and the compaction-call timeout. |
+| notebook | object | `{"auditTurnSnapshot":false,"compactionTimeoutSeconds":120,"incrementalPersistence":true,"platformToolsEnabled":true,"platformToolsMaxWaitSeconds":60,"runAgentEnabled":true,"workbenchToolsEnabled":true}` | Notebook agent rollout flags and the compaction-call timeout. |
 | notebook.auditTurnSnapshot | bool | `false` | Rollout flag: capture a full history snapshot on the first iteration of every notebook turn so the audit record is exactly replayable |
 | notebook.compactionTimeoutSeconds | int | `120` | Wall-clock bound (seconds) on the one-shot notebook-compaction summarization call |
 | notebook.incrementalPersistence | bool | `true` | Persist a turn's cells as the turn happens (tool calls, results, sandbox code) instead of diffing the finished turn afterwards; off restores the post-hoc write byte-for-byte |
 | notebook.platformToolsEnabled | bool | `true` | Give the notebook agent the platform's read tools (endpoints, agents, workflows as manifests, workflow jobs, the data catalog) beside its own |
 | notebook.platformToolsMaxWaitSeconds | int | `60` | The longest a platform read tool waits in a notebook turn (a workflow job's), in seconds |
-| notebook.runWorkflowEnabled | bool | `true` | Give the notebook agent the propose_run tool: a conversation can propose a workflow run, which the user starts in the run dialog beside the notebook after seeing its cost, under their own permissions and usage limit; a run they start reports back on the message board |
+| notebook.runAgentEnabled | bool | `true` | Give the notebook agent the propose_run tool: a conversation can propose a workflow run, which the user starts in the run dialog beside the notebook after seeing its cost, under their own permissions and usage limit; a run they start reports back on the message board |
 | notebook.workbenchToolsEnabled | bool | `true` | Give the notebook agent the agent-authoring tools (propose an agent as a draft beside the notebook, try it on a document), so a conversation can build an agent and try it out; it writes only drafts, which the person keeps or discards |
-| orchestrator | object | `{"backend":"builtin","builtinTriggers":["endpoint","auto_run","resource_check"],"dispatchTimeoutSeconds":21600,"driverTakeoverSeconds":600,"maxWaitSeconds":25,"maxWaiters":8}` | The orchestrator that paces workflow runs. |
+| orchestrator | object | `{"backend":"builtin","builtinTriggers":["endpoint","auto_run","input_check"],"dispatchTimeoutSeconds":21600,"driverTakeoverSeconds":600,"maxWaitSeconds":25,"maxWaiters":8}` | The orchestrator that paces workflow runs. |
 | orchestrator.backend | string | `"builtin"` | The orchestrator backend: `builtin`, Ragnerock's own queue-driven orchestrator, or `external`, an orchestrator the install already runs, which drives runs through the execution API with an adapter package. |
-| orchestrator.builtinTriggers | list | `["endpoint","auto_run","resource_check"]` | Run triggers that stay on the built-in orchestrator when the backend is external: endpoint calls wait on a request deadline, and upload auto-runs and ingest-triggered runs arrive one per document, in bursts. |
+| orchestrator.builtinTriggers | list | `["endpoint","auto_run","input_check"]` | Run triggers that stay on the built-in orchestrator when the backend is external: endpoint calls wait on a request deadline, and upload auto-runs and ingest-triggered runs arrive one per document, in bursts. |
 | orchestrator.dispatchTimeoutSeconds | int | `21600` | Seconds an externally driven job may wait at a gate with no call from its orchestrator before it is failed. Must exceed the orchestrator's worst queue wait before a run launches. |
 | orchestrator.driverTakeoverSeconds | int | `600` | Seconds an external orchestrator may go without calling before its dispatch can be claimed again. |
 | orchestrator.maxWaitSeconds | int | `25` | The longest, in seconds, an execution-API call is held open waiting; under common ingress idle timeouts. |
@@ -670,6 +634,15 @@ Ragnerock research intelligence platform
 | otel.existingSecret | string | `""` | Use a pre-existing secret (must provide key `OTEL_EXPORTER_OTLP_HEADERS`) instead of generating one. When set, `authHeader` is ignored. |
 | otel.serviceNamespace | string | `"ragnerock"` | OTEL service namespace |
 | otel.servicePrefix | string | `""` | Optional prefix for otel service names. E.g., setting servicePrefix to `foobar` changes api -> foobarapi |
+| parsing | object | `{"cacheEnabled":true,"cacheGcBatchSize":200,"cacheOrphanGraceHours":24,"maxAttempts":3,"stopCheckIntervalSeconds":15}` | Document parsing: the saved-parse cache and how a parse is retried and stopped. |
+| parsing.cacheEnabled | bool | `true` | Save each parse and reuse it when the same file is parsed again, so a retried or re-run document is not sent to the paid parser twice |
+| parsing.cacheGcBatchSize | int | `200` | The most unused saved parses one maintenance pass deletes |
+| parsing.cacheOrphanGraceHours | int | `24` | Hours an unused saved parse is kept before the maintenance pass deletes it |
+| parsing.maxAttempts | int | `3` | How many times a document may be sent to the parser before its run fails instead of trying again |
+| parsing.stopCheckIntervalSeconds | int | `15` | Seconds between checks, during a parse, of whether its run was stopped |
+| pauses | object | `{"checkTtlSeconds":5,"notifyMaxRecipients":500}` | The pause check's cache window and notification cap. |
+| pauses.checkTtlSeconds | int | `5` | How long a loop may reuse the answer to "am I paused?". A drained batch of parallel tool calls then costs one lookup; also the worst-case delay before a pause lands. |
+| pauses.notifyMaxRecipients | int | `500` | Cap on how many people one pause notifies, so an account-wide pause in a large workspace cannot write a notification row per member inside the administrator's request. |
 | platformMcp | object | `{"defaultWaitSeconds":55,"enabled":false,"keepaliveSeconds":15,"listMaxItems":200,"manifestRateLimitPerMinute":20,"maxBodyBytes":4194304,"maxRunsPerCall":100,"maxStreams":4,"maxWaitSeconds":240,"oauthEnabled":true,"pollSeconds":2,"queryMaxRows":1000,"rateLimitPerMinute":120,"readMaxPages":10,"resultMaxBytes":98304}` | The platform MCP server at `/api/mcp`: a person's own agent (Claude, Codex, Antigravity) using the workspace as them, through one account-wide MCP server. |
 | platformMcp.defaultWaitSeconds | int | `55` | Wait budget, in seconds, for a waiting tool's call that omits `wait_seconds`. Under the TypeScript MCP SDK's absolute 60 s request timeout |
 | platformMcp.enabled | bool | `false` | Serve the platform MCP server. Off by default: turn it on when this install is ready for outside agents to act in its workspaces. When false the route answers 404 |
@@ -686,13 +659,59 @@ Ragnerock research intelligence platform
 | platformMcp.rateLimitPerMinute | int | `120` | Tool calls one person may make per minute |
 | platformMcp.readMaxPages | int | `10` | The most pages one read_document call returns |
 | platformMcp.resultMaxBytes | int | `98304` | Serialized tool-result cap, in bytes; also the result-size hint published to hosts |
-| pull | object | `{"fetchBackoffBaseSeconds":2,"fetchBackoffCapSeconds":30,"fetchMaxBytes":33554432,"fetchTimeoutSeconds":60,"maxFetchRetries":10,"maxResourcesPerWorkflow":10,"phaseTimeBudgetSeconds":900,"testFetchMaxBytes":4194304,"toolCallArgumentsMaxBytes":16384}` | Pull inputs: the bounds on what a workflow may fetch for itself on each run, and the workers' budget for fetching it. |
+| projectTools | object | `{"annotationQueueWaitSeconds":120,"annotationToolCallRecordResultMaxChars":40000,"auditResultMaxChars":8000,"buildTimeBudgetSeconds":600,"busyWaitSeconds":5,"callTimeoutMaxSeconds":120,"callTimeoutSeconds":30,"connectTimeoutSeconds":5,"connectors":{"clients":"","existingSecret":""},"connectorsDisabled":"","connectorsEnabled":"","descriptionMaxChars":1024,"discoveryTimeoutSeconds":20,"enabled":true,"executionLogEnabled":true,"executionLogWriteTimeoutSeconds":5,"headerValueMaxChars":4096,"longDescriptionMaxChars":4096,"longParamDescriptionMaxChars":2048,"maxCallsPerInvocation":10,"maxConcurrentCalls":20,"maxFunctionsPerTask":80,"maxHeaders":20,"maxPerTask":10,"maxResultImages":4,"maxUserToolsPerProject":25,"mcpMaxFunctions":30,"oauthClientMetadataCacheSeconds":3600,"oauthEnabled":true,"oauthFlowTtlSeconds":600,"oauthMetadataMaxBytes":65536,"oauthRefreshLeaseSeconds":30,"oauthRefreshSkewSeconds":60,"oauthStartDeadlineSeconds":30,"oauthTokenRequestTimeoutSeconds":10,"paramDescriptionMaxChars":256,"privateEgressAllowlist":"","requestBodyMaxBytes":262144,"responseMaxBytes":262144,"restMaxRoutes":30,"resultMaxChars":32000,"rowTimeBudgetSeconds":360,"schemaMaxBytes":16384,"schemaMaxDepth":5}` | Tools: the ops kill switch plus the size, time, and concurrency bounds for the MCP servers and REST APIs a project points its agents at. |
+| projectTools.annotationQueueWaitSeconds | int | `120` | How long an annotation call waits for the same semaphores. A refused call there is a failed row, so it queues; a row that still starves past this is classified retryable and costs a redelivery |
+| projectTools.annotationToolCallRecordResultMaxChars | int | `40000` | Cap on a stored annotation tool-call result (provenance, not replay) |
+| projectTools.auditResultMaxChars | int | `8000` | Cap on the result text carried in an external-tool audit payload |
+| projectTools.buildTimeBudgetSeconds | int | `600` | Total tool wall clock per subtask or notebook turn |
+| projectTools.busyWaitSeconds | int | `5` | How long a notebook call waits for a concurrency semaphore before failing in-band; a person is waiting on that path |
+| projectTools.callTimeoutMaxSeconds | int | `120` | Cap on a per-route or per-server timeout override |
+| projectTools.callTimeoutSeconds | int | `30` | Per-call wall clock when the route or server sets none |
+| projectTools.connectTimeoutSeconds | int | `5` | Connect timeout, so unreachable hosts fail fast |
+| projectTools.connectors.clients | string | `""` | The OAuth apps this deployment registered for the built-in connectors that have no dynamic registration (GitHub, Asana, Slack), as JSON keyed by connector: {"github": {"client_id": "...", "client_secret": "...", "install_url": "https://github.com/apps/<slug>/installations/new"}}. Every tenant shares these apps, so only the API, worker, and subtask-worker load them. Empty leaves those connectors unconfigured |
+| projectTools.connectors.existingSecret | string | `""` | Use a pre-existing secret (must provide key `TOOL_CONNECTOR_CLIENTS`) instead of generating one. When set, `clients` is ignored. |
+| projectTools.connectorsDisabled | string | `""` | Built-in MCP connectors turned off on this deployment, comma-separated (for example "linear,slack"): hidden from the catalog, refused on create and start, and not built for existing tools. An unknown name stops the API and workers at startup. Set on the API, worker, and subtask-worker only |
+| projectTools.connectorsEnabled | string | `""` | Built-in MCP connectors that ship turned off and this deployment turns on, comma-separated (for example "gong"). Naming a connector that is already on does nothing, and connectorsDisabled wins over this list. An unknown name stops the API and workers at startup. Set on the API, worker, and subtask-worker only |
+| projectTools.descriptionMaxChars | int | `1024` | Maximum function description length (it rides every prompt) |
+| projectTools.discoveryTimeoutSeconds | int | `20` | Timeout for an MCP tools/list call at save or refresh |
+| projectTools.enabled | bool | `true` | Serve user-defined tools. Set to false to build no MCP or REST tools anywhere and ignore the system-tool rows (a full revert to the built-in list). |
+| projectTools.executionLogEnabled | bool | `true` | Record every MCP/REST call an agent makes as a row of the tool's tool_<slug> table in the customer's data DB (the audit trail is unaffected) |
+| projectTools.executionLogWriteTimeoutSeconds | int | `5` | Ceiling on one execution-log write; past it the row is dropped with a warning |
+| projectTools.headerValueMaxChars | int | `4096` | Maximum header value length in characters (a JWT fits) |
+| projectTools.longDescriptionMaxChars | int | `4096` | Function description length kept for a catalog connector whose descriptions carry the call contract (Notion) |
+| projectTools.longParamDescriptionMaxChars | int | `2048` | Per-parameter description length kept for such a connector |
+| projectTools.maxCallsPerInvocation | int | `10` | Default per-invocation call budget on every tool function |
+| projectTools.maxConcurrentCalls | int | `20` | Per-process concurrency semaphore and egress pool size |
+| projectTools.maxFunctionsPerTask | int | `80` | Expanded tool functions one consumer may carry (the notebook, or one task) |
+| projectTools.maxHeaders | int | `20` | Request headers configurable on one tool |
+| projectTools.maxPerTask | int | `10` | Tools a single task may select |
+| projectTools.maxResultImages | int | `4` | MCP image blocks attached to a notebook tool result |
+| projectTools.maxUserToolsPerProject | int | `25` | MCP + REST tools a single project may define |
+| projectTools.mcpMaxFunctions | int | `30` | Discovered functions kept per MCP server |
+| projectTools.oauthClientMetadataCacheSeconds | int | `3600` | How long an authorization server may cache the client metadata document this deployment serves. API only |
+| projectTools.oauthEnabled | bool | `true` | Allow an MCP tool to sign in to its server with OAuth. Set to false to refuse the editing routes, build nothing from connected rows, and hide the option in the panel |
+| projectTools.oauthFlowTtlSeconds | int | `600` | Life of a pending sign-in: long enough to sign in at the provider and approve a consent screen, short enough that an abandoned click is not a standing authorization. API only |
+| projectTools.oauthMetadataMaxBytes | int | `65536` | Cap on a fetched OAuth metadata or token-response body |
+| projectTools.oauthRefreshLeaseSeconds | int | `30` | Lease held by the process performing a refresh. Must exceed the token request timeout, or two processes could spend one refresh token |
+| projectTools.oauthRefreshSkewSeconds | int | `60` | Refresh an access token proactively when it expires within this window; also the window inside which a second 401 is not retried |
+| projectTools.oauthStartDeadlineSeconds | int | `30` | One deadline over the whole start step (probe, protected-resource metadata, authorization-server metadata, registration), so a slow provider cannot hold the request for four timeouts in a row. API only |
+| projectTools.oauthTokenRequestTimeoutSeconds | int | `10` | Timeout for one OAuth metadata fetch, registration, or token request |
+| projectTools.paramDescriptionMaxChars | int | `256` | Maximum per-parameter description length |
+| projectTools.privateEgressAllowlist | string | `""` | Comma-separated hostnames, hostname suffixes (".corp.internal"), or CIDRs a tool may target even though they resolve to private addresses, and for which http:// is accepted. Empty means public HTTPS only. Name hosts rather than ranges: every service on an allowlisted host becomes reachable. |
+| projectTools.requestBodyMaxBytes | int | `262144` | Maximum request body, bounding argument egress |
+| projectTools.responseMaxBytes | int | `262144` | Streamed read cap, counted in decoded bytes |
+| projectTools.restMaxRoutes | int | `30` | Routes a single REST tool may declare |
+| projectTools.resultMaxChars | int | `32000` | Result text handed to the model, in characters |
+| projectTools.rowTimeBudgetSeconds | int | `360` | Each row's carve-out of its subtask's tool wall clock; a row that exhausts it fails rather than answering without its tools |
+| projectTools.schemaMaxBytes | int | `16384` | Maximum serialized size of one function's parameter schema |
+| projectTools.schemaMaxDepth | int | `5` | Maximum nesting depth of one function's parameter schema |
+| pull | object | `{"fetchBackoffBaseSeconds":2,"fetchBackoffCapSeconds":30,"fetchMaxBytes":33554432,"fetchTimeoutSeconds":60,"maxFetchRetries":10,"maxInputsPerAgent":10,"phaseTimeBudgetSeconds":900,"testFetchMaxBytes":4194304,"toolCallArgumentsMaxBytes":16384}` | Pull inputs: the bounds on what a workflow may fetch for itself on each run, and the workers' budget for fetching it. |
 | pull.fetchBackoffBaseSeconds | float | `2` | Workers: first backoff between attempts of one resource's fetch, in seconds, doubling per attempt. |
 | pull.fetchBackoffCapSeconds | float | `30` | Workers: ceiling on that backoff, in seconds. |
 | pull.fetchMaxBytes | int | `33554432` | Per-fetch body cap, in bytes. A pull stores the payload as a document, so this is what a document may weigh, not what fits a context window. |
-| pull.fetchTimeoutSeconds | int | `60` | Per-attempt wall clock on one fetch, in seconds; the agent-tool call ceiling and the route or tool's own ceiling still apply. |
+| pull.fetchTimeoutSeconds | int | `60` | Per-attempt wall clock on one fetch, in seconds; the tool call ceiling and the route or tool's own ceiling still apply. |
 | pull.maxFetchRetries | int | `10` | Retries per pull resource within one delivery. Bounds the multiplier on calls to somebody else's server. |
-| pull.maxResourcesPerWorkflow | int | `10` | Pull-sourced resources per workflow; each is an external call on every run. |
+| pull.maxInputsPerAgent | int | `10` | Pull-sourced inputs per agent; each is an external call on every run. |
 | pull.phaseTimeBudgetSeconds | int | `900` | Workers: wall clock for a run's FETCHING phase, in seconds, across all of its pull resources. |
 | pull.testFetchMaxBytes | int | `4194304` | Body cap for the resource editor's Test fetch, in bytes. |
 | pull.toolCallArgumentsMaxBytes | int | `16384` | Save-time cap on a tool_call source's rendered arguments, in bytes. |
@@ -749,7 +768,7 @@ Ragnerock research intelligence platform
 | query | object | `{"assistQueryTimeoutSeconds":30,"metadataCacheTTLSeconds":10}` | Document-query layer (API and worker) |
 | query.assistQueryTimeoutSeconds | int | `30` | Statement timeout (seconds) for the query-assist sub-agent's probe queries |
 | query.metadataCacheTTLSeconds | int | `10` | Seconds the query-layer metadata (annotation schemas, agents, datasets) is cached per project in-process; 0 disables |
-| queue | object | `{"accountPurgeQueueName":"account-purge","auditExportQueueName":"audit-export-runs","auditQueueName":"ragnerock-audit","callbackQueueName":"ragnerock-callbacks","ingestRunsQueueName":"ingest-runs","jobQueueName":"ragnerock-document-jobs","queuePoolSize":100,"schedulerQueueName":"scheduled-jobs","subtaskQueueName":"ragnerock-subtask-jobs"}` | Queue names every service publishes to. Background work is queued in the app database and delivered by queue-service (`queueService`). |
+| queue | object | `{"accountPurgeQueueName":"account-purge","auditExportQueueName":"audit-export-runs","auditQueueName":"ragnerock-audit","callbackQueueName":"ragnerock-callbacks","ingestRunsQueueName":"ingest-runs","queuePoolSize":100,"runQueueName":"ragnerock-document-jobs","schedulerQueueName":"scheduled-jobs","subtaskQueueName":"ragnerock-subtask-jobs"}` | Queue names every service publishes to. Background work is queued in the app database and delivered by queue-service (`queueService`). |
 | queue.accountPurgeQueueName | string | `"account-purge"` | Queue account purge steps run on: the purge tick and each step publish the next step of a closed account's purge to the worker here |
 | queue.auditExportQueueName | string | `"audit-export-runs"` | Queue the audit-service enqueues its own /audit/export-run tasks onto |
 | queue.ingestRunsQueueName | string | `"ingest-runs"` | Queue the API sends ingest runs to the data-ingestor on |
@@ -767,7 +786,7 @@ Ragnerock research intelligence platform
 | queueService.networkPolicy.enabled | bool | `true` | Only model-service and the data-ingestor publish through the queue-service relay. With this on, a NetworkPolicy lets only they reach its application port; the health port stays open for probes. Takes effect only on a CNI that enforces NetworkPolicy |
 | queueService.reconcile | object | `{"batchSize":100,"enabled":true,"inProgressAfterSeconds":2700,"intervalSeconds":300,"notStartedAfterSeconds":900,"terminalWriteAfterSeconds":300}` | Periodic DB sweep that re-sends jobs whose deliveries were lost after exhausting their retries. The workers read the same thresholds |
 | queueService.reconcile.batchSize | int | `100` | Jobs each kind of stuck job takes per sweep |
-| queueService.reconcile.enabled | bool | `true` | Run the reconciliation sweep |
+| queueService.reconcile.enabled | bool | `true` | Run the reconciliation sweep. Off also turns off the run time limit (`runs.maxRuntimeMinutes`), which the sweep enforces |
 | queueService.reconcile.inProgressAfterSeconds | int | `2700` | Seconds a job may sit in progress before the sweep re-enqueues it |
 | queueService.reconcile.intervalSeconds | int | `300` | Seconds between sweeps |
 | queueService.reconcile.notStartedAfterSeconds | int | `900` | Seconds a job may sit unstarted before the sweep re-enqueues it |
@@ -782,9 +801,7 @@ Ragnerock research intelligence platform
 | queueService.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
 | ragnerock.safetyEnabled | bool | `true` | Should Ragnerock treat all prompts as unsafe |
 | rateLimits.adminMutationPerMinute | int | `40` |  |
-| rateLimits.agentPerMinute | int | `20` |  |
-| rateLimits.agentToolOauthPerMinute | int | `10` | Per-user limit on starting a sign-in for an MCP tool; each start is a metadata fetch, an authorization-server fetch, and often a client registration at a third party |
-| rateLimits.agentToolProbesPerMinute | int | `30` | Agent-tool probes (REST route test, MCP discovery preview) |
+| rateLimits.agentTestConditionPerMinute | int | `120` |  |
 | rateLimits.annotationPerMinute | int | `120` |  |
 | rateLimits.apiTokenPerMinute | int | `30` |  |
 | rateLimits.auditPayloadPerMinute | int | `30` |  |
@@ -799,6 +816,7 @@ Ragnerock research intelligence platform
 | rateLimits.chatCreatePerMinute | int | `600` |  |
 | rateLimits.configValidatePerMinute | int | `20` |  |
 | rateLimits.debugPerMinute | int | `20` |  |
+| rateLimits.debugToolsPerMinute | int | `60` |  |
 | rateLimits.documentChunkCreatePerMinute | int | `600` |  |
 | rateLimits.documentUploadPerMinute | int | `60` |  |
 | rateLimits.embeddingDocumentTestPerMinute | int | `4` | Per-user limit on embedding document tests, each of which embeds up to thousands of a document's chunks or rows |
@@ -807,6 +825,7 @@ Ragnerock research intelligence platform
 | rateLimits.ingestTriggerPerMinute | int | `20` |  |
 | rateLimits.liveLogClientPerMinute | int | `30` | Per-user limit on the browser log relay endpoint |
 | rateLimits.liveLogStreamPerMinute | int | `10` | Per-user limit on opening the live-log tail |
+| rateLimits.loopPerMinute | int | `20` |  |
 | rateLimits.metricsScrapePerMinute | int | `12` | Per-principal scrapes per minute of the endpoint metrics route |
 | rateLimits.notebookCellExecutePerMinute | int | `60` | Per-user limit on server-side notebook cell runs; each holds a python-service instance for the cell's whole wall-clock budget |
 | rateLimits.notebookCodeFeedbackPerMinute | int | `40` |  |
@@ -814,8 +833,6 @@ Ragnerock research intelligence platform
 | rateLimits.notificationStreamPerMinute | int | `10` |  |
 | rateLimits.oauthAuthorizePerMinute | int | `30` | Per-user limit on the signed-in OAuth routes (authorize, decision, grants); an authorize request can make the API fetch a client metadata document from a host the caller chose |
 | rateLimits.oauthPerMinute | int | `30` | Per-IP limit on the public OAuth routes, whose callers are authorization servers and carry no session |
-| rateLimits.operatorParseSamplePerMinute | int | `10` | Per-user limit on workbench attachment parses. Each request can hold a synchronous worker OCR call for minutes, so the ceiling is deliberately low |
-| rateLimits.operatorTestPerMinute | int | `60` |  |
 | rateLimits.orchestratorDispatchPerMinute | int | `120` | Per-dispatch limit on the execution API's calls about one run |
 | rateLimits.orchestratorDriverPerMinute | int | `600` | Per-driver-token limit on the execution API's version, dispatch-list, and claim calls; one token serves every run in the account |
 | rateLimits.pydanticSchemaImportPerMinute | int | `30` |  |
@@ -828,10 +845,19 @@ Ragnerock research intelligence platform
 | rateLimits.searchPerMinute | int | `60` |  |
 | rateLimits.searchRegexPerMinute | int | `10` | Regex-mode searches, counted on top of searchPerMinute. A regex cannot use the full-text index, so each one scans every row in scope |
 | rateLimits.ssoPerMinute | int | `30` | Per-IP limit on the SSO sign-in routes (start, OIDC callback, SAML ACS, code exchange) |
-| rateLimits.toolsPerMinute | int | `60` |  |
+| rateLimits.taskParseSamplePerMinute | int | `10` | Per-user limit on workbench attachment parses. Each request can hold a synchronous worker OCR call for minutes, so the ceiling is deliberately low |
+| rateLimits.taskTestPerMinute | int | `60` |  |
+| rateLimits.toolOauthPerMinute | int | `10` | Per-user limit on starting a sign-in for an MCP tool; each start is a metadata fetch, an authorization-server fetch, and often a client registration at a third party |
+| rateLimits.toolProbesPerMinute | int | `30` | Tool probes (REST route test, MCP discovery preview) |
 | rateLimits.webSearchProbesPerMinute | int | `30` | Per-user limit on the admin page's search-provider Test button — an admin-driven, BILLED query against the workspace's own key |
 | rateLimits.windowMinutes | int | `1` |  |
-| rateLimits.workflowTestConditionPerMinute | int | `120` |  |
+| runs | object | `{"checkpointGcBatchSize":200,"checkpointOrphanGraceHours":24,"maxItems":250000,"maxItemsCeiling":5000000,"maxRuntimeMinutes":1440,"maxRuntimeMinutesCeiling":10080}` | Run time and item limits. A run that goes on longer than its project's limit is stopped by the run reconciler, within about one sweep interval (`queueService.reconcile.intervalSeconds`). Turning the reconciler off turns the limit off too |
+| runs.checkpointGcBatchSize | int | `200` | The most subtasks one maintenance pass hands to the worker for checkpoint deletion, counted separately for finished and deleted subtasks |
+| runs.checkpointOrphanGraceHours | int | `24` | Hours a finished subtask's leftover item checkpoints are kept before the maintenance pass deletes them |
+| runs.maxItems | int | `250000` | Items a run may send to its tasks' models, counted across all of them, in a project that sets no limit of its own. Empty for no limit |
+| runs.maxItemsCeiling | int | `5000000` | The largest item limit a project may set |
+| runs.maxRuntimeMinutes | int | `1440` | Minutes a run may take in a project that sets no limit of its own. Empty for no limit |
+| runs.maxRuntimeMinutesCeiling | int | `10080` | The largest limit, in minutes, a project may set |
 | schedules | object | `{"claimTtlSeconds":120,"enabled":true,"localTickSeconds":60,"maxConsecutiveFailures":5,"maxLookbackSeconds":7776000,"maxPerProject":50,"maxWindowIntervals":7,"minIntervalSeconds":300,"tickClaimBatchSize":20,"tickSource":"inprocess","tickTimeBudgetSeconds":35}` | Scheduled runs: the ops kill switch, who drives the tick, and the save-time, window, failure, and lease bounds. |
 | schedules.claimTtlSeconds | int | `120` | Seconds a tick's lease on a claimed row lasts. The lease, not the row lock, keeps the next tick off a row this one is still working on. |
 | schedules.enabled | bool | `true` | Let workflows run themselves on a crontab. Off: schedule edits are refused with the deployment-level reason and, under `inprocess`, the ticker is not started at all (no heartbeat, readiness lag `null`). |
@@ -842,17 +868,17 @@ Ragnerock research intelligence platform
 | schedules.maxWindowIntervals | int | `7` | How many of its own periods one fire's window may span before it is cut and flagged. Bounds what dormancy accumulates; never narrows a declared lookback. |
 | schedules.minIntervalSeconds | int | `300` | Save-time floor on how often a schedule may fire, in seconds. A schedule is unattended recurring egress and spend. |
 | schedules.tickClaimBatchSize | int | `20` | Due rows leased per claim statement within one tick. |
-| schedules.tickSource | string | `"inprocess"` | Who drives the tick. Pods run continuously, so `inprocess` is right for Kubernetes; `external` means something POSTs /api/jobs/internal/schedule-tick and the lifespan starts nothing. |
+| schedules.tickSource | string | `"inprocess"` | Who drives the tick. Pods run continuously, so `inprocess` is right for Kubernetes; `external` means something POSTs /api/runs/internal/schedule-tick and the lifespan starts nothing. |
 | schedules.tickTimeBudgetSeconds | int | `35` | Wall clock for one tick, in seconds: the only cap on how much it does, and what spreads a burst of due schedules across minutes. |
 | search | object | `{"maxConcurrentQueries":4,"similarityThreshold":0.7}` | Semantic search over document embeddings, and how the agents' search tool runs the queries of one call. |
 | search.maxConcurrentQueries | int | `4` | Queries of one document-search tool call that run at once. Each holds its own short database session for the length of its query, so this also caps the pooled connections one query list can draw. |
 | search.similarityThreshold | float | `0.7` | Minimum cosine similarity for a semantic-search hit. The right value depends on the embedding model in use: raise it if results look loose, lower it if a query that should obviously match returns nothing |
-| skills | object | `{"bodyMaxChars":32000,"descriptionMaxChars":512,"enabled":true,"loadMaxCalls":10,"maxPerOperator":10}` | Agent skills: the ops kill switch, the size caps that bound catalog and body token cost, and the per-run load budget. |
+| skills | object | `{"bodyMaxChars":32000,"descriptionMaxChars":512,"enabled":true,"loadMaxCalls":10,"maxPerTask":10}` | Agent skills: the ops kill switch, the size caps that bound catalog and body token cost, and the per-run load budget. |
 | skills.bodyMaxChars | int | `32000` | Maximum instruction-body length in characters |
 | skills.descriptionMaxChars | int | `512` | Maximum description length in characters (bounds catalog token cost) |
 | skills.enabled | bool | `true` | Serve skills to agents. Set to false to switch skills off entirely. |
 | skills.loadMaxCalls | int | `10` | load_skill calls allowed in a single run |
-| skills.maxPerOperator | int | `10` | Skills a single workflow agent may select |
+| skills.maxPerTask | int | `10` | Skills a single workflow agent may select |
 | subtaskWorker.affinity | object | `{}` | Pod affinity rules (overrides `global.affinity`) |
 | subtaskWorker.annotations | object | `{}` | Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence) |
 | subtaskWorker.autoscaling | object | `{"enabled":false,"maxReplicas":5,"minReplicas":1,"targetCPUUtilizationPercentage":80,"targetMemoryUtilizationPercentage":80}` | Optional horizontal pod autoscaler. Requires CPU/memory requests to be set under `resources` for the targeted metrics to work. When enabled, `replicaCount` is ignored (the HPA manages the replica count). |
@@ -861,8 +887,8 @@ Ragnerock research intelligence platform
 | subtaskWorker.extraEnv | list | `[]` | Extra container environment variables (list of Kubernetes EnvVar specs, so `valueFrom` works). Rendered after the chart's own, so an entry here overrides a variable of the same name the chart sets |
 | subtaskWorker.image.name | string | `"worker"` |  |
 | subtaskWorker.image.tag | string | `""` |  |
-| subtaskWorker.maxConcurrentAgentCalls | string | `nil` | This deployment's own per-process limit on concurrent /agent calls, when it should differ from `model.maxConcurrentAgentCalls`. Every unified-loop operator call takes one of these slots and one target slot, so raise it with `maxConcurrentAnnotationTargets`: a target left waiting for an /agent slot costs its subtask a redelivery. Null falls back to the shared value |
 | subtaskWorker.maxConcurrentAnnotationTargets | string | `nil` | This deployment's own ceiling on annotation targets in flight per process, when it should differ from `model.maxConcurrentAnnotationTargets`. The fleet's rows-in-flight lever: the pool is derived from subtasks, not targets, so it provisions no database connections; a memory or message-board tool call still takes a pooled connection while it runs, so the pool's peak demand rises with it, and a pool timeout there is a transient row failure redelivered like any other overload. Null falls back to the shared value |
+| subtaskWorker.maxConcurrentLoopCalls | string | `nil` | This deployment's own per-process limit on concurrent /loop calls, when it should differ from `model.maxConcurrentLoopCalls`. Every unified-loop operator call takes one of these slots and one target slot, so raise it with `maxConcurrentAnnotationTargets`: a target left waiting for an /loop slot costs its subtask a redelivery. Null falls back to the shared value |
 | subtaskWorker.podDisruptionBudget | object | `{"enabled":false,"maxUnavailable":null,"minAvailable":1}` | Optional pod disruption budget, keeping capacity available during voluntary disruptions (node drains, cluster upgrades). Set exactly one of `minAvailable`/`maxUnavailable`; the other must be null. Both accept an integer or a percentage string (e.g. `"50%"`). |
 | subtaskWorker.replicaCount | int | `1` |  |
 | subtaskWorker.resources | object | `{}` | Deployment resoruce contraints (i.e. requests/limits) |
@@ -875,15 +901,26 @@ Ragnerock research intelligence platform
 | subtaskWorker.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
 | subtaskWorker.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
 | subtaskWorker.webToolMaxConcurrentCalls | string | `nil` | This deployment's own per-process limiter for web tool calls, when it should differ from `webTools.maxConcurrentCalls`. Raise it with `maxConcurrentAnnotationTargets` to keep the ratio the annotation queue wait is sized against. Null falls back to the shared value |
-| tabular | object | `{"listPageSize":20,"operatorInputColumnsMax":500,"promptMaxColumns":20,"promptMaxSources":10,"readRowsPerPage":50}` | Tabular documents: page sizes for reads and the shape of the table summaries rendered into prompts. |
+| tabular | object | `{"listPageSize":20,"promptMaxColumns":20,"promptMaxSources":10,"readRowsPerPage":50,"taskInputColumnsMax":500}` | Tabular documents: page sizes for reads and the shape of the table summaries rendered into prompts. |
 | tabular.listPageSize | int | `20` | Rows returned per page when an agent lists a tabular document |
-| tabular.operatorInputColumnsMax | int | `500` | Columns a single Row- or Sheet-scoped operator may choose to be shown, checked when the operator is saved |
 | tabular.promptMaxColumns | int | `20` | Columns of a table described in a prompt |
 | tabular.promptMaxSources | int | `10` | Tables described in a single prompt |
 | tabular.readRowsPerPage | int | `50` | Rows returned per page when an agent reads a tabular document |
+| tabular.taskInputColumnsMax | int | `500` | Columns a single Row- or Sheet-scoped operator may choose to be shown, checked when the operator is saved |
+| taskRecord | object | `{"blockEnabled":true,"blockMaxChars":4000,"blockPriorConversations":5,"blockRecentAssignments":5,"blockRecentRuns":5,"blockTitleMaxChars":120}` | The agent context block: what a conversation with an agent opens knowing about that agent's own recent work. Delivered onto the user's turn, never into the system prompt, so none of this touches the cached prefix. |
+| taskRecord.blockEnabled | bool | `true` | Open an agent conversation with that agent's own record. Off: the conversation still runs as the agent, it just starts without the summary. |
+| taskRecord.blockMaxChars | int | `4000` | Ceiling on the whole block; past it the rows collapse to counts |
+| taskRecord.blockPriorConversations | int | `5` | Earlier conversations between this user and this agent to name |
+| taskRecord.blockRecentAssignments | int | `5` | The agent's assignments to name, most recently active first |
+| taskRecord.blockRecentRuns | int | `5` | Jobs named in the recent-runs section, newest first |
+| taskRecord.blockTitleMaxChars | int | `120` | Characters kept from one conversation title |
 | tools.codeToolTimeoutSeconds | int | `30` |  |
-| tools.maxResultImages | int | `10` | Cap on images attached to a single agent tool result |
-| unifiedLoop | object | `{"operatorKinds":"tool_carrying"}` | Operator kinds whose calls run on the unified loop (RunnerModel over /agent) instead of the annotate path, comma-separated. Accepted values: tool_carrying (operators with tools of their own), function_shaped (operators without), decorated (a node's judge, critic and decorator-bound runs). Empty runs every operator on the annotate path, which is the rollback (docs/operations/unified-loop.md). |
+| tools.maxResultImages | int | `10` | Cap on images attached to a single tool result |
+| unbilledSpend | object | `{"alertMinPages":1000,"alertMinTokens":5000000,"alertRatio":1.5}` | The hourly check that billed usage keeps up with audited model and parser usage. |
+| unbilledSpend.alertMinPages | int | `1000` | The fewest pages sent to an external parser in an hour before an account's parsing can alert |
+| unbilledSpend.alertMinTokens | int | `5000000` | The fewest audited tokens in an hour before an account can alert |
+| unbilledSpend.alertRatio | float | `1.5` | An account's hour alerts when its audited tokens exceed its billed tokens by this ratio and it audited more than the minimum |
+| unifiedLoop | object | `{"taskKinds":"tool_carrying"}` | Operator kinds whose calls run on the unified loop (RunnerModel over /loop) instead of the annotate path, comma-separated. Accepted values: tool_carrying (operators with tools of their own), function_shaped (operators without), decorated (a node's judge, critic and decorator-bound runs). Empty runs every operator on the annotate path, which is the rollback (docs/operations/unified-loop.md). |
 | webTools | object | `{"auditResultMaxChars":8000,"cacheMaxBytes":16777216,"cacheMaxEntries":64,"enabled":true,"fetchAllowHttp":false,"fetchBlocklistExtra":[],"fetchExtractThreads":2,"fetchMaxBytes":5242880,"fetchMaxConcurrentPdf":2,"fetchMaxConcurrentPerHost":2,"fetchMaxRedirects":5,"fetchPdfMaxBytes":33554432,"fetchPdfMaxPages":50,"fetchRespectRobots":true,"fetchResultMaxChars":32000,"fetchRobotsCacheTtlSeconds":3600,"fetchRobotsTimeoutSeconds":5,"fetchTimeoutSeconds":45,"maxConcurrentCalls":10,"privateEgressAllowlist":"","saveMetadataMaxChars":256,"savePagesEnabled":true,"saveTimeoutSeconds":10,"saveVersionScanLimit":25,"searchAccountDailyCap":5000,"searchBraveUrl":"https://api.search.brave.com/res/v1/web/search","searchDefaultResults":10,"searchMaxCallsPerInvocation":3,"searchMaxCallsPerTurn":5,"searchMaxResults":20,"searchRetryAttempts":2,"searchTimeoutSeconds":15,"userAgent":"RagnerockBot/1 (+https://ragnerock.com/bot)"}` | Web access: the ops kill switch plus the egress, size, and budget bounds for the web_search and web_fetch tools agents reach the open web with. |
 | webTools.auditResultMaxChars | int | `8000` | Cap on the agent-visible text carried in a web tool's audit payload |
 | webTools.cacheMaxBytes | int | `16777216` | Bytes held in the per-build web cache |
@@ -903,8 +940,8 @@ Ragnerock research intelligence platform
 | webTools.fetchRobotsCacheTtlSeconds | int | `3600` | Process-level TTL for parsed and 4xx robots verdicts |
 | webTools.fetchRobotsTimeoutSeconds | int | `5` | Timeout for one robots.txt request |
 | webTools.fetchTimeoutSeconds | int | `45` | Wall clock for one fetch, extraction included |
-| webTools.maxConcurrentCalls | int | `10` | Per-process limiter for all web calls, separate from `agentTools.maxConcurrentCalls`; also sizes the web client's connection pool |
-| webTools.privateEgressAllowlist | string | `""` | Comma-separated hostnames, hostname suffixes (".corp.internal"), or CIDRs a MODEL-CHOSEN url may reach even though they resolve to private addresses, and which are exempt from the public-port rule. Empty means public only. Deliberately separate from `agentTools.privateEgressAllowlist`: that list is for URLs an editor typed, this one for URLs a search result suggested. |
+| webTools.maxConcurrentCalls | int | `10` | Per-process limiter for all web calls, separate from `projectTools.maxConcurrentCalls`; also sizes the web client's connection pool |
+| webTools.privateEgressAllowlist | string | `""` | Comma-separated hostnames, hostname suffixes (".corp.internal"), or CIDRs a MODEL-CHOSEN url may reach even though they resolve to private addresses, and which are exempt from the public-port rule. Empty means public only. Deliberately separate from `projectTools.privateEgressAllowlist`: that list is for URLs an editor typed, this one for URLs a search result suggested. |
 | webTools.saveMetadataMaxChars | int | `256` | Truncation bound on a metadata value the page archive writes, chiefly the page title |
 | webTools.savePagesEnabled | bool | `true` | File every page web_fetch reads as a document in the project's "Web pages" dataset. No parsing, chunking or embedding happens then: the page is visible and selectable, and a workflow run over it does the rest. False leaves web_fetch behaving exactly as it did before. |
 | webTools.saveTimeoutSeconds | int | `10` | Wall clock for filing one fetched page. Nested inside `fetchTimeoutSeconds` and failing open, so a slow blob backend never costs the agent its page. |
@@ -940,7 +977,7 @@ Ragnerock research intelligence platform
 | worker.tolerations | list | `[]` | Pod tolerations (overrides `global.tolerations`) |
 | worker.volumeMounts | list | `[]` | Container volume mounts (list of Kubernetes volumeMount specs) |
 | worker.volumes | list | `[]` | Pod volumes to mount into the deployment (list of Kubernetes volume specs) |
-| workers | object | `{"capacityRetryAfterSeconds":5,"capacityWaitSeconds":5,"chunkThreadpoolSize":2,"codeSession":{"sweepBatchSize":200,"sweepEnabled":true,"sweepGraceHours":24,"sweepIntervalSeconds":3600,"ttlDays":30},"database":{"completionLockSlowMs":1000,"lockTimeoutSeconds":30,"maxOverflow":null,"poolHeadroom":5,"poolSize":null,"poolTimeout":10,"subtaskMaxOverflow":null,"subtaskPoolSize":null},"dbServiceMaxConnections":40,"dbThreadpoolSize":80,"maxChunkTokens":1500,"maxConcurrentJobAdvances":10,"maxConcurrentSpawns":5,"maxInstanceRequestConcurrency":"","spawn":{"pageSize":1000,"planningStaleSeconds":900,"timeBudgetSeconds":300},"subtaskEnqueueStaleMinutes":15,"subtaskInsertChunkRows":5000,"tabularIngest":{"maxRowsPerSheet":100000,"odsMaxCellsPerSheet":10000000,"odsMaxContentBytes":104857600,"odsMaxTextCharsPerSheet":200000000,"rowInsertChunkBytes":8000000,"rowInsertChunkRows":1000,"rowRefsPageSize":10000}}` | Settings shared by the worker and subtask-worker deployments. Both run the same job-processing code, so they are tuned together. |
+| workers | object | `{"capacityRetryAfterSeconds":5,"capacityWaitSeconds":5,"chunkThreadpoolSize":2,"codeSession":{"sweepBatchSize":200,"sweepEnabled":true,"sweepGraceHours":24,"sweepIntervalSeconds":3600,"ttlDays":30},"database":{"completionLockSlowMs":1000,"lockTimeoutSeconds":30,"maxOverflow":null,"poolHeadroom":5,"poolSize":null,"poolTimeout":10,"subtaskMaxOverflow":null,"subtaskPoolSize":null},"dbServiceMaxConnections":40,"dbThreadpoolSize":80,"maxChunkTokens":1500,"maxConcurrentRunAdvances":10,"maxConcurrentSpawns":5,"maxInstanceRequestConcurrency":"","spawn":{"pageSize":1000,"planningStaleSeconds":900,"timeBudgetSeconds":300},"subtaskEnqueueStaleMinutes":15,"subtaskInsertChunkRows":5000,"tabularIngest":{"maxRowsPerSheet":100000,"odsMaxCellsPerSheet":10000000,"odsMaxContentBytes":104857600,"odsMaxTextCharsPerSheet":200000000,"rowInsertChunkBytes":8000000,"rowInsertChunkRows":1000,"rowRefsPageSize":10000}}` | Settings shared by the worker and subtask-worker deployments. Both run the same job-processing code, so they are tuned together. |
 | workers.capacityRetryAfterSeconds | int | `5` | Retry-After sent with a shed, pool-exhausted, or lost-connection 503; the queue honours it as backoff, so a saturated instance gets a delayed redelivery rather than an immediate one that finds it just as full |
 | workers.capacityWaitSeconds | float | `5` | Seconds a task waits for local capacity before it is deferred |
 | workers.chunkThreadpoolSize | int | `2` | Threads for chunking parsed pages. Chunking is CPU work, so more threads than CPUs only adds contention |
@@ -961,7 +998,7 @@ Ragnerock research intelligence platform
 | workers.dbServiceMaxConnections | int | `40` | Concurrent HTTP connections to db-service, bounding the source |
 | workers.dbThreadpoolSize | int | `80` | Threads serving blocking DB work off the event loop |
 | workers.maxChunkTokens | int | `1500` | Preferred maximum tokens per chunk when a document is split for embedding. Chunks are also capped by the embedding provider's own limit, whichever is smaller. |
-| workers.maxConcurrentJobAdvances | int | `10` | Concurrent job phase-advances a worker process may run |
+| workers.maxConcurrentRunAdvances | int | `10` | Concurrent run phase-advances a worker process may run |
 | workers.maxConcurrentSpawns | int | `5` | Concurrent spawn continuations a worker process may run. A node whose subtasks take longer than `spawn.timeBudgetSeconds` to publish continues on a later delivery; those get their own pool so one large job's paging cannot queue behind every other job's phase advances. |
 | workers.maxInstanceRequestConcurrency | string | `""` | Requests one pod is allowed to serve at once, as configured on the platform. Caps the derived DB pool at what can actually arrive; empty leaves the derivation to the concurrency semaphores alone |
 | workers.spawn.pageSize | int | `1000` | Subtasks published per page of a spawn |
@@ -976,15 +1013,6 @@ Ragnerock research intelligence platform
 | workers.tabularIngest.rowInsertChunkBytes | int | `8000000` | Byte ceiling per tabular row-insert request (binds first on a wide sheet) |
 | workers.tabularIngest.rowInsertChunkRows | int | `1000` | Rows per db-service insert request when ingesting a tabular document |
 | workers.tabularIngest.rowRefsPageSize | int | `10000` | Tabular row references per enumeration page (db-service caps it at 10,000) |
-| workflowNodes | object | `{"maxRetries":5}` | Workflow node error handling. |
-| workflowNodes.maxRetries | int | `5` | Upper bound on a node's max_retries (on_error RETRY); larger requests are refused. |
-| workflowResources | object | `{"codeCacheMaxBytes":256000000,"codeMaxBytes":20000000,"codeMaxRows":100000,"codeTotalMaxBytes":40000000,"contextMaxChars":200000,"valueMaxBytes":262144}` | Workflow resources bound into operator runs and rendered into prompts. |
-| workflowResources.codeCacheMaxBytes | int | `256000000` | Byte budget for the worker's per-process cache of materialized code resources |
-| workflowResources.codeMaxBytes | int | `20000000` | Ceiling on a single code operator's returned resource, in bytes |
-| workflowResources.codeMaxRows | int | `100000` | Ceiling on the rows a single code operator may return |
-| workflowResources.codeTotalMaxBytes | int | `40000000` | Ceiling on all code operator resources for one run, in bytes |
-| workflowResources.contextMaxChars | int | `200000` | Ceiling on the resource context rendered into one prompt, in characters |
-| workflowResources.valueMaxBytes | int | `262144` | Ceiling on a value resource's serialized inline value, in bytes |
 
 ----------------------------------------------
 Autogenerated from chart metadata using [helm-docs v1.14.2](https://github.com/norwoodj/helm-docs/releases/v1.14.2)
