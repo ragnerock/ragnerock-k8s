@@ -2,34 +2,34 @@ apiVersion: vendir.k14s.io/v1alpha1
 directories:
 - contents:
   - git:
-      commitTitle: 'FIX: Resolve job re-delivery issue from parsing (#538)'
-      sha: 6d2a973d993c4e9896df093d23482d28adbb0c52
+      commitTitle: 'MAINT: Bump chart version (#539)...'
+      sha: 0c5b3442eec3feb7a4d2f9efc48d98666358c02f
       tags:
-      - v2026.11.11-2
+      - v2026.11.11-2-1-g0c5b3442
     path: .
   path: charts
 - contents:
   - git:
-      commitTitle: 'FIX: Resolve job re-delivery issue from parsing (#538)'
-      sha: 6d2a973d993c4e9896df093d23482d28adbb0c52
+      commitTitle: 'MAINT: Bump chart version (#539)...'
+      sha: 0c5b3442eec3feb7a4d2f9efc48d98666358c02f
       tags:
-      - v2026.11.11-2
+      - v2026.11.11-2-1-g0c5b3442
     path: .
   path: scripts
 - contents:
   - git:
-      commitTitle: 'FIX: Resolve job re-delivery issue from parsing (#538)'
-      sha: 6d2a973d993c4e9896df093d23482d28adbb0c52
+      commitTitle: 'MAINT: Bump chart version (#539)...'
+      sha: 0c5b3442eec3feb7a4d2f9efc48d98666358c02f
       tags:
-      - v2026.11.11-2
+      - v2026.11.11-2-1-g0c5b3442
     path: .
   path: .github/workflows
 - contents:
   - git:
-      commitTitle: 'FIX: Resolve job re-delivery issue from parsing (#538)'
-      sha: 6d2a973d993c4e9896df093d23482d28adbb0c52
+      commitTitle: 'MAINT: Bump chart version (#539)...'
+      sha: 0c5b3442eec3feb7a4d2f9efc48d98666358c02f
       tags:
-      - v2026.11.11-2
+      - v2026.11.11-2-1-g0c5b3442
     path: .
   path: .vendir-staging/root
 kind: LockConfig
