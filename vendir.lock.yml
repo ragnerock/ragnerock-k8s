@@ -2,34 +2,34 @@ apiVersion: vendir.k14s.io/v1alpha1
 directories:
 - contents:
   - git:
-      commitTitle: Resolve runaway parsing issues (#537)...
-      sha: fab4e8ccbd38d9cf760c079dcbb14f1d9be9a3e2
+      commitTitle: 'FIX: Resolve job re-delivery issue from parsing (#538)'
+      sha: 6d2a973d993c4e9896df093d23482d28adbb0c52
       tags:
-      - v2026.11.11
+      - v2026.11.11-2
     path: .
   path: charts
 - contents:
   - git:
-      commitTitle: Resolve runaway parsing issues (#537)...
-      sha: fab4e8ccbd38d9cf760c079dcbb14f1d9be9a3e2
+      commitTitle: 'FIX: Resolve job re-delivery issue from parsing (#538)'
+      sha: 6d2a973d993c4e9896df093d23482d28adbb0c52
       tags:
-      - v2026.11.11
+      - v2026.11.11-2
     path: .
   path: scripts
 - contents:
   - git:
-      commitTitle: Resolve runaway parsing issues (#537)...
-      sha: fab4e8ccbd38d9cf760c079dcbb14f1d9be9a3e2
+      commitTitle: 'FIX: Resolve job re-delivery issue from parsing (#538)'
+      sha: 6d2a973d993c4e9896df093d23482d28adbb0c52
       tags:
-      - v2026.11.11
+      - v2026.11.11-2
     path: .
   path: .github/workflows
 - contents:
   - git:
-      commitTitle: Resolve runaway parsing issues (#537)...
-      sha: fab4e8ccbd38d9cf760c079dcbb14f1d9be9a3e2
+      commitTitle: 'FIX: Resolve job re-delivery issue from parsing (#538)'
+      sha: 6d2a973d993c4e9896df093d23482d28adbb0c52
       tags:
-      - v2026.11.11
+      - v2026.11.11-2
     path: .
   path: .vendir-staging/root
 kind: LockConfig
