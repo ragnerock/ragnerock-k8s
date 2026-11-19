@@ -95,7 +95,9 @@ spec:
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-callback-delivery
             - configMapRef:
-                name: {{ include "ragnerock.fullname" . }}-parsing
+                name: {{ include "ragnerock.fullname" . }}-parser-service
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-parser-client
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-python
             - configMapRef:
@@ -106,12 +108,6 @@ spec:
                 name: {{ include "ragnerock.fullname" . }}-license
             - secretRef:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "db" "existingSecret" .Values.database.existingSecret) }}
-            - secretRef:
-                name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "llm" "existingSecret" .Values.llm.existingSecret) }}
-{{- if eq .Values.llm.pdfParserBackend "textract" }}
-            - secretRef:
-                name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "textract" "existingSecret" .Values.llm.textract.existingSecret) }}
-{{- end }}
             - secretRef:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "encryption" "existingSecret" .Values.encryption.existingSecret) }}
             - secretRef:

@@ -1,8 +1,8 @@
 {{- /*
 queue-service: delivers the background work the other services queue in the
 app database, fires the recurring jobs (ingest schedules and the maintenance
-routes), runs the job reconciler, and serves the relay model-service and the
-data-ingestor publish through.
+routes), runs the job reconciler, and serves the relay model-service, the
+data-ingestor and parser-service publish through.
 
 One pod, by design. Its loops claim with row locks, so a second replica would
 be safe, but readiness is the loops' freshness and the connection budget
@@ -144,9 +144,9 @@ spec:
 {{- if .Values.queueService.networkPolicy.enabled }}
 ---
   {{- /*
-  The relay takes tasks from model-service and the data-ingestor and inserts
-  them as given; it checks no credential yet. This policy lets only those two
-  reach the application port. The health port stays open, for the kubelet's
+  The relay takes tasks from model-service, the data-ingestor and
+  parser-service and inserts them as given; it checks no credential yet. This
+  policy lets only those three reach the application port. The health port stays open, for the kubelet's
   probes.
   */}}
 apiVersion: networking.k8s.io/v1
@@ -170,6 +170,9 @@ spec:
         - podSelector:
             matchLabels:
               {{- include "ragnerock.selectorLabels" (dict "context" . "component" "data-ingestor") | nindent 14 }}
+        - podSelector:
+            matchLabels:
+              {{- include "ragnerock.selectorLabels" (dict "context" . "component" "parser-service") | nindent 14 }}
       ports:
         - port: http
           protocol: TCP

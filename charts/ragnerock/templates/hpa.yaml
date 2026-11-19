@@ -10,8 +10,8 @@ and `migrations` (Job) are excluded.
 "subtask-worker" .Values.subtaskWorker
 "model-service" .Values.modelService
 "frontend" .Values.frontend
-"analysis-toolkit" .Values.analysisToolkit
 "data-ingestor" .Values.dataIngestor
+"parser-service" .Values.parserService
 "db-service" .Values.dbService
 }}
 {{- range $component, $values := $components }}

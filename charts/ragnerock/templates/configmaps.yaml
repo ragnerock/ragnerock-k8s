@@ -11,9 +11,8 @@ data:
   MODEL_HTTP_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.model.httpTimeoutSeconds }}"
 ---
 # Settings read from core.settings by core code, and so needed by every service
-# that runs core in-process. The two sandboxed services — analysis-toolkit and
-# python-service — do not, which is why this is separate from the `-config` map
-# they share with everything else.
+# that runs core in-process. The sandboxed python-service does not, which is why
+# this is separate from the `-config` map it shares with everything else.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -47,6 +46,8 @@ data:
   # decision: the clients read one and the server enforced the other, and
   # raising either alone 422s every by-ids call.
   DB_IDS_PER_REQUEST: "{{ include "ragnerock.number" .Values.limits.dbIdsPerRequest }}"
+  ANNOTATION_WRITE_BATCH_MAX_BYTES: "{{ include "ragnerock.number" .Values.limits.annotationWriteBatchMaxBytes }}"
+  ANNOTATION_WRITE_BATCH_MAX_ITEMS: "{{ include "ragnerock.number" .Values.limits.annotationWriteBatchMaxItems }}"
   AGENT_MAX_REQUIRED_FUNCTIONS: "{{ include "ragnerock.number" .Values.limits.requiredFunctionsPerNode }}"
   # Postgres failover resilience, read by core.db.failover in every service
   # that opens an engine.
@@ -54,10 +55,6 @@ data:
   DB_READ_ONLY_POOL_RESET_INTERVAL_SECONDS: "{{ include "ragnerock.number" .Values.database.readOnlyPoolResetIntervalSeconds }}"
   MAX_FALLBACK_DEPTH: "{{ include "ragnerock.number" .Values.fallback.maxDepth }}"
   MAX_FALLBACK_CHAIN_CIPHERTEXT_BYTES: "{{ include "ragnerock.number" .Values.fallback.maxChainCiphertextBytes }}"
-  # Minimum cosine similarity for a semantic-search hit, read from
-  # core.settings by core search code. The right value depends on the
-  # embedding model in use, so it is an install-time knob.
-  SEMANTIC_SEARCH_SIMILARITY_THRESHOLD: "{{ include "ragnerock.number" .Values.search.similarityThreshold }}"
   MEMORY_TOOLS_ENABLED: "{{ .Values.memory.toolsEnabled }}"
   MEMORY_SCHEMA_HARD_CAP: "{{ include "ragnerock.number" .Values.memory.schemaHardCap }}"
   MEMORY_WRITE_BUDGET_ANNOTATION: "{{ include "ragnerock.number" .Values.memory.writeBudgetAnnotation }}"
@@ -72,6 +69,11 @@ data:
   MEMORY_CONTEXT_MAX_CHARS: "{{ include "ragnerock.number" .Values.memory.contextMaxChars }}"
   MEMORY_HOOK_INPUT_MAX_CHARS: "{{ include "ragnerock.number" .Values.memory.hookInputMaxChars }}"
   MEMORY_HOOK_TURN_TOKEN_BUDGET: "{{ include "ragnerock.number" .Values.memory.hookTurnTokenBudget }}"
+  TABLE_FACTS_HEAD_TOKENS: "{{ include "ragnerock.number" .Values.memory.tableFactsHeadTokens }}"
+  TABLE_FACTS_MAX_PER_PAGE: "{{ include "ragnerock.number" .Values.memory.tableFactsMaxPerPage }}"
+  TABLE_FACTS_MAX_OUTPUT_TOKENS: "{{ include "ragnerock.number" .Values.memory.tableFactsMaxOutputTokens }}"
+  TABLE_FACTS_SUBTASK_PAGES: "{{ include "ragnerock.number" .Values.memory.tableFactsSubtaskPages }}"
+  TABLE_FACTS_PAGE_FRACTION: "{{ include "ragnerock.number" .Values.memory.tableFactsPageFraction }}"
   MESSAGE_BOARD_ENABLED: "{{ .Values.messageBoard.enabled }}"
   MESSAGE_BOARD_MAX_BODY_CHARS: "{{ include "ragnerock.number" .Values.messageBoard.maxBodyChars }}"
   MESSAGE_BOARD_INBOX_MAX_ENTRIES: "{{ include "ragnerock.number" .Values.messageBoard.inboxMaxEntries }}"
@@ -150,6 +152,26 @@ data:
   RUN_MAX_RUNTIME_MINUTES_CEILING: "{{ include "ragnerock.number" .Values.runs.maxRuntimeMinutesCeiling }}"
   RUN_MAX_ITEMS: "{{ if .Values.runs.maxItems }}{{ include "ragnerock.number" .Values.runs.maxItems }}{{ end }}"
   RUN_MAX_ITEMS_CEILING: "{{ include "ragnerock.number" .Values.runs.maxItemsCeiling }}"
+  SEARCH_RERANK_PROJECT_DEFAULT: "{{ .Values.runs.searchRerankProjectDefault }}"
+  CHUNK_CONTEXT_ENABLED: "{{ .Values.runs.chunkContextEnabled }}"
+  CHUNK_CONTEXT_PROJECT_DEFAULT: "{{ .Values.runs.chunkContextProjectDefault }}"
+  # Per-file upload limits (docs/features/upload-limits): the API checks
+  # uploads and endpoint submissions, the worker checks archive entries and
+  # every document before parsing, and the ingestor caps S3 downloads.
+  UPLOAD_MAX_FILE_BYTES: "{{ include "ragnerock.number" .Values.uploads.maxFileBytes }}"
+  UPLOAD_MAX_FILE_PAGES: "{{ if .Values.uploads.maxFilePages }}{{ include "ragnerock.number" .Values.uploads.maxFilePages }}{{ end }}"
+  UPLOAD_WARN_RATIO: "{{ .Values.uploads.warnRatio }}"
+  # Usage quotas (docs/features/usage-quotas): the API, worker and harness
+  # control check and record them; the page defaults apply to workspaces
+  # that set no page limit of their own.
+  USAGE_DAILY_PAGE_LIMIT_DEFAULT: "{{ if .Values.usageQuotas.dailyPageLimitDefault }}{{ include "ragnerock.number" .Values.usageQuotas.dailyPageLimitDefault }}{{ end }}"
+  USAGE_MONTHLY_PAGE_LIMIT_DEFAULT: "{{ if .Values.usageQuotas.monthlyPageLimitDefault }}{{ include "ragnerock.number" .Values.usageQuotas.monthlyPageLimitDefault }}{{ end }}"
+  USAGE_QUOTA_CACHE_SECONDS: "{{ include "ragnerock.number" .Values.usageQuotas.cacheSeconds }}"
+  USAGE_QUOTA_WARN_RATIO: "{{ .Values.usageQuotas.warnRatio }}"
+  USAGE_COUNTER_RETENTION_DAYS: "{{ include "ragnerock.number" .Values.usageQuotas.counterRetentionDays }}"
+  # Error-rate alerts (docs/features/alerts), evaluated by the API.
+  ALERT_RULES_MAX_PER_ACCOUNT: "{{ include "ragnerock.number" .Values.alerts.maxRulesPerAccount }}"
+  ALERT_WEBHOOKS_ALLOW_PRIVATE: "{{ .Values.alerts.allowPrivateWebhooks }}"
   # Leftover subtask checkpoints and unused saved parses, both deleted by the
   # maintenance pass once they have been unused this long.
   SUBTASK_CHECKPOINT_ORPHAN_GRACE_HOURS: "{{ include "ragnerock.number" .Values.runs.checkpointOrphanGraceHours }}"
@@ -295,6 +317,18 @@ data:
   DECORATOR_MAX_LEAF_CALLS: "{{ include "ragnerock.number" .Values.decorators.maxLeafCalls }}"
   DECORATOR_RENDER_MAX_CHARS: "{{ include "ragnerock.number" .Values.decorators.renderMaxChars }}"
   DECORATOR_CHECK_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.decorators.checkTimeoutSeconds }}"
+  # Rules (built-in checks on a task's results): the bounds on what a user can
+  # save, read by core validation (API) and the worker's in-process
+  # evaluation. Every core-running service carries them for settings parity
+  # as it does in Terraform.
+  RULES_MAX_PER_DECORATOR: "{{ include "ragnerock.number" .Values.rules.maxPerDecorator }}"
+  RULES_MAX_CONDITION_LEAVES: "{{ include "ragnerock.number" .Values.rules.maxConditionLeaves }}"
+  RULES_MAX_CONDITION_DEPTH: "{{ include "ragnerock.number" .Values.rules.maxConditionDepth }}"
+  RULES_PATTERN_MAX_CHARS: "{{ include "ragnerock.number" .Values.rules.patternMaxChars }}"
+  RULES_MAX_TERMS: "{{ include "ragnerock.number" .Values.rules.maxTerms }}"
+  RULES_TERM_MAX_CHARS: "{{ include "ragnerock.number" .Values.rules.termMaxChars }}"
+  RULES_FUZZY_MAX_QUOTE_CHARS: "{{ include "ragnerock.number" .Values.rules.fuzzyMaxQuoteChars }}"
+  RULES_FUZZY_MAX_WINDOWS: "{{ include "ragnerock.number" .Values.rules.fuzzyMaxWindows }}"
   # Live-log buffer trim bounds. Only the API and audit-service write to the
   # buffer, but they read the bounds through core.settings, and every
   # core-running service carries them for settings parity as it does in
@@ -417,6 +451,9 @@ data:
   EMBEDDING_DOCUMENT_TEST_MAX_ITEMS: "{{ include "ragnerock.number" .Values.api.embeddingDocumentTestMaxItems }}"
   EMBEDDING_DOCUMENT_TEST_MAX_ITEMS_ENTIRE: "{{ include "ragnerock.number" .Values.api.embeddingDocumentTestMaxItemsEntire }}"
   EMBEDDING_DOCUMENT_TEST_PAGE_SIZE: "{{ include "ragnerock.number" .Values.api.embeddingDocumentTestPageSize }}"
+  # Page size when trying rules on a multi-annotation task's stored result
+  # gathers the item's other results back into its whole output.
+  RULES_TEST_SIBLINGS_PAGE_SIZE: "{{ include "ragnerock.number" .Values.api.rulesTestSiblingsPageSize }}"
   EMBEDDING_DOCUMENT_TEST_EXCERPT_CHARS: "{{ include "ragnerock.number" .Values.api.embeddingDocumentTestExcerptChars }}"
   EMBEDDING_DOCUMENT_TEST_MAX_BYTES: "{{ include "ragnerock.number" .Values.api.embeddingDocumentTestMaxBytes }}"
   EMBEDDING_DOCUMENT_TEST_MAX_CONCURRENT_PER_ACCOUNT: "{{ include "ragnerock.number" .Values.api.embeddingDocumentTestMaxConcurrentPerAccount }}"
@@ -524,6 +561,8 @@ data:
   CODE_TASK_MAX_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.limits.codeTask.maxTimeoutSeconds }}"
   CODE_TASK_MAX_TIMEOUT_SECONDS_SHEET: "{{ include "ragnerock.number" .Values.limits.codeTask.maxTimeoutSecondsSheet }}"
   CODE_TASK_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.limits.codeTask.timeoutSeconds }}"
+  CODE_EXECUTION_LOG_STREAM_MAX_CHARS: "{{ include "ragnerock.number" .Values.limits.codeTask.executionLogStreamMaxChars }}"
+  CODE_TASK_ROW_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.limits.codeTask.rowTimeoutSeconds }}"
   # Auto mode (the notebook's try-until-it-matches loop, and the workbench's)
   # — API-only: the workers never drive a session. The caps bound one
   # session, and the API enforces them.
@@ -593,6 +632,7 @@ data:
   RATE_LIMIT_DOCUMENT_UPLOAD_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.documentUploadPerMinute }}"
   RATE_LIMIT_SEARCH_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.searchPerMinute }}"
   RATE_LIMIT_SEARCH_REGEX_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.searchRegexPerMinute }}"
+  RATE_LIMIT_SEARCH_RERANK_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.searchRerankPerMinute }}"
   RATE_LIMIT_INGEST_TRIGGER_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.ingestTriggerPerMinute }}"
   RATE_LIMIT_DEBUG_TOOLS_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.debugToolsPerMinute }}"
   RATE_LIMIT_TOOL_PROBES_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.toolProbesPerMinute }}"
@@ -607,8 +647,10 @@ data:
   RATE_LIMIT_DEBUG_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.debugPerMinute }}"
   RATE_LIMIT_PYDANTIC_SCHEMA_IMPORT_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.pydanticSchemaImportPerMinute }}"
   RATE_LIMIT_METRICS_SCRAPE_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.metricsScrapePerMinute }}"
+  RATE_LIMIT_PLATFORM_METRICS_PER_MINUTE: "{{ include "ragnerock.number" .Values.platformMetrics.rateLimitPerMinute }}"
   RATE_LIMIT_CHANGE_REQUEST_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.changeRequestPerMinute }}"
   RATE_LIMIT_AGENT_TEST_CONDITION_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.agentTestConditionPerMinute }}"
+  RATE_LIMIT_AGENT_TEST_RULES_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.agentTestRulesPerMinute }}"
   RATE_LIMIT_CONFIG_VALIDATE_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.configValidatePerMinute }}"
   RATE_LIMIT_EMBEDDING_DOCUMENT_TEST_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.embeddingDocumentTestPerMinute }}"
   RATE_LIMIT_ADMIN_MUTATION_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.adminMutationPerMinute }}"
@@ -626,15 +668,6 @@ data:
   RATE_LIMIT_ORCHESTRATOR_DISPATCH_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.orchestratorDispatchPerMinute }}"
   RATE_LIMIT_LIVE_LOG_STREAM_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.liveLogStreamPerMinute }}"
   RATE_LIMIT_LIVE_LOG_CLIENT_PER_MINUTE: "{{ include "ragnerock.number" .Values.rateLimits.liveLogClientPerMinute }}"
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {{ include "ragnerock.fullname" . }}-analysis-toolkit
-  labels:
-    {{- include "ragnerock.labels" . | nindent 4 }}
-data:
-  ANALYSIS_TOOLKIT_URL: http://{{ include "ragnerock.fullname" . }}-analysis-toolkit:{{ include "ragnerock.number" .Values.analysisToolkit.service.port }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -663,6 +696,54 @@ data:
   INGEST_PRIVATE_EGRESS_ALLOWLIST: "{{ .Values.ingest.privateEgressAllowlist }}"
   SQL_INGEST_ALLOW_PRIVATE_HOSTS: "{{ .Values.ingest.sqlAllowPrivateHosts }}"
   SQL_INGEST_DATABRICKS_EXTRA_HOST_SUFFIXES: {{ .Values.ingest.sqlDatabricksExtraHostSuffixes | toJson | quote }}
+---
+# Settings only parser-service reads.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-parser-service-config
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  BLOCKING_THREADPOOL_SIZE: "{{ include "ragnerock.number" .Values.parserService.blockingThreadpoolSize }}"
+  MAX_CONCURRENT_PARSES: "{{ include "ragnerock.number" .Values.parserService.maxConcurrentParses }}"
+  PARSE_DEADLINE_SECONDS: "{{ include "ragnerock.number" .Values.parserService.parseDeadlineSeconds }}"
+---
+# How the workers and the API reach parser-service. The chart runs no service
+# auth; the pods are protected by network isolation.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-parser-service
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  PARSER_SERVICE_URL: http://{{ include "ragnerock.fullname" . }}-parser-service:{{ include "ragnerock.number" .Values.parserService.service.port }}
+  PARSER_SERVICE_AUTH_ENABLED: "false"
+  PARSER_SERVICE_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-parser-service:{{ include "ragnerock.number" .Values.parserService.service.port }}"
+---
+# How the two workers parse documents through parser-service.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-parser-client
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+data:
+  # parser-service's own deadline; the client's read timeout is it plus the margin.
+  PARSER_SERVICE_PARSE_DEADLINE_SECONDS: "{{ include "ragnerock.number" .Values.parserService.parseDeadlineSeconds }}"
+  PARSER_SERVICE_HTTP_TIMEOUT_MARGIN_SECONDS: "{{ include "ragnerock.number" .Values.parserService.clientTimeoutMarginSeconds }}"
+  PARSER_SERVICE_ADMISSION_RETRY_BUDGET_SECONDS: "{{ include "ragnerock.number" .Values.parserService.clientAdmissionRetryBudgetSeconds }}"
+  # One connection per parse a worker can run at once: a run start, a phase
+  # advance of a run still parsing, or a sample parse.
+  PARSER_SERVICE_MAX_CONNECTIONS: "{{ add .Values.limits.concurrency.maxConcurrentRuns .Values.workers.maxConcurrentRunAdvances .Values.limits.concurrency.maxConcurrentSampleParses }}"
+  PDF_EXTRACT_IMAGES: "{{ .Values.llm.pdfExtractImages }}"
+  # The guardrails around each external parse, which the workers keep: saved
+  # parses and summaries, the attempt cap, and the stop check
+  # (docs/design-docs/parse-cost-guardrails.md).
+  PARSE_CACHE_ENABLED: {{ .Values.parsing.cacheEnabled | quote }}
+  PARSE_MAX_ATTEMPTS: "{{ include "ragnerock.number" .Values.parsing.maxAttempts }}"
+  PARSE_STOP_CHECK_INTERVAL_SECONDS: "{{ include "ragnerock.number" .Values.parsing.stopCheckIntervalSeconds }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -706,6 +787,7 @@ data:
   BIGQUERY_JOB_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.dbService.bigqueryJobTimeoutSeconds }}"
   DATA_ORPHAN_SWEEP_MAX_BATCHES_PER_ACCOUNT: "{{ include "ragnerock.number" .Values.dbService.dataOrphanSweepMaxBatchesPerAccount }}"
   UPDATED_AT_BACKFILL_BATCH_SIZE: "{{ include "ragnerock.number" .Values.dbService.updatedAtBackfillBatchSize }}"
+  SEARCH_TSV_BACKFILL_BATCH_SIZE: "{{ include "ragnerock.number" .Values.dbService.searchTsvBackfillBatchSize }}"
   QUERY_WORK_MEM: {{ .Values.dbService.queryWorkMem | quote }}
   QUERY_DEFAULT_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.dbService.queryDefaultTimeoutSeconds }}"
   KEYWORD_SEARCH_REGEX_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.dbService.keywordSearchRegexTimeoutSeconds }}"
@@ -751,6 +833,7 @@ metadata:
 data:
   OTEL_ENABLED: "{{ .Values.otel.enabled }}"
   OTEL_SDK_DISABLED: {{ eq (.Values.otel.enabled | toString) "true" | not | toString | quote }}
+  OTEL_JOB_METRICS_ENABLED: "{{ .Values.otel.jobMetrics }}"
   OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.otel.exporterEndpoint }}
   OTEL_EXPORTER_OTLP_INSECURE: "{{ .Values.otel.exporterInsecure }}"
   OTEL_EXPORTER_OTLP_PROTOCOL: {{ .Values.otel.exporterProtocol }}
@@ -775,6 +858,8 @@ metadata:
 data:
   WORKER_URL: http://{{ include "ragnerock.fullname" . }}-worker:{{ include "ragnerock.number" .Values.worker.service.port }}
 ---
+# The deployment's PDF parser, read by parser-service, the only service that
+# sends documents to it.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -782,23 +867,22 @@ metadata:
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
+{{- $managed := include "ragnerock.managedParserBackends" . | splitList "," }}
   PDF_PARSER_BACKEND: "{{ .Values.llm.pdfParserBackend }}"
-  PDF_EXTRACT_IMAGES: "{{ .Values.llm.pdfExtractImages }}"
-  PARSE_CACHE_ENABLED: {{ .Values.parsing.cacheEnabled | quote }}
-  PARSE_MAX_ATTEMPTS: "{{ include "ragnerock.number" .Values.parsing.maxAttempts }}"
-  PARSE_STOP_CHECK_INTERVAL_SECONDS: "{{ include "ragnerock.number" .Values.parsing.stopCheckIntervalSeconds }}"
-{{- if eq .Values.llm.pdfParserBackend "mistral" }}
+  PDF_PARSER_ADDITIONAL_MANAGED_BACKENDS: {{ .Values.llm.additionalManagedParserBackends | default list | toJson | quote }}
+  PDF_PARSER_OWN_BACKENDS: {{ .Values.llm.ownParserBackends | default list | toJson | quote }}
+  # An account's own Mistral key retries the same way, so these ship whether
+  # or not Mistral is offered on the deployment's key.
   # Without a retry config the Mistral SDK does not retry, so one 429 from the
-  # OCR endpoint fails the whole document job.
+  # OCR endpoint fails the whole document.
   MISTRAL_RETRY_INITIAL_INTERVAL_MS: "{{ include "ragnerock.number" .Values.llm.mistral.retry.initialIntervalMS }}"
   MISTRAL_RETRY_MAX_INTERVAL_MS: "{{ include "ragnerock.number" .Values.llm.mistral.retry.maxIntervalMS }}"
   MISTRAL_RETRY_EXPONENT: "{{ include "ragnerock.number" .Values.llm.mistral.retry.exponent }}"
   MISTRAL_RETRY_MAX_ELAPSED_MS: "{{ include "ragnerock.number" .Values.llm.mistral.retry.maxElapsedMS }}"
-{{- end }}
-{{- if eq .Values.llm.pdfParserBackend "azure" }}
+{{- if has "azure" $managed }}
   AZURE_DOC_INTEL_ENDPOINT: "{{ .Values.llm.azure.endpoint }}"
 {{- end }}
-{{- if eq .Values.llm.pdfParserBackend "textract" }}
+{{- if has "textract" $managed }}
   AWS_TEXTRACT_REGION: "{{ .Values.llm.textract.region }}"
   AWS_ACCESS_KEY_ID: "{{ .Values.llm.textract.accessKeyId }}"
   TEXTRACT_MAX_CONCURRENCY: "{{ include "ragnerock.number" .Values.llm.textract.maxConcurrency }}"
@@ -948,10 +1032,6 @@ metadata:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
   SUBTASK_WORKER_URL: http://{{ include "ragnerock.fullname" . }}-subtask-worker:{{ include "ragnerock.number" .Values.subtaskWorker.service.port }}
-  PDF_PARSER_BACKEND: "{{ .Values.llm.pdfParserBackend }}"
-{{- if eq .Values.llm.pdfParserBackend "azure" }}
-  AZURE_DOC_INTEL_ENDPOINT: "{{ .Values.llm.azure.endpoint }}"
-{{- end }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -1144,8 +1224,12 @@ data:
   MAX_CONCURRENT_SAMPLE_PARSES: "{{ include "ragnerock.number" .Values.limits.concurrency.maxConcurrentSampleParses }}"
   EMBEDDING_BATCH_SIZE: "{{ include "ragnerock.number" .Values.limits.batches.embedding }}"
   ANNOTATION_BATCH_SIZE: "{{ include "ragnerock.number" .Values.limits.batches.annotation }}"
+  CODE_ROW_SUBTASK_SIZE_MAX: "{{ include "ragnerock.number" .Values.limits.batches.codeRowSubtaskSizeMax }}"
+  CODE_ROW_TARGET_SUBTASKS: "{{ include "ragnerock.number" .Values.limits.batches.codeRowTargetSubtasks }}"
+  CODE_ROW_SUBTASK_BUDGET_SECONDS: "{{ include "ragnerock.number" .Values.limits.batches.codeRowSubtaskBudgetSeconds }}"
   TOOL_TASK_SUBTASK_SIZE: "{{ include "ragnerock.number" .Values.limits.batches.toolTaskSubtask }}"
   ROW_SUBTASK_GRAIN_ENABLED: "{{ .Values.limits.batches.rowSubtaskGrainEnabled }}"
+  CODE_ROW_SUBTASK_GRAIN_ENABLED: "{{ .Values.limits.batches.codeRowSubtaskGrainEnabled }}"
   SUBTASK_TOOL_ELAPSED_CEILING_SECONDS: "{{ include "ragnerock.number" .Values.limits.batches.subtaskToolElapsedCeilingSeconds }}"
   MEMORY_WRITER_PHASE_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.memory.writerPhaseTimeoutSeconds }}"
   SUBTASK_MAX_ATTEMPTS: "{{ include "ragnerock.number" .Values.limits.subtask.maxAttempts }}"
@@ -1159,6 +1243,8 @@ data:
   CODE_TASK_MAX_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.limits.codeTask.maxTimeoutSeconds }}"
   CODE_TASK_MAX_TIMEOUT_SECONDS_SHEET: "{{ include "ragnerock.number" .Values.limits.codeTask.maxTimeoutSecondsSheet }}"
   CODE_TASK_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.limits.codeTask.timeoutSeconds }}"
+  CODE_EXECUTION_LOG_STREAM_MAX_CHARS: "{{ include "ragnerock.number" .Values.limits.codeTask.executionLogStreamMaxChars }}"
+  CODE_TASK_ROW_TIMEOUT_SECONDS: "{{ include "ragnerock.number" .Values.limits.codeTask.rowTimeoutSeconds }}"
 ---
 # Runtime geometry shared by the worker and subtask-worker: delivery-capacity
 # shedding, phase-advance concurrency, DB pool/threadpool sizing, and the
@@ -1174,6 +1260,15 @@ data:
   CAPACITY_WAIT_SECONDS: "{{ include "ragnerock.number" .Values.workers.capacityWaitSeconds }}"
   MAX_CONCURRENT_RUN_ADVANCES: "{{ include "ragnerock.number" .Values.workers.maxConcurrentRunAdvances }}"
   MAX_CHUNK_TOKENS: "{{ include "ragnerock.number" .Values.workers.maxChunkTokens }}"
+  MIN_CHUNK_TOKENS: "{{ include "ragnerock.number" .Values.workers.minChunkTokens }}"
+  CHUNK_LEADIN_MAX_TOKENS: "{{ include "ragnerock.number" .Values.workers.chunkLeadinMaxTokens }}"
+  CHUNK_FURNITURE_MIN_PAGES: "{{ include "ragnerock.number" .Values.workers.chunkFurnitureMinPages }}"
+  CHUNK_FURNITURE_MIN_SHARE: "{{ include "ragnerock.number" .Values.workers.chunkFurnitureMinShare }}"
+  CHUNK_CONTEXT_CONCURRENCY: "{{ include "ragnerock.number" .Values.workers.chunkContextConcurrency }}"
+  CHUNK_CONTEXT_MAX_ATTEMPTS: "{{ include "ragnerock.number" .Values.workers.chunkContextMaxAttempts }}"
+  CHUNK_CONTEXT_PHASE_BUDGET_SECONDS: "{{ include "ragnerock.number" .Values.workers.chunkContextPhaseBudgetSeconds }}"
+  CHUNK_CONTEXT_MAX_WINDOWS_PER_DOCUMENT: "{{ include "ragnerock.number" .Values.workers.chunkContextMaxWindowsPerDocument }}"
+  CHUNK_CONTEXT_CALL_MAX_ATTEMPTS: "{{ include "ragnerock.number" .Values.workers.chunkContextCallMaxAttempts }}"
   CHUNK_THREADPOOL_SIZE: "{{ include "ragnerock.number" .Values.workers.chunkThreadpoolSize }}"
   # Pool sizing mirrors the worker's own in-process derivation, through the
   # same helper the connection budget sums -- so the number a worker receives
@@ -1238,7 +1333,6 @@ metadata:
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
 data:
-  ANALYSIS_TOOLKIT_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-analysis-toolkit:{{ include "ragnerock.number" .Values.analysisToolkit.service.port }}"
   API_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-api:{{ include "ragnerock.number" .Values.api.service.port }}"
   DATA_INGESTOR_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-data-ingestor:{{ include "ragnerock.number" .Values.dataIngestor.service.port }}"
   DB_SERVICE_AUDIENCE: "http://{{ include "ragnerock.fullname" . }}-db-service:{{ include "ragnerock.number" .Values.dbService.service.port }}"
@@ -1303,21 +1397,6 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "ragnerock.fullname" . }}-analysis
-  labels:
-    {{- include "ragnerock.labels" . | nindent 4 }}
-data:
-  DATAFRAME_OP_TIMEOUT: "{{ include "ragnerock.number" .Values.analysis.dataframeOpTimeout }}"
-  MAX_COLUMNS: "{{ include "ragnerock.number" .Values.analysis.maxColumns }}"
-  MAX_ROWS: "{{ include "ragnerock.number" .Values.analysis.maxRows }}"
-  MODEL_FIT_TIMEOUT: "{{ include "ragnerock.number" .Values.analysis.modelFitTimeoutSeconds }}"
-  PLOT_DPI: "{{ include "ragnerock.number" .Values.analysis.plotDPI }}"
-  PLOT_MAX_FIGSIZE: "[{{ include "ragnerock.number" .Values.analysis.plotMaxFigsize.dimx }},{{ include "ragnerock.number" .Values.analysis.plotMaxFigsize.dimy }}]"
-  PLOT_TIMEOUT: "{{ include "ragnerock.number" .Values.analysis.plotTimeoutSeconds }}"
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
   name: {{ include "ragnerock.fullname" . }}-python
   labels:
     {{- include "ragnerock.labels" . | nindent 4 }}
@@ -1328,6 +1407,7 @@ data:
   # different number would size chunks the service cannot honour.
   PYTHON_SERVICE_BATCH_STARTUP_GRACE_SECONDS: "{{ include "ragnerock.number" .Values.pythonService.sandbox.batchStartupGraceSeconds }}"
   PYTHON_SERVICE_CHUNK_CONCURRENCY: "{{ include "ragnerock.number" .Values.python.chunkConcurrency }}"
+  PYTHON_SERVICE_BATCH_WALL_BUDGET_SECONDS: "{{ include "ragnerock.number" .Values.python.batchWallBudgetSeconds }}"
   PYTHON_SERVICE_HTTP_TIMEOUT_MARGIN_SECONDS: "{{ include "ragnerock.number" .Values.python.timeoutMarginSeconds }}"
   PYTHON_SERVICE_MAX_ATTEMPTS: "{{ include "ragnerock.number" .Values.python.maxAttempts }}"
   PYTHON_SERVICE_MAX_REQUEST_BYTES: "{{ include "ragnerock.number" .Values.python.maxRequestBytes }}"
@@ -1347,6 +1427,7 @@ data:
   MAX_TIMEOUT: "{{ include "ragnerock.number" .Values.pythonService.sandbox.maxTimeout }}"
   MAX_OUTPUT_BYTES: "{{ include "ragnerock.number" .Values.pythonService.sandbox.maxOutputBytes }}"
   MAX_RESULT_BYTES: "{{ include "ragnerock.number" .Values.pythonService.sandbox.maxResultBytes }}"
+  MAX_VALIDATION_ERROR_CHARS: "{{ include "ragnerock.number" .Values.pythonService.sandbox.maxValidationErrorChars }}"
   MAX_REQUEST_BYTES: "{{ include "ragnerock.number" .Values.pythonService.sandbox.maxRequestBytes }}"
   BATCH_STARTUP_GRACE_SECONDS: "{{ include "ragnerock.number" .Values.pythonService.sandbox.batchStartupGraceSeconds }}"
   MAX_STATE_BYTES: "{{ include "ragnerock.number" .Values.pythonService.sandbox.maxStateBytes }}"

@@ -65,11 +65,11 @@ spec:
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-rate-limits
             - configMapRef:
-                name: {{ include "ragnerock.fullname" . }}-analysis-toolkit
-            - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-data-ingestor
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-db-service
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-parser-service
             - configMapRef:
                 name: {{ include "ragnerock.fullname" . }}-db
             - configMapRef:
@@ -126,6 +126,10 @@ spec:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "license" "existingSecret" .Values.licenseExistingSecret) }}
             - secretRef:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "endpoints" "existingSecret" .Values.endpoints.existingSecret) }}
+{{- if or .Values.platformMetrics.scrapeToken .Values.platformMetrics.existingSecret }}
+            - secretRef:
+                name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "platform-metrics" "existingSecret" .Values.platformMetrics.existingSecret) }}
+{{- end }}
             - secretRef:
                 name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "auth" "existingSecret" .Values.auth.existingSecret) }}
 {{- if or .Values.projectTools.connectors.clients .Values.projectTools.connectors.existingSecret }}
@@ -136,6 +140,14 @@ spec:
 {{- end }}
           env:
             {{- include "ragnerock.otelEnv" (dict "context" . "service" "api") | nindent 12 }}
+            # Alert webhooks' signing secrets are derived from the endpoint
+            # callbacks' master key, under a label of their own, so the two
+            # never produce the same secret.
+            - name: ALERT_WEBHOOK_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "endpoints" "existingSecret" .Values.endpoints.existingSecret) }}
+                  key: ENDPOINTS_HMAC_MASTER_KEY
             # Here rather than in the shared core ConfigMap: only the API, worker,
             # and subtask-worker act on it, so a mistyped name stops only them.
             - name: TOOL_CONNECTORS_DISABLED

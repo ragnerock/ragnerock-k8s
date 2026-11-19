@@ -1,0 +1,140 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-parser-service
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+    {{- include "ragnerock.selectorLabels" (dict "context" . "component" "parser-service") | nindent 4 }}
+{{- with (include "ragnerock.annotations" (dict "context" . "config" .Values.parserService)) }}
+  annotations:
+    {{- . | nindent 4 }}
+{{- end }}
+spec:
+{{- if not .Values.parserService.autoscaling.enabled }}
+  replicas: {{ .Values.parserService.replicaCount }}
+{{- end }}
+  revisionHistoryLimit: {{ .Values.global.revisionHistoryLimit }}
+  selector:
+    matchLabels:
+      {{- include "ragnerock.selectorLabels" (dict "context" . "component" "parser-service") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "ragnerock.labels" . | nindent 8 }}
+        {{- include "ragnerock.selectorLabels" (dict "context" . "component" "parser-service") | nindent 8 }}
+    spec:
+{{- with (include "ragnerock.parserServiceAccountName" .) }}
+      serviceAccountName: {{ . }}
+{{- end }}
+{{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+{{- end }}
+{{- with .Values.parserService.tolerations | default .Values.global.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+{{- end }}
+{{- with .Values.parserService.affinity | default .Values.global.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+{{- end }}
+      terminationGracePeriodSeconds: {{ .Values.parserService.terminationGracePeriodSeconds }}
+      containers:
+        - name: parser-service
+          image: {{ include "ragnerock.image" (dict "global" .Values.global "image" .Values.parserService.image "chart" .Chart) }}
+          imagePullPolicy: {{ .Values.global.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-config
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-core
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-otel
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-parser-service-config
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-parsing
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-audience
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-queue
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-queue-relay
+            # Audit emitter knobs: parser-service audits each document it sends
+            # to an external parser (DOCUMENT_PARSE).
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-audit
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-db-conn
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-live-log
+            - configMapRef:
+                name: {{ include "ragnerock.fullname" . }}-license
+            - secretRef:
+                name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "otel" "existingSecret" .Values.otel.existingSecret) }}
+            - secretRef:
+                name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "license" "existingSecret" .Values.licenseExistingSecret) }}
+            - secretRef:
+                name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "encryption" "existingSecret" .Values.encryption.existingSecret) }}
+            # The managed PDF parsers' keys (MISTRAL_API_KEY, AZURE_DOC_INTEL_KEY).
+            - secretRef:
+                name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "llm" "existingSecret" .Values.llm.existingSecret) }}
+{{- if has "textract" (include "ragnerock.managedParserBackends" . | splitList ",") }}
+            - secretRef:
+                name: {{ include "ragnerock.secretName" (dict "context" . "suffix" "textract" "existingSecret" .Values.llm.textract.existingSecret) }}
+{{- end }}
+          env:
+            {{- include "ragnerock.otelEnv" (dict "context" . "service" "parser-service") | nindent 12 }}
+{{- with .Values.parserService.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+{{- end }}
+{{- /* The documents parser-service reads live where the worker reads them, so it takes the worker's volumes unless given its own. */}}
+{{- with .Values.parserService.volumeMounts | default .Values.worker.volumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+{{- end }}
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sleep", "{{ .Values.parserService.preStopSleepSeconds }}"]
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+{{- with .Values.parserService.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+{{- end }}
+{{- with .Values.parserService.volumes | default .Values.worker.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+{{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "ragnerock.fullname" . }}-parser-service
+  labels:
+    {{- include "ragnerock.labels" . | nindent 4 }}
+    {{- include "ragnerock.selectorLabels" (dict "context" . "component" "parser-service") | nindent 4 }}
+spec:
+  type: {{ .Values.parserService.service.type }}
+  ports:
+    - port: {{ .Values.parserService.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "ragnerock.selectorLabels" (dict "context" . "component" "parser-service") | nindent 4 }}

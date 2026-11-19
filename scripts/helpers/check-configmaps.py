@@ -8,11 +8,11 @@ import sys
 from pathlib import Path
 
 SERVICES = [
-    "analysis-toolkit",
     "api",
     "audit-service",
     "callback-delivery",
     "data-ingestor",
+    "parser-service",
     "db-service",
     "frontend",
     "model-service",

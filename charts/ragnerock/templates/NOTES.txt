@@ -7,7 +7,7 @@ Services:
   - Model Service:    {{ include "ragnerock.fullname" . }}-model-service:{{ .Values.modelService.service.port }}
   - Frontend:         {{ include "ragnerock.fullname" . }}-frontend:{{ .Values.frontend.service.port }}
   - Data Ingestor:    {{ include "ragnerock.fullname" . }}-data-ingestor:{{ .Values.dataIngestor.service.port }}
-  - Analysis Toolkit: {{ include "ragnerock.fullname" . }}-analysis-toolkit:{{ .Values.analysisToolkit.service.port }}
+  - Parser Service:   {{ include "ragnerock.fullname" . }}-parser-service:{{ .Values.parserService.service.port }}
   - DB Service:       {{ include "ragnerock.fullname" . }}-db-service:{{ .Values.dbService.service.port }}
   - Queue Service:    {{ include "ragnerock.fullname" . }}-queue-service:{{ .Values.queueService.service.port }}
 
@@ -25,4 +25,16 @@ to {{ .Values.pythonService.replicaCount }} pod(s). Extra requests get a 503 and
 operators fail once the retries run out. Raise pythonService.replicaCount or
 enable pythonService.autoscaling.
 {{- end }}
+{{- end }}
+{{- if and (has "textract" (include "ragnerock.managedParserBackends" . | splitList ",")) (not .Values.llm.textract.accessKeyId) }}
+{{- $parserAccount := include "ragnerock.parserServiceAccountName" . }}
+
+NOTE: Amazon Textract is set up without an access key, so parser-service calls
+it with its pod's own AWS identity. parser-service runs as:
+
+  {{ if $parserAccount }}service account "{{ $parserAccount }}"{{ else }}the namespace's default service account{{ end }}
+
+That identity needs textract:AnalyzeDocument, through IRSA, EKS Pod Identity or
+the node's instance role. Parsing used to run in the worker: parser-service uses
+the worker's service account unless parserService.serviceAccount names another.
 {{- end }}

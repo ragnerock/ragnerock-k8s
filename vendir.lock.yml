@@ -2,34 +2,34 @@ apiVersion: vendir.k14s.io/v1alpha1
 directories:
 - contents:
   - git:
-      commitTitle: Fix runs panel issue (#540)
-      sha: a616660351a2cc1d294fee21bf58eba2229ac336
+      commitTitle: 'FIX: Resolve failing integration tests (#551)'
+      sha: b749a91fc8698545d3295f7bae158e0950ae10f4
       tags:
-      - v2026.11.12
+      - v2026.11.18
     path: .
   path: charts
 - contents:
   - git:
-      commitTitle: Fix runs panel issue (#540)
-      sha: a616660351a2cc1d294fee21bf58eba2229ac336
+      commitTitle: 'FIX: Resolve failing integration tests (#551)'
+      sha: b749a91fc8698545d3295f7bae158e0950ae10f4
       tags:
-      - v2026.11.12
+      - v2026.11.18
     path: .
   path: scripts
 - contents:
   - git:
-      commitTitle: Fix runs panel issue (#540)
-      sha: a616660351a2cc1d294fee21bf58eba2229ac336
+      commitTitle: 'FIX: Resolve failing integration tests (#551)'
+      sha: b749a91fc8698545d3295f7bae158e0950ae10f4
       tags:
-      - v2026.11.12
+      - v2026.11.18
     path: .
   path: .github/workflows
 - contents:
   - git:
-      commitTitle: Fix runs panel issue (#540)
-      sha: a616660351a2cc1d294fee21bf58eba2229ac336
+      commitTitle: 'FIX: Resolve failing integration tests (#551)'
+      sha: b749a91fc8698545d3295f7bae158e0950ae10f4
       tags:
-      - v2026.11.12
+      - v2026.11.18
     path: .
   path: .vendir-staging/root
 kind: LockConfig

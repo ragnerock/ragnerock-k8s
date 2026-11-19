@@ -102,7 +102,7 @@ Usage: {{ include "ragnerock.webFetchBlocklist" . }}
 */}}
 {{- define "ragnerock.webFetchBlocklist" -}}
   {{- $fullname := include "ragnerock.fullname" . -}}
-  {{- $services := list "api" "worker" "subtask-worker" "model-service" "analysis-toolkit" "python-service" "frontend" "data-ingestor" "callback-delivery" "db-service" "audit-service" "queue-service" -}}
+  {{- $services := list "api" "worker" "subtask-worker" "model-service" "python-service" "frontend" "data-ingestor" "parser-service" "callback-delivery" "db-service" "audit-service" "queue-service" -}}
   {{- $hosts := list -}}
   {{- /* Every spelling an in-cluster name has: the bare Service name, the
   namespace-qualified forms, and the cluster FQDN. The blocklist
@@ -140,6 +140,39 @@ Usage: {{ include "ragnerock.queueDispatchAllowedHosts" . }}
   {{- end -}}
   {{- $hosts = concat $hosts (.Values.queueService.extraAllowedHosts | default list) -}}
   {{- toJson $hosts -}}
+{{- end }}
+
+{{/*
+The PDF parsers offered on the deployment's own credentials: the default
+(`llm.pdfParserBackend`, when set) and `llm.additionalManagedParserBackends`,
+comma-separated. parser-service builds each at startup, so each needs its
+credentials shipped.
+Usage: {{ $managed := include "ragnerock.managedParserBackends" . | splitList "," }}
+*/}}
+{{- define "ragnerock.managedParserBackends" -}}
+  {{- $backends := list -}}
+  {{- if .Values.llm.pdfParserBackend -}}
+    {{- $backends = append $backends .Values.llm.pdfParserBackend -}}
+  {{- end -}}
+  {{- $backends = concat $backends (.Values.llm.additionalManagedParserBackends | default list) -}}
+  {{- $backends | uniq | join "," -}}
+{{- end }}
+
+{{/*
+The service account parser-service runs as. Its own when
+`parserService.serviceAccount` names or creates one; otherwise the worker's,
+which is the identity documents were parsed under before parsing moved out of
+the worker (an IRSA or workload-identity role for Textract keeps working).
+Empty when neither names one: the namespace's default account.
+Usage: {{ include "ragnerock.parserServiceAccountName" . }}
+*/}}
+{{- define "ragnerock.parserServiceAccountName" -}}
+  {{- $own := .Values.parserService.serviceAccount -}}
+  {{- if or $own.name $own.create -}}
+{{- include "ragnerock.serviceAccountName" (dict "context" . "config" $own "component" "parser-service") -}}
+  {{- else -}}
+{{- include "ragnerock.serviceAccountName" (dict "context" . "config" .Values.worker.serviceAccount "component" "worker") -}}
+  {{- end -}}
 {{- end }}
 
 {{/*

@@ -173,3 +173,9 @@ What to expect during the upgrade:
 - queue-service holds up to 10 database connections, and 20 for the moment a rolling update runs two pods. If you set `database.maxConnections`, the chart counts them.
 - The chart now creates a NetworkPolicy that lets only model-service and the data-ingestor reach queue-service's relay port. It has no effect unless your cluster's CNI enforces NetworkPolicy. Set `queueService.networkPolicy.enabled` to `false` to leave it out.
 - queue-service calls the API's scheduled-run and maintenance routes without a credential, as the CronJob and the API's in-memory scheduler did before it. If you turned on `CALLBACK_AUTH_ENABLED` through `api.extraEnv`, those calls are refused, so turn it back off.
+
+## Upgrading from a chart that ran the analysis toolkit
+
+The `analysis-toolkit` Deployment is gone. Notebook analysis (exploring a dataframe, charts, model fits) now runs through the code tool in python-service, so nothing takes its place. On upgrade, Helm removes the Deployment, its Service and ConfigMaps, and its HorizontalPodAutoscaler and service account if you had turned those on.
+
+The chart no longer reads `analysisToolkit.*` or `analysis.*`. Leaving them in your values file does nothing, and you can delete them. If you mirror images into your own registry, you no longer need the `analysis-toolkit` image.

@@ -72,28 +72,31 @@ llm:
       maxIntervalMS: 60000
       # -- Growth factor applied to the backoff after each attempt
       exponent: 2.0
-      # -- Total retry budget for one OCR call, matching the Document AI
-      # backend's 10-minute deadline
+      # -- Total retry budget for one OCR call (10 minutes)
       maxElapsedMS: 600000
   azure:
     apiKey: ""
     endpoint: ""
   textract:
-    # -- AWS region the Textract API is called in. Required when `pdfParserBackend` is `textract`.
+    # -- AWS region the Textract API is called in. Required when Textract is a managed parser.
     region: ""
-    # -- AWS access key ID. Required when `pdfParserBackend` is `textract`.
+    # -- AWS access key ID. Required when Textract is a managed parser.
     accessKeyId: ""
-    # -- AWS secret access key. Required when `pdfParserBackend` is `textract`.
+    # -- AWS secret access key. Required when Textract is a managed parser.
     secretAccessKey: ""
-    # -- Maximum concurrent Textract page requests per worker
+    # -- Maximum concurrent Textract page requests per document parse, in parser-service
     maxConcurrency: 4
     # -- Use a pre-existing secret (must provide key `AWS_SECRET_ACCESS_KEY`) instead of generating one. When set, `secretAccessKey` is ignored.
     existingSecret: ""
 
-  # -- Use a pre-existing secret (must provide keys `GEMINI_API_KEY` and `MISTRAL_API_KEY`) instead of generating one. When set, `geminiApiKey`/`mistralApiKey` are ignored.
+  # -- Use a pre-existing secret instead of generating one. It must provide `GEMINI_API_KEY`, `MISTRAL_API_KEY` and `AZURE_DOC_INTEL_KEY` (empty where unused); parser-service reads the parser keys from it. When set, the `apiKey` values above are ignored.
   existingSecret: ""
-  # -- PDF parsing backend: `mistral`, `azure`, or `textract`
+  # -- The default PDF parser, on the credentials above, for accounts that have chosen none: `mistral`, `azure`, or `textract`. Empty means no default: every account must choose a parser in Settings.
   pdfParserBackend: "mistral"
+  # -- Other PDF parsers on the credentials above that an account may choose, beside the default. Each needs its credentials set.
+  additionalManagedParserBackends: []
+  # -- PDF parsers an account may connect with its own credentials. Empty turns that off.
+  ownParserBackends: ["mistral", "azure", "textract"]
   # -- Extract embedded images from PDFs during parsing (for multimodal summarization)
   pdfExtractImages: true
 
@@ -150,6 +153,18 @@ otel:
   authHeader: ""
   # -- Use a pre-existing secret (must provide key `OTEL_EXPORTER_OTLP_HEADERS`) instead of generating one. When set, `authHeader` is ignored.
   existingSecret: ""
+  # -- Per-run and per-subtask job metrics (counts, durations, queue waits, attempts, pages, tokens). Takes effect only with `otel.enabled`
+  jobMetrics: false
+
+# -- The operator's Prometheus scrape of runs, subtasks, queues and workers,
+# served by the API at `/api/metrics/platform`
+platformMetrics:
+  # -- Bearer token a scraper must send. Empty turns the route off (it answers 404)
+  scrapeToken: ""
+  # -- Use a pre-existing secret (must provide key `METRICS_SCRAPE_TOKEN`) instead of generating one. When set, `scrapeToken` is ignored
+  existingSecret: ""
+  # -- Scrapes per client IP per minute
+  rateLimitPerMinute: 12
 
 # -- Queue names every service publishes to. Background work is queued in the
 # app database and delivered by queue-service (`queueService`).
@@ -334,6 +349,8 @@ rateLimits:
   searchPerMinute: 60
   # -- Regex-mode searches, counted on top of searchPerMinute. A regex cannot use the full-text index, so each one scans every row in scope
   searchRegexPerMinute: 10
+  # -- Reranked searches per user per minute, through the API and MCP, counted on top of the search limit. Each is a call to the account's fast model.
+  searchRerankPerMinute: 20
   ingestTriggerPerMinute: 20
   debugToolsPerMinute: 60
   # -- Tool probes (REST route test, MCP discovery preview)
@@ -363,6 +380,8 @@ rateLimits:
   # -- Per-minute rate limit for workflow change-request proposal generation
   changeRequestPerMinute: 10
   agentTestConditionPerMinute: 120
+  # -- Per-user limit on trying a task's rules (in-process, no model call)
+  agentTestRulesPerMinute: 120
   configValidatePerMinute: 20
   # -- Per-user limit on embedding document tests, each of which embeds up to thousands of a document's chunks or rows
   embeddingDocumentTestPerMinute: 4
@@ -578,6 +597,8 @@ api:
   embeddingDocumentTestMaxItemsEntire: 5000
   # -- Chunks or rows read from the data store per request while loading a document for an embedding document test
   embeddingDocumentTestPageSize: 500
+  # -- Results read per page when trying rules on one stored result of a multi-annotation task gathers its other results
+  rulesTestSiblingsPageSize: 500
   # -- Characters of a failing input's text shown when an embedding document test is asked for excerpts
   embeddingDocumentTestExcerptChars: 200
   # -- Most text one embedding document test sends, in UTF-8 bytes, whatever the item count. Kept under the model-service's request limit and Cloud Run's 32 MiB request limit
@@ -910,50 +931,6 @@ frontend:
   # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
   annotations: {}
 
-analysisToolkit:
-  replicaCount: 1
-  image:
-    name: analysis-toolkit
-    # -- Overwrites global value if set
-    tag: ""
-  service:
-    type: ClusterIP
-    port: 8080
-  # -- Deployment resoruce contraints (i.e. requests/limits)
-  resources: {}
-  # -- Optional horizontal pod autoscaler. Requires CPU/memory requests to be
-  # set under `resources` for the targeted metrics to work. When enabled,
-  # `replicaCount` is ignored (the HPA manages the replica count).
-  autoscaling:
-    enabled: false
-    minReplicas: 1
-    maxReplicas: 5
-    # -- Target average CPU utilization (% of requests). Set to null to disable.
-    targetCPUUtilizationPercentage: 80
-    # -- Target average memory utilization (% of requests). Set to null to disable.
-    targetMemoryUtilizationPercentage: 80
-  serviceAccount:
-    # -- Create a service account for this deployment's pods
-    create: false
-    # -- Service account name to use; if empty and `create` is true a name is generated
-    name: ""
-    # -- Annotations to add to the created service account (e.g. for workload identity)
-    annotations: {}
-  # -- Extra container environment variables (list of Kubernetes EnvVar specs, so
-  # `valueFrom` works). Rendered after the chart's own, so an entry here overrides
-  # a variable of the same name the chart sets
-  extraEnv: []
-  # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs)
-  volumes: []
-  # -- Container volume mounts (list of Kubernetes volumeMount specs)
-  volumeMounts: []
-  # -- Pod tolerations (overrides `global.tolerations`)
-  tolerations: []
-  # -- Pod affinity rules (overrides `global.affinity`)
-  affinity: {}
-  # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
-  annotations: {}
-
 dbService:
   replicaCount: 1
   image:
@@ -1019,6 +996,8 @@ dbService:
   dataOrphanSweepMaxBatchesPerAccount: 20
   # -- Rows per UPDATE when the updated-at backfill fills NULL updated_at on Postgres
   updatedAtBackfillBatchSize: 5000
+  # -- Chunks per UPDATE of the search-tsv backfill on Postgres data databases, which fills documentchunk.search_tsv through its trigger.
+  searchTsvBackfillBatchSize: 2000
   # -- Postgres work_mem for a document query's transaction (a number with a kB/MB/GB unit); the annotation pivot spills to disk at the cluster default
   queryWorkMem: "64MB"
   # -- Statement timeout (seconds) for a document query whose request carries none
@@ -1134,6 +1113,68 @@ dataIngestor:
     # -- Extra egress rules appended as written (a list of NetworkPolicyEgressRule), for example the namespace of an in-cluster object store or OTel collector
     extraEgress: []
 
+parserService:
+  replicaCount: 1
+  image:
+    name: parser-service
+    tag: ""
+  service:
+    type: ClusterIP
+    port: 8080
+  # -- Threads each pod runs blocking work on: blob reads, PDF splits, figure crops and synchronous vendor SDK calls. When Textract is offered it must be at least `maxConcurrentParses` x `llm.textract.maxConcurrency`, one per page request in flight
+  blockingThreadpoolSize: 64
+  # -- Parses each pod runs at once; the rest are turned away with a retryable 503. Under load one worker pod has about `limits.concurrency.maxConcurrentRuns` + `limits.concurrency.maxConcurrentSampleParses` parses open (more while runs started earlier are still parsing, up to `workers.maxConcurrentRunAdvances` more), so cover that across your parser-service replicas
+  maxConcurrentParses: 12
+  # -- How long loading and parsing one document may take, in seconds. Must exceed `llm.mistral.retry.maxElapsedMS`
+  parseDeadlineSeconds: 1200
+  # -- Slack the workers add to `parseDeadlineSeconds` when waiting on a parse
+  clientTimeoutMarginSeconds: 60
+  # -- How long a worker keeps retrying to open a parse while parser-service is busy or restarting, in seconds
+  clientAdmissionRetryBudgetSeconds: 120
+  # -- Deployment resource constraints (i.e. requests/limits). Each parse in flight holds its document and pages in memory
+  resources: {}
+  # -- Seconds a pod that is being replaced keeps serving before it is sent SIGTERM, so the Service stops sending it new parses first. Parses still open at SIGTERM are stopped, and the workers redeliver their runs (a page-by-page parse resumes from the pages it saved)
+  preStopSleepSeconds: 10
+  # -- Seconds Kubernetes waits after the pod starts terminating before killing it. Covers `preStopSleepSeconds` plus the 20 seconds the audit emitter gets to flush
+  terminationGracePeriodSeconds: 45
+  # -- Optional horizontal pod autoscaler. Requires CPU/memory requests to be
+  # set under `resources` for the targeted metrics to work. When enabled,
+  # `replicaCount` is ignored (the HPA manages the replica count).
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 5
+    # -- Target average CPU utilization (% of requests). Set to null to disable.
+    targetCPUUtilizationPercentage: 80
+    # -- Target average memory utilization (% of requests). Set to null to disable.
+    targetMemoryUtilizationPercentage: 80
+  # -- parser-service's service account. When neither `name` nor `create` is set, parser-service runs as the worker's service account, the identity PDFs were parsed under before parsing moved out of the worker, so an IRSA, Pod Identity or workload-identity role that grants Textract keeps working. Set one here to give parser-service its own identity (then grant it Textract access, and the worker's role can drop it)
+  serviceAccount:
+    # -- Create a service account for this deployment's pods
+    create: false
+    # -- Service account name to use; if empty and `create` is true a name is generated
+    name: ""
+    # -- Annotations to add to the created service account (e.g. for workload identity)
+    annotations: {}
+  # -- Extra container environment variables (list of Kubernetes EnvVar specs, so
+  # `valueFrom` works). Rendered after the chart's own, so an entry here overrides
+  # a variable of the same name the chart sets
+  extraEnv: []
+  # -- Pod volumes to mount into the deployment (list of Kubernetes volume specs).
+  # parser-service reads the documents it parses from the default blob storage
+  # (`/app/data`), the shared volume `api` and `worker` mount. Empty takes
+  # `worker.volumes`; without that volume every parse fails because the
+  # document can't be found.
+  volumes: []
+  # -- Container volume mounts (list of Kubernetes volumeMount specs). Empty takes `worker.volumeMounts`. Read-only is enough when you set your own: parser-service never writes blobs
+  volumeMounts: []
+  # -- Pod tolerations (overrides `global.tolerations`)
+  tolerations: []
+  # -- Pod affinity rules (overrides `global.affinity`)
+  affinity: {}
+  # -- Annotations added to this workload's metadata (merged with `global.annotations`; per-service keys take precedence)
+  annotations: {}
+
 migrations:
   image:
     name: migrations
@@ -1161,6 +1202,10 @@ limits:
   # bytes of request line, so 200 is about 8.2 KB, half the smallest limit in
   # the path.
   dbIdsPerRequest: 200
+  # -- Most bytes one batch-write request to db-service carries; larger writes are paged. Kept well under Cloud Run's 32 MiB request limit
+  annotationWriteBatchMaxBytes: 16000000
+  # -- Most annotations one batch-write request to db-service carries; larger writes are paged. Must stay under db-service's own batch limit (10,000)
+  annotationWriteBatchMaxItems: 1000
   # -- Functions one workflow node may require its agent to call before it answers. Each can cost a forced model call per target, so the cap bounds that cost
   requiredFunctionsPerNode: 3
   # -- Most inbox notifications one notification output may create per subtask. The rest collapse into a single summary per recipient, so a row-scoped source over a large sheet cannot flood anyone's inbox
@@ -1181,11 +1226,19 @@ limits:
   batches:
     embedding: 100
     annotation: 50
+    # -- Most rows one Row-scope code subtask holds; at most ITEM_OUTCOMES_MAX_PER_SUBTASK (1,000)
+    codeRowSubtaskSizeMax: 1000
+    # -- Fewest subtasks a Row-scope code node is spread across, so a small node still runs in parallel
+    codeRowTargetSubtasks: 16
+    # -- Seconds a Row-scope code subtask's worst case (every row at its time limit, across its request lanes) may take; must stay under the 1800s dispatch deadline
+    codeRowSubtaskBudgetSeconds: 1500
     # -- Items per annotation subtask when the operator carries tools
     toolTaskSubtask: 10
     # -- Size ROW subtasks from settings rather than from the operator's
     # batch_size (which is rows per LLM call, not rows per subtask)
     rowSubtaskGrainEnabled: true
+    # -- Size Row-scope code subtasks by their worst case rather than the LLM grain (code-task-performance §6.1); false is the revert path
+    codeRowSubtaskGrainEnabled: true
     # -- Ceiling on the elapsed user-tool time one subtask may spend
     subtaskToolElapsedCeilingSeconds: 900
   subtask:
@@ -1209,6 +1262,10 @@ limits:
   codeTask:
     # -- Wall-clock ceiling for a code operator's execution, in seconds
     timeoutSeconds: 30
+    # -- How much of one code execution's stdout and stderr the execution log stored with its subtask keeps, in characters; the CODE_EXECUTION audit event keeps the streams whole
+    executionLogStreamMaxChars: 8000
+    # -- Default per-row time limit for a Row-scope code task that declares none, in seconds (code-task-performance §6.1). A Row-scope subtask is sized by its worst case, every row at its limit, so Row scope gets a shorter default than code_task_timeout_seconds
+    rowTimeoutSeconds: 5
     # -- Largest time limit an element-scope (Row/Page/Paragraph/Sentence) code operator may declare, in seconds
     maxTimeoutSeconds: 30
     # -- Largest time limit a Sheet- or Document-scope code operator may declare, in seconds
@@ -1362,17 +1419,6 @@ ingest:
   # -- The most linked files one web crawl may fetch
   webScrapeMaxLinkedFiles: 500
 
-analysis:
-  dataframeOpTimeout: 60
-  maxColumns: 500
-  maxRows: 50000
-  modelFitTimeoutSeconds: 120
-  plotDPI: 150
-  plotMaxFigsize: 
-    dimx: 12.0
-    dimy: 16.0
-  plotTimeoutSeconds: 60
-
 loop:
   maxIterations: 10
   # -- Tool-call iterations an annotation operator's agent may take before it is cut off
@@ -1424,13 +1470,8 @@ notebook:
   # -- The longest a platform read tool waits in a notebook turn (a workflow job's), in seconds
   platformToolsMaxWaitSeconds: 60
 
-# -- Semantic search over document embeddings, and how the agents' search
-# tool runs the queries of one call.
+# -- How the agents' search tool runs the queries of one call.
 search:
-  # -- Minimum cosine similarity for a semantic-search hit. The right value
-  # depends on the embedding model in use: raise it if results look loose,
-  # lower it if a query that should obviously match returns nothing
-  similarityThreshold: 0.7
   # -- Queries of one document-search tool call that run at once. Each holds
   # its own short database session for the length of its query, so this also
   # caps the pooled connections one query list can draw.
@@ -1467,6 +1508,16 @@ memory:
   hookInputMaxChars: 48000
   # -- Cost-weighted token budget of one memory subagent run
   hookTurnTokenBudget: 400000
+  # -- Tokens of a document's first page that System memory's table facts reads before each page, with the document's name.
+  tableFactsHeadTokens: 800
+  # -- The most facts System memory's table facts keeps from one page; the rest are dropped and counted.
+  tableFactsMaxPerPage: 400
+  # -- Output token budget of one table facts page call (thinking included on Gemini 3).
+  tableFactsMaxOutputTokens: 16384
+  # -- Pages per table facts subtask: long-output calls, sized to fit one delivery and the memory write phase.
+  tableFactsSubtaskPages: 8
+  # -- The share of a document's pages a run estimate assumes hold a numeric table, for System memory's table facts.
+  tableFactsPageFraction: 0.3
   # -- Seconds one subtask's memory writer phase may take; writes still running are dropped and counted
   writerPhaseTimeoutSeconds: 300
 
@@ -1570,12 +1621,52 @@ runs:
   maxItems: 250000
   # -- The largest item limit a project may set
   maxItemsCeiling: 5000000
+  # -- Whether the notebook's search reranks its results with the fast model, for a project that has made no choice.
+  searchRerankProjectDefault: true
+  # -- Whether chunk context generation runs at all. Off overrides every project's choice.
+  chunkContextEnabled: true
+  # -- Whether a project that has made no choice has chunk context on.
+  chunkContextProjectDefault: true
   # -- Hours a finished subtask's leftover item checkpoints are kept before
   # the maintenance pass deletes them
   checkpointOrphanGraceHours: 24
   # -- The most subtasks one maintenance pass hands to the worker for
   # checkpoint deletion, counted separately for finished and deleted subtasks
   checkpointGcBatchSize: 200
+
+# -- Per-file upload limits. Every path into the system holds a document to
+# them: uploads, archive entries, S3 and website sync, and endpoint
+# submissions. Workspaces may set lower limits, never higher ones
+uploads:
+  # -- Largest single document, in bytes
+  maxFileBytes: 104857600
+  # -- Most pages in a single PDF. Empty for no limit
+  maxFilePages: ""
+  # -- The fraction of a limit above which the upload dialog warns
+  warnRatio: 0.8
+
+# -- Usage quotas. Token quotas are set per AI provider by each workspace;
+# page quotas default to these values for workspaces that set none
+usageQuotas:
+  # -- Pages parsed per UTC day, for a workspace that sets no limit. Empty for no limit
+  dailyPageLimitDefault: ""
+  # -- Pages parsed per UTC month, for a workspace that sets no limit. Empty for no limit
+  monthlyPageLimitDefault: ""
+  # -- Seconds a process trusts a quota reading before reading the counters again
+  cacheSeconds: 15
+  # -- The share of a quota at which admins are warned
+  warnRatio: 0.8
+  # -- Days of daily usage counters kept for the usage history
+  counterRetentionDays: 400
+
+# -- Error-rate alerts: rules a workspace's admins set, evaluated every five
+# minutes, notifying by inbox, email or webhook
+alerts:
+  # -- The most alert rules one workspace may have
+  maxRulesPerAccount: 50
+  # -- Let alert webhooks reach private addresses, for chat or paging tools
+  # inside your own network
+  allowPrivateWebhooks: false
 
 # -- Credit balance limits.
 credits:
@@ -2107,6 +2198,27 @@ decorators:
   # -- python-service timeout for a check's code, in seconds
   checkTimeoutSeconds: 30
 
+# -- Rules: built-in checks on a task's results. They run in-process in the API
+# and the workers, so every input a user controls is bounded when the task is
+# saved.
+rules:
+  # -- Rules in one task's rule set
+  maxPerDecorator: 20
+  # -- Comparisons in one rule's condition
+  maxConditionLeaves: 16
+  # -- Nesting of AND / OR / NOT in one rule's condition
+  maxConditionDepth: 4
+  # -- Length of a regex in a rule, in characters
+  patternMaxChars: 500
+  # -- Terms in a rule's word list (extra placeholder terms)
+  maxTerms: 200
+  # -- Length of one term in a rule's word list, in characters
+  termMaxChars: 200
+  # -- Longest quote matched fuzzily, in characters; longer quotes are matched exactly
+  fuzzyMaxQuoteChars: 2000
+  # -- Candidate windows scored per fuzzy quote match
+  fuzzyMaxWindows: 50
+
 # -- Tabular documents: page sizes for reads and the shape of the table
 # summaries rendered into prompts.
 tabular:
@@ -2237,6 +2349,24 @@ workers:
   maxConcurrentSpawns: 5
   # -- Preferred maximum tokens per chunk when a document is split for embedding. Chunks are also capped by the embedding provider's own limit, whichever is smaller.
   maxChunkTokens: 1500
+  # -- Text and list blocks under this many tokens merge into a neighbour in the same section when a page is chunked. Clamped to a third of the chunk budget.
+  minChunkTokens: 64
+  # -- The longest text, in tokens, that attaches to a following table or list as its caption or unit line when a page is chunked.
+  chunkLeadinMaxTokens: 48
+  # -- The fewest pages a line repeated at the top or bottom of pages must appear on to count as a running header or footer, which is left out of chunks.
+  chunkFurnitureMinPages: 3
+  # -- The share of a document's pages a repeated top or bottom line must appear on to count as a running header or footer.
+  chunkFurnitureMinShare: 0.5
+  # -- How many windows of a document's chunks are sent to the fast model at once when chunk context is generated.
+  chunkContextConcurrency: 8
+  # -- How many times one run may generate a document's chunk contexts, redeliveries included. Past it, chunks keep only their breadcrumb.
+  chunkContextMaxAttempts: 2
+  # -- Seconds a document's chunk context generation may take. Must stay under the 1800-second dispatch deadline.
+  chunkContextPhaseBudgetSeconds: 900
+  # -- How many windows of a document's chunks get context, the first in document order.
+  chunkContextMaxWindowsPerDocument: 400
+  # -- How many times one chunk context call is tried before its window keeps only the breadcrumb.
+  chunkContextCallMaxAttempts: 3
   # -- Threads for chunking parsed pages. Chunking is CPU work, so more threads than CPUs only adds contention
   chunkThreadpoolSize: 2
   # -- Minutes after a subtask's publish past which reconciliation republishes it
@@ -2421,10 +2551,12 @@ db:
 # -- Client-side knobs used by callers of python-service (API and workers).
 # The sandbox's own configuration lives under `pythonService.sandbox`.
 python:
-  # -- Upper bound on items per chunk; the count used is derived from the operator's time limit
-  batchChunkItemsMax: 200
+  # -- Most items one budgeted batch request carries; requests are bounded by their wall budget, so this bounds response size (the legacy route derives a smaller size from the time limit)
+  batchChunkItemsMax: 1000
   # -- Chunks of one batch dispatched concurrently
   chunkConcurrency: 2
+  # -- How long one budgeted python-service batch request may keep starting items, in seconds (code-task-performance §5.1). Past it python-service lets the item in flight finish and hands back the rest, which the client sends again. The client cuts it to what nests under python_service_request_timeout_seconds; 0 switches budgets off and every request uses the legacy route
+  batchWallBudgetSeconds: 120.0
   # -- Concurrent python-service requests one worker process may have in flight
   maxInflight: 4
   # -- Seconds added to the execution budget to form the HTTP read timeout
@@ -2521,6 +2653,8 @@ pythonService:
     maxOutputBytes: 1000000
     # -- Per-result size ceiling, in bytes
     maxResultBytes: 8000000
+    # -- Longest validation-error message a python-service result carries, in characters; jsonschema quotes the failing value, so one huge field could otherwise make a row's result too large to return
+    maxValidationErrorChars: 4000
     # -- Request payload ceiling enforced on receipt, in bytes
     maxRequestBytes: 48000000
     # -- Ceiling on one notebook session's serialized state, in bytes
