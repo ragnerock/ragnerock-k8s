@@ -2,34 +2,34 @@ apiVersion: vendir.k14s.io/v1alpha1
 directories:
 - contents:
   - git:
-      commitTitle: 'FIX: Resolve failing integration tests (#551)'
-      sha: b749a91fc8698545d3295f7bae158e0950ae10f4
+      commitTitle: 'MAINT: Bump Helm chart version (#552)'
+      sha: c867a73d5c731d066091f012b0b5a2a8a684b230
       tags:
-      - v2026.11.18
+      - v2026.11.18-1-gc867a73d
     path: .
   path: charts
 - contents:
   - git:
-      commitTitle: 'FIX: Resolve failing integration tests (#551)'
-      sha: b749a91fc8698545d3295f7bae158e0950ae10f4
+      commitTitle: 'MAINT: Bump Helm chart version (#552)'
+      sha: c867a73d5c731d066091f012b0b5a2a8a684b230
       tags:
-      - v2026.11.18
+      - v2026.11.18-1-gc867a73d
     path: .
   path: scripts
 - contents:
   - git:
-      commitTitle: 'FIX: Resolve failing integration tests (#551)'
-      sha: b749a91fc8698545d3295f7bae158e0950ae10f4
+      commitTitle: 'MAINT: Bump Helm chart version (#552)'
+      sha: c867a73d5c731d066091f012b0b5a2a8a684b230
       tags:
-      - v2026.11.18
+      - v2026.11.18-1-gc867a73d
     path: .
   path: .github/workflows
 - contents:
   - git:
-      commitTitle: 'FIX: Resolve failing integration tests (#551)'
-      sha: b749a91fc8698545d3295f7bae158e0950ae10f4
+      commitTitle: 'MAINT: Bump Helm chart version (#552)'
+      sha: c867a73d5c731d066091f012b0b5a2a8a684b230
       tags:
-      - v2026.11.18
+      - v2026.11.18-1-gc867a73d
     path: .
   path: .vendir-staging/root
 kind: LockConfig
